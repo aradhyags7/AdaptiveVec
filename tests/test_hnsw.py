@@ -98,5 +98,25 @@ class TestHNSW(unittest.TestCase):
         # Early exit should perform less or equal distance evaluations
         self.assertLessEqual(trace_early["total_dist_evals"], trace_full["total_dist_evals"])
 
+    def test_hubness_regulation(self):
+        index = AdaptiveHNSW(
+            dim=self.dim,
+            hubness_regulation=True,
+            hubness_penalty_weight=0.25
+        )
+        for v in self.data[:120]:
+            index.insert(v)
+            
+        self.assertEqual(len(index.in_degrees), 120)
+        # Verify in_degree max is within reasonable bound
+        max_deg = max(index.in_degrees.values())
+        avg_deg = float(np.mean(list(index.in_degrees.values())))
+        self.assertGreater(avg_deg, 0)
+        self.assertLess(max_deg, 60, f"Excessive hub degree observed: {max_deg}")
+        
+        # Verify search completes successfully
+        res = index.search(self.queries[0], k=5)
+        self.assertEqual(len(res), 5)
+
 if __name__ == "__main__":
     unittest.main()

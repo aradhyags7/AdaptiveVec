@@ -40,7 +40,9 @@ class AdaptiveHNSW:
         adaptive_search_ef: bool = True,
         early_exit: bool = True,
         stagnation_patience: int = 6,
-        stagnation_epsilon: float = 1e-4
+        stagnation_epsilon: float = 1e-4,
+        hubness_regulation: bool = True,
+        hubness_penalty_weight: float = 0.15
     ):
         self.dim = dim
         self.space = space.lower()
@@ -49,6 +51,8 @@ class AdaptiveHNSW:
         self.early_exit = early_exit
         self.stagnation_patience = stagnation_patience
         self.stagnation_epsilon = stagnation_epsilon
+        self.hubness_regulation = hubness_regulation
+        self.hubness_penalty_weight = hubness_penalty_weight
         
         self.policy = AdaptivePolicy(policy_config)
         self.dist_fn = cosine_distance if self.space == "cosine" else l2_distance
@@ -60,6 +64,7 @@ class AdaptiveHNSW:
         self.data: List[np.ndarray] = []
         self.graphs: List[Dict[int, List[int]]] = []
         self.node_levels: Dict[int, int] = {}
+        self.in_degrees: Dict[int, int] = {}
         
         # Per-node adaptive metadata
         self.node_params: Dict[int, NodeParameters] = {}
@@ -173,9 +178,18 @@ class AdaptiveHNSW:
         keep_pruned: bool = True
     ) -> List[int]:
         """
-        Algorithm 4: Relative Neighborhood Graph heuristic edge selection.
+        Algorithm 4: Relative Neighborhood Graph heuristic edge selection with
+        optional Hubness Centrality penalty to prevent topological bottlenecking.
         """
-        w_sorted = sorted(candidates, key=lambda x: x[0])
+        if self.hubness_regulation and len(self.in_degrees) > 0:
+            avg_deg = max(1.0, float(np.mean(list(self.in_degrees.values()))))
+            w_sorted = sorted(
+                candidates,
+                key=lambda x: x[0] * (1.0 + self.hubness_penalty_weight * (self.in_degrees.get(x[1], 0) / avg_deg))
+            )
+        else:
+            w_sorted = sorted(candidates, key=lambda x: x[0])
+            
         result_nodes: List[int] = []
         result_vectors: List[np.ndarray] = []
         discarded: List[Tuple[float, int]] = []
@@ -214,7 +228,14 @@ class AdaptiveHNSW:
     ) -> List[int]:
         if self.heuristic:
             return self._select_neighbors_heuristic(query, candidates, m_limit)
-        sorted_c = sorted(candidates, key=lambda x: x[0])
+        if self.hubness_regulation and len(self.in_degrees) > 0:
+            avg_deg = max(1.0, float(np.mean(list(self.in_degrees.values()))))
+            sorted_c = sorted(
+                candidates,
+                key=lambda x: x[0] * (1.0 + self.hubness_penalty_weight * (self.in_degrees.get(x[1], 0) / avg_deg))
+            )
+        else:
+            sorted_c = sorted(candidates, key=lambda x: x[0])
         return [node for _, node in sorted_c[:m_limit]]
 
     def insert(self, vector: np.ndarray) -> int:
@@ -239,6 +260,7 @@ class AdaptiveHNSW:
             params = self.policy.evaluate(density=self.policy.config.density_mean, lid=self.policy.config.lid_mean)
             self.node_params[q_idx] = params
             self.node_signals[q_idx] = {"density": self.policy.config.density_mean, "lid": self.policy.config.lid_mean, "score": 0.0}
+            self.in_degrees[q_idx] = 0
             return q_idx
         
         q_level = self._generate_random_level()
@@ -308,6 +330,12 @@ class AdaptiveHNSW:
                                     for c in self.graphs[lc][neighbor]]
                     pruned = self._select_neighbors(self.data[neighbor], n_candidates, n_limit)
                     self.graphs[lc][neighbor] = pruned
+                    
+            # Maintain layer-0 in-degree centrality
+            if lc == 0:
+                self.in_degrees[q_idx] = len(self.graphs[0].get(q_idx, []))
+                for neighbor in neighbors:
+                    self.in_degrees[neighbor] = len(self.graphs[0].get(neighbor, []))
             
             curr_ep = w[0][1] if len(w) > 0 else curr_ep
             
