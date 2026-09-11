@@ -78,7 +78,71 @@ struct Candidate {
     }
 };
 
-// Distance Functions
+// Distance Functions with AVX2 FMA SIMD acceleration
+#if defined(__AVX2__)
+#include <immintrin.h>
+
+inline float _mm256_reduce_add_ps(__m256 x) {
+    __m128 vlow  = _mm256_castps256_ps128(x);
+    __m128 vhigh = _mm256_extractf128_ps(x, 1);
+    __m128 v128  = _mm_add_ps(vlow, vhigh);
+    __m128 v64   = _mm_add_ps(v128, _mm_movehl_ps(v128, v128));
+    __m128 v32   = _mm_add_ss(v64, _mm_shuffle_ps(v64, v64, 0x55));
+    return _mm_cvtss_f32(v32);
+}
+
+inline dist_t l2_distance(const float* a, const float* b, size_t dim) {
+    size_t i = 0;
+    __m256 sum256 = _mm256_setzero_ps();
+    for (; i + 8 <= dim; i += 8) {
+        __m256 va = _mm256_loadu_ps(a + i);
+        __m256 vb = _mm256_loadu_ps(b + i);
+        __m256 diff = _mm256_sub_ps(va, vb);
+#if defined(__FMA__)
+        sum256 = _mm256_fmadd_ps(diff, diff, sum256);
+#else
+        sum256 = _mm256_add_ps(sum256, _mm256_mul_ps(diff, diff));
+#endif
+    }
+    float total = _mm256_reduce_add_ps(sum256);
+    for (; i < dim; ++i) {
+        float diff = a[i] - b[i];
+        total += diff * diff;
+    }
+    return std::sqrt(total);
+}
+
+inline dist_t cosine_distance(const float* a, const float* b, size_t dim) {
+    size_t i = 0;
+    __m256 dot256 = _mm256_setzero_ps();
+    __m256 norm_a256 = _mm256_setzero_ps();
+    __m256 norm_b256 = _mm256_setzero_ps();
+    for (; i + 8 <= dim; i += 8) {
+        __m256 va = _mm256_loadu_ps(a + i);
+        __m256 vb = _mm256_loadu_ps(b + i);
+#if defined(__FMA__)
+        dot256 = _mm256_fmadd_ps(va, vb, dot256);
+        norm_a256 = _mm256_fmadd_ps(va, va, norm_a256);
+        norm_b256 = _mm256_fmadd_ps(vb, vb, norm_b256);
+#else
+        dot256 = _mm256_add_ps(dot256, _mm256_mul_ps(va, vb));
+        norm_a256 = _mm256_add_ps(norm_a256, _mm256_mul_ps(va, va));
+        norm_b256 = _mm256_add_ps(norm_b256, _mm256_mul_ps(vb, vb));
+#endif
+    }
+    float dot = _mm256_reduce_add_ps(dot256);
+    float norm_a = _mm256_reduce_add_ps(norm_a256);
+    float norm_b = _mm256_reduce_add_ps(norm_b256);
+    for (; i < dim; ++i) {
+        dot += a[i] * b[i];
+        norm_a += a[i] * a[i];
+        norm_b += b[i] * b[i];
+    }
+    if (norm_a < 1e-9f || norm_b < 1e-9f) return 1.0f;
+    dist_t cos_sim = dot / (std::sqrt(norm_a) * std::sqrt(norm_b));
+    return std::max(0.0f, 1.0f - cos_sim);
+}
+#else
 inline dist_t l2_distance(const float* a, const float* b, size_t dim) {
     dist_t sum = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
@@ -101,6 +165,7 @@ inline dist_t cosine_distance(const float* a, const float* b, size_t dim) {
     dist_t cos_sim = dot / (std::sqrt(norm_a) * std::sqrt(norm_b));
     return std::max(0.0f, 1.0f - cos_sim);
 }
+#endif
 
 // Online Signal Estimators
 inline float estimate_mle_lid(const std::vector<dist_t>& dists, int k = 15) {
@@ -247,16 +312,20 @@ public:
         return (int)(-std::log(r) * m_l);
     }
     
-    // Algorithm 2: SEARCH-LAYER
-    std::vector<Candidate> search_layer(const float* query, const std::vector<tableint>& enter_points, int ef, int lc) const {
+    // Algorithm 2: SEARCH-LAYER with hardware cache prefetching and stagnation early exit
+    std::vector<Candidate> search_layer(const float* query, const std::vector<tableint>& enter_points, int ef, int lc, bool early_exit = true) const {
         std::unordered_set<tableint> visited(enter_points.begin(), enter_points.end());
         std::priority_queue<Candidate, std::vector<Candidate>, std::greater<Candidate>> candidates;
         std::priority_queue<Candidate, std::vector<Candidate>, std::less<Candidate>> w_furthest;
+        
+        dist_t best_dist = 1e9f;
+        int stagnation_counter = 0;
         
         for (tableint ep : enter_points) {
             dist_t d = get_distance(query, get_vector(ep));
             candidates.push({d, ep});
             w_furthest.push({d, ep});
+            if (d < best_dist) best_dist = d;
         }
         
         while (!candidates.empty()) {
@@ -266,8 +335,33 @@ public:
             
             if (curr.dist > furthest_d) break;
             
+            // Stagnation early exit for layer 0 search
+            if (early_exit && lc == 0 && (int)w_furthest.size() >= std::min(ef, 10)) {
+                if (best_dist - curr.dist > 1e-4f) {
+                    best_dist = curr.dist;
+                    stagnation_counter = 0;
+                } else {
+                    if (++stagnation_counter >= 6) {
+                        break;
+                    }
+                }
+            }
+            
             if (lc < (int)graphs.size() && curr.id < graphs[lc].size()) {
-                for (tableint neighbor : graphs[lc][curr.id]) {
+                const auto& neighbors = graphs[lc][curr.id];
+                for (size_t n_idx = 0; n_idx < neighbors.size(); ++n_idx) {
+                    tableint neighbor = neighbors[n_idx];
+                    
+                    // Hardware Cache Prefetching for next candidate vector
+                    if (n_idx + 1 < neighbors.size()) {
+                        tableint next_neighbor = neighbors[n_idx + 1];
+                        #if defined(__GNUC__) || defined(__clang__)
+                        __builtin_prefetch(get_vector(next_neighbor), 0, 3);
+                        #elif defined(_MSC_VER)
+                        _mm_prefetch((const char*)get_vector(next_neighbor), _MM_HINT_T0);
+                        #endif
+                    }
+                    
                     if (visited.find(neighbor) == visited.end()) {
                         visited.insert(neighbor);
                         dist_t d = get_distance(query, get_vector(neighbor));
