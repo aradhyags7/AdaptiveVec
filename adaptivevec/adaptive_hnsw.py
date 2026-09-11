@@ -266,6 +266,9 @@ class AdaptiveHNSW:
             density_est = self.policy.config.density_mean
             lid_est = self.policy.config.lid_mean
             
+        # Online streaming observation: updates running stats if uncalibrated
+        self.policy.observe(density=density_est, lid=lid_est)
+        
         # Evaluate Adaptive Policy for node q
         params = self.policy.evaluate(density=density_est, lid=lid_est)
         self.node_params[q_idx] = params

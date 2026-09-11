@@ -36,9 +36,53 @@ class AdaptivePolicyConfig:
     lid_mean: float = 4.0
     lid_std: float = 2.0
     
+    # Streaming Online Calibration
+    enable_streaming_calibration: bool = True
+    use_ema: bool = False
+    ema_alpha: float = 0.05
+    
     # Memory Budget Constraint (in Megabytes, optional)
     target_memory_mb: Optional[float] = None
     bytes_per_link: int = 4
+
+class StreamingStatsTracker:
+    """
+    Online single-pass running mean and variance estimator using Welford's algorithm
+    with optional exponential moving average (EMA) for non-stationary stream tracking.
+    """
+    def __init__(self, use_ema: bool = False, ema_alpha: float = 0.05):
+        self.count: int = 0
+        self.mean: float = 0.0
+        self.M2: float = 0.0
+        self.use_ema: bool = use_ema
+        self.ema_alpha: float = ema_alpha
+
+    def update(self, x: float) -> Tuple[float, float]:
+        self.count += 1
+        if self.use_ema and self.count > 10:
+            delta = x - self.mean
+            self.mean += self.ema_alpha * delta
+            self.M2 = (1.0 - self.ema_alpha) * (self.M2 + self.ema_alpha * delta * delta)
+            var = max(1e-6, self.M2)
+        else:
+            delta = x - self.mean
+            self.mean += delta / self.count
+            delta2 = x - self.mean
+            self.M2 += delta * delta2
+            var = self.M2 / (self.count - 1) if self.count > 1 else 1.0
+            
+        std = float(np.sqrt(max(1e-6, var)))
+        return self.mean, std
+
+    @property
+    def variance(self) -> float:
+        if self.count < 2:
+            return 1.0
+        return self.M2 / (self.count - 1)
+
+    @property
+    def std(self) -> float:
+        return float(np.sqrt(max(1e-6, self.variance)))
 
 @dataclass
 class NodeParameters:
@@ -56,9 +100,35 @@ class AdaptivePolicy:
     
     def __init__(self, config: Optional[AdaptivePolicyConfig] = None):
         self.config = config or AdaptivePolicyConfig()
+        self.density_tracker = StreamingStatsTracker(
+            use_ema=self.config.use_ema,
+            ema_alpha=self.config.ema_alpha
+        )
+        self.lid_tracker = StreamingStatsTracker(
+            use_ema=self.config.use_ema,
+            ema_alpha=self.config.ema_alpha
+        )
+        self.is_calibrated: bool = False
     
+    def observe(self, density: float, lid: float) -> Tuple[float, float]:
+        """
+        Observes a newly discovered candidate neighborhood and dynamically updates
+        the running mean and variance without requiring offline calibration sweeps.
+        """
+        d_mean, d_std = self.density_tracker.update(density)
+        l_mean, l_std = self.lid_tracker.update(lid)
+        
+        if self.config.enable_streaming_calibration and not self.is_calibrated:
+            if self.density_tracker.count >= 5:
+                self.config.density_mean = d_mean
+                self.config.density_std = d_std
+                self.config.lid_mean = l_mean
+                self.config.lid_std = l_std
+        return d_mean, l_mean
+
     def update_reference_stats(self, profile: Dict[str, Any]) -> None:
         """Updates baseline reference statistics from dataset profiling."""
+        self.is_calibrated = True
         if "density_mean" in profile:
             self.config.density_mean = profile["density_mean"]
         if "density_std" in profile:
