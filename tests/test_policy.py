@@ -83,5 +83,19 @@ class TestPolicy(unittest.TestCase):
         self.assertNotEqual(config.density_mean, 1.0)
         self.assertGreater(config.density_std, 0.0)
 
+    def test_layer_decoupled_scaling(self):
+        config = AdaptivePolicyConfig(m_base=16)
+        policy = AdaptivePolicy(config)
+        params = policy.evaluate(density=1.0, lid=4.0)
+        
+        # Layer 0 retains full base allocation
+        self.assertEqual(params.get_m_for_layer(0), params.m)
+        self.assertEqual(params.get_m_max_for_layer(0), params.m_max0)
+        
+        # Upper layers dynamically compress express links
+        self.assertLess(params.get_m_for_layer(2), params.m)
+        self.assertLess(params.get_m_max_for_layer(2), params.m_max0)
+        self.assertGreaterEqual(params.get_m_for_layer(5), 4)
+
 if __name__ == "__main__":
     unittest.main()

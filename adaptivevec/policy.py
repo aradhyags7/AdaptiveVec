@@ -86,7 +86,7 @@ class StreamingStatsTracker:
 
 @dataclass
 class NodeParameters:
-    """Parameters assigned to an individual vector node."""
+    """Parameters assigned to an individual vector node with layer-decoupled scaling."""
     m: int
     m_max: int
     m_max0: int
@@ -94,6 +94,20 @@ class NodeParameters:
     score: float
     lid: float
     density: float
+
+    def get_m_for_layer(self, layer: int) -> int:
+        """Dynamic edge budget scaled by layer hierarchy."""
+        if layer == 0:
+            return self.m
+        scale = max(0.5, 1.0 - 0.15 * layer)
+        return max(4, int(round(self.m * scale)))
+
+    def get_m_max_for_layer(self, layer: int) -> int:
+        """Dynamic maximum edge capacity for neighbor pruning at layer lc."""
+        if layer == 0:
+            return self.m_max0
+        scale = max(0.5, 1.0 - 0.15 * layer)
+        return max(4, int(round(self.m_max * scale)))
 
 class AdaptivePolicy:
     """Policy engine mapping local signals to graph hyper-parameters."""

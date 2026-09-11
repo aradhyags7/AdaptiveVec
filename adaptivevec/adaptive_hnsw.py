@@ -285,9 +285,9 @@ class AdaptiveHNSW:
             # Dynamic candidate list size for this node
             w = self._search_layer(vector, [curr_ep], ef=params.ef_construction, lc=lc)
             
-            # Select personalized M neighbors for q
-            max_m_q = params.m_max0 if lc == 0 else params.m_max
-            neighbors = self._select_neighbors(vector, w, params.m)
+            # Select personalized M neighbors for q at layer lc
+            m_layer = params.get_m_for_layer(lc)
+            neighbors = self._select_neighbors(vector, w, m_layer)
             
             if q_idx not in self.graphs[lc]:
                 self.graphs[lc][q_idx] = []
@@ -299,9 +299,9 @@ class AdaptiveHNSW:
                     self.graphs[lc][neighbor] = []
                 self.graphs[lc][neighbor].append(q_idx)
                 
-                # Check neighbor's OWN personalized M_max capacity!
+                # Check neighbor's OWN personalized M_max capacity for layer lc!
                 neighbor_params = self.node_params.get(neighbor, params)
-                n_limit = neighbor_params.m_max0 if lc == 0 else neighbor_params.m_max
+                n_limit = neighbor_params.get_m_max_for_layer(lc)
                 
                 if len(self.graphs[lc][neighbor]) > n_limit:
                     n_candidates = [(self._distance(self.data[neighbor], self.data[c]), c) 
