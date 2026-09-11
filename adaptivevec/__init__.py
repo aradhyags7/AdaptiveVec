@@ -8,6 +8,7 @@ from .hnsw_base import StockHNSW
 from .adaptive_hnsw import AdaptiveHNSW
 from .datasets import load_or_generate_dataset, generate_multi_manifold_dataset
 from .benchmark import BenchmarkHarness, BenchmarkResult
+from .quantization import ScalarQuantizer
 
 __all__ = [
     "compute_local_density",
@@ -19,6 +20,7 @@ __all__ = [
     "map_signals_to_params",
     "StockHNSW",
     "AdaptiveHNSW",
+    "ScalarQuantizer",
     "load_or_generate_dataset",
     "generate_multi_manifold_dataset",
     "BenchmarkHarness",

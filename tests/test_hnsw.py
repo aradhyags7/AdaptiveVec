@@ -118,5 +118,32 @@ class TestHNSW(unittest.TestCase):
         res = index.search(self.queries[0], k=5)
         self.assertEqual(len(res), 5)
 
+    def test_scalar_quantization_two_stage(self):
+        index = AdaptiveHNSW(
+            dim=self.dim,
+            quantize=True,
+            policy_config=AdaptivePolicyConfig(m_base=8, ef_construction_base=60)
+        )
+        index.calibrate(self.data[:100])
+        for v in self.data:
+            index.insert(v)
+            
+        stats = index.get_stats()
+        self.assertTrue(stats["quantized"])
+        # Vector memory should be exactly 1 byte per dimension (75% savings vs 4 bytes)
+        self.assertEqual(stats["vector_memory_bytes"], self.n_samples * self.dim * 1)
+        
+        # Search queries with two-stage re-ranking
+        hits = 0
+        total = self.n_queries * 10
+        for i, q in enumerate(self.queries):
+            results = index.search(q, k=10, ef=50)
+            res_nodes = set(n for _, n in results)
+            gt_nodes = set(self.gt_idx[i])
+            hits += len(res_nodes.intersection(gt_nodes))
+            
+        recall = hits / total
+        self.assertGreater(recall, 0.85, f"Quantized SQ8 Recall@10 was {recall}")
+
 if __name__ == "__main__":
     unittest.main()

@@ -13,6 +13,7 @@ from typing import List, Set, Dict, Tuple, Optional, Any, Union
 
 from .signals import estimate_node_signals, compute_mle_lid, compute_local_density, profile_dataset_signals
 from .policy import AdaptivePolicy, AdaptivePolicyConfig, NodeParameters
+from .quantization import ScalarQuantizer
 
 def l2_distance(a: np.ndarray, b: np.ndarray) -> float:
     diff = a - b
@@ -42,7 +43,8 @@ class AdaptiveHNSW:
         stagnation_patience: int = 6,
         stagnation_epsilon: float = 1e-4,
         hubness_regulation: bool = True,
-        hubness_penalty_weight: float = 0.15
+        hubness_penalty_weight: float = 0.15,
+        quantize: bool = False
     ):
         self.dim = dim
         self.space = space.lower()
@@ -53,6 +55,9 @@ class AdaptiveHNSW:
         self.stagnation_epsilon = stagnation_epsilon
         self.hubness_regulation = hubness_regulation
         self.hubness_penalty_weight = hubness_penalty_weight
+        self.quantize = quantize
+        self.quantizer = ScalarQuantizer(dim=self.dim)
+        self.quantized_data: List[np.ndarray] = []
         
         self.policy = AdaptivePolicy(policy_config)
         self.dist_fn = cosine_distance if self.space == "cosine" else l2_distance
@@ -81,8 +86,19 @@ class AdaptiveHNSW:
         self.total_dist_computations += 1
         return self.dist_fn(a, b)
 
+    def _query_distance(self, query: np.ndarray, node_idx: int) -> float:
+        """Fast distance evaluation using asymmetric SQ8 if quantized or float32."""
+        self.total_dist_computations += 1
+        if self.quantize and len(self.quantized_data) > node_idx:
+            if self.space == "cosine":
+                return self.quantizer.asymmetric_cosine_distance(query, self.quantized_data[node_idx])
+            return self.quantizer.asymmetric_l2_distance(query, self.quantized_data[node_idx])
+        return self.dist_fn(query, self.data[node_idx])
+
     def calibrate(self, sample_data: np.ndarray) -> Dict[str, Any]:
         """Profiles a representative sample to calibrate policy baseline statistics."""
+        if self.quantize and len(sample_data) > 0:
+            self.quantizer.train(sample_data)
         profile = profile_dataset_signals(sample_data, sample_size=min(500, len(sample_data)))
         self.policy.update_reference_stats(profile)
         return profile
@@ -118,7 +134,7 @@ class AdaptiveHNSW:
         stagnation_counter = 0
 
         for ep in enter_points:
-            d = self._distance(query, self.data[ep])
+            d = self._query_distance(query, ep)
             heapq.heappush(candidates, (d, ep))
             heapq.heappush(w_furthest, (-d, ep))
             if d < best_dist:
@@ -150,7 +166,7 @@ class AdaptiveHNSW:
             for e_node in neighbors:
                 if e_node not in visited:
                     visited.add(e_node)
-                    e_dist = self._distance(query, self.data[e_node])
+                    e_dist = self._query_distance(query, e_node)
                     furthest_d = -w_furthest[0][0]
                     
                     if e_dist < furthest_d or len(w_furthest) < ef:
@@ -249,6 +265,8 @@ class AdaptiveHNSW:
         vector = np.ascontiguousarray(vector, dtype=np.float32)
         q_idx = len(self.data)
         self.data.append(vector)
+        if self.quantize:
+            self.quantized_data.append(self.quantizer.encode(vector))
         
         if self.enter_point is None:
             self.enter_point = q_idx
@@ -410,6 +428,17 @@ class AdaptiveHNSW:
             )
             
         top_k = w[:k]
+            
+        if self.quantize:
+            # Two-stage re-ranking: evaluate exact float32 distance for top candidate beam
+            rerank_count = max(k * 2, min(len(w), 30))
+            rerank_candidates = w[:rerank_count]
+            exact_results = []
+            for _, node in rerank_candidates:
+                exact_d = self.dist_fn(query, self.data[node])
+                exact_results.append((exact_d, node))
+            exact_results.sort(key=lambda x: x[0])
+            top_k = exact_results[:k]
         
         if record_trace:
             trace_info = {
@@ -440,7 +469,8 @@ class AdaptiveHNSW:
                 layer_0_degrees = [len(n) for n in graph.values()]
                 
         edge_memory_bytes = total_edges * 4
-        vector_memory_bytes = total_nodes * self.dim * 4
+        vector_bytes_per_dim = 1 if self.quantize else 4
+        vector_memory_bytes = total_nodes * self.dim * vector_bytes_per_dim
         
         # Signals summary
         lids = [s["lid"] for s in self.node_signals.values()] if self.node_signals else [0]
@@ -457,6 +487,7 @@ class AdaptiveHNSW:
             "edge_memory_bytes": edge_memory_bytes,
             "vector_memory_bytes": vector_memory_bytes,
             "total_memory_mb": (edge_memory_bytes + vector_memory_bytes) / (1024 * 1024),
+            "quantized": self.quantize,
             "l0_degree_min": int(np.min(layer_0_degrees)) if layer_0_degrees else 0,
             "l0_degree_max": int(np.max(layer_0_degrees)) if layer_0_degrees else 0,
             "l0_degree_median": float(np.median(layer_0_degrees)) if layer_0_degrees else 0.0,
