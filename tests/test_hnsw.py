@@ -85,5 +85,18 @@ class TestHNSW(unittest.TestCase):
         self.assertIn("total_dist_evals", trace)
         self.assertGreater(len(trace["steps"]), 0)
 
+    def test_early_exit_search(self):
+        index = AdaptiveHNSW(dim=self.dim, early_exit=True, stagnation_patience=4)
+        for v in self.data[:100]:
+            index.insert(v)
+            
+        results_early, trace_early = index.search(self.queries[0], k=5, early_exit=True, record_trace=True)
+        results_full, trace_full = index.search(self.queries[0], k=5, early_exit=False, record_trace=True)
+        
+        self.assertEqual(len(results_early), 5)
+        self.assertEqual(len(results_full), 5)
+        # Early exit should perform less or equal distance evaluations
+        self.assertLessEqual(trace_early["total_dist_evals"], trace_full["total_dist_evals"])
+
 if __name__ == "__main__":
     unittest.main()

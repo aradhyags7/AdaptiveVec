@@ -37,12 +37,18 @@ class AdaptiveHNSW:
         policy_config: Optional[AdaptivePolicyConfig] = None,
         space: str = "l2",
         heuristic: bool = True,
-        adaptive_search_ef: bool = True
+        adaptive_search_ef: bool = True,
+        early_exit: bool = True,
+        stagnation_patience: int = 6,
+        stagnation_epsilon: float = 1e-4
     ):
         self.dim = dim
         self.space = space.lower()
         self.heuristic = heuristic
         self.adaptive_search_ef = adaptive_search_ef
+        self.early_exit = early_exit
+        self.stagnation_patience = stagnation_patience
+        self.stagnation_epsilon = stagnation_epsilon
         
         self.policy = AdaptivePolicy(policy_config)
         self.dist_fn = cosine_distance if self.space == "cosine" else l2_distance
@@ -88,20 +94,30 @@ class AdaptiveHNSW:
         enter_points: List[int],
         ef: int,
         lc: int,
-        record_trace: bool = False
+        record_trace: bool = False,
+        early_exit: bool = False,
+        stagnation_patience: int = 6,
+        stagnation_epsilon: float = 1e-4
     ) -> Union[List[Tuple[float, int]], Tuple[List[Tuple[float, int]], List[Dict[str, Any]]]]:
         """
         Greedy beam search at layer lc with candidate list capacity ef.
+        Includes distance stagnation early-exit criteria to terminate when
+        the best discovered candidate distance ceases to improve.
         """
         visited: Set[int] = set(enter_points)
         candidates: List[Tuple[float, int]] = []
         w_furthest: List[Tuple[float, int]] = []
         trace_steps: List[Dict[str, Any]] = []
 
+        best_dist = float("inf")
+        stagnation_counter = 0
+
         for ep in enter_points:
             d = self._distance(query, self.data[ep])
             heapq.heappush(candidates, (d, ep))
             heapq.heappush(w_furthest, (-d, ep))
+            if d < best_dist:
+                best_dist = d
             if record_trace:
                 trace_steps.append({"action": "enter", "node": ep, "dist": d, "layer": lc})
 
@@ -111,7 +127,20 @@ class AdaptiveHNSW:
             
             if c_dist > furthest_d:
                 break
-            
+                
+            # Stagnation early-stopping check (active primarily on layer 0 search)
+            if early_exit and len(w_furthest) >= min(ef, 10):
+                current_best = min(-neg_d for neg_d, _ in w_furthest)
+                if best_dist - current_best > stagnation_epsilon:
+                    best_dist = current_best
+                    stagnation_counter = 0
+                else:
+                    stagnation_counter += 1
+                    if stagnation_counter >= stagnation_patience:
+                        if record_trace:
+                            trace_steps.append({"action": "early_exit", "node": c_node, "dist": current_best, "layer": lc, "stagnation": stagnation_counter})
+                        break
+
             neighbors = self.graphs[lc].get(c_node, [])
             for e_node in neighbors:
                 if e_node not in visited:
@@ -290,15 +319,17 @@ class AdaptiveHNSW:
         query: np.ndarray,
         k: int = 10,
         ef: Optional[int] = None,
-        record_trace: bool = False
+        record_trace: bool = False,
+        early_exit: Optional[bool] = None
     ) -> Union[List[Tuple[float, int]], Tuple[List[Tuple[float, int]], Dict[str, Any]]]:
         """
-        K-NN Search with optional adaptive query-time ef modulation.
+        K-NN Search with optional adaptive query-time ef modulation and early exit.
         """
         if self.enter_point is None or len(self.data) == 0:
             return ([], {}) if record_trace else []
             
         query = np.ascontiguousarray(query, dtype=np.float32)
+        use_early_exit = self.early_exit if early_exit is None else early_exit
         
         curr_ep = self.enter_point
         all_traces: List[Dict[str, Any]] = []
@@ -324,10 +355,28 @@ class AdaptiveHNSW:
             ef_val = max(k, self.policy.config.ef_construction_base // 2)
             
         if record_trace:
-            w, trace = self._search_layer(query, [curr_ep], ef=ef_val, lc=0, record_trace=True)
+            w, trace = self._search_layer(
+                query,
+                [curr_ep],
+                ef=ef_val,
+                lc=0,
+                record_trace=True,
+                early_exit=use_early_exit,
+                stagnation_patience=self.stagnation_patience,
+                stagnation_epsilon=self.stagnation_epsilon
+            )
             all_traces.extend(trace)
         else:
-            w = self._search_layer(query, [curr_ep], ef=ef_val, lc=0, record_trace=False)
+            w = self._search_layer(
+                query,
+                [curr_ep],
+                ef=ef_val,
+                lc=0,
+                record_trace=False,
+                early_exit=use_early_exit,
+                stagnation_patience=self.stagnation_patience,
+                stagnation_epsilon=self.stagnation_epsilon
+            )
             
         top_k = w[:k]
         
