@@ -9,8 +9,23 @@ import math
 import random
 import heapq
 import numpy as np
+from dataclasses import dataclass
 from typing import List, Set, Dict, Tuple, Optional, Any, Union
-
+from .policy import AdaptivePolicy, AdaptivePolicyConfig, NodeParameters
+@dataclass
+class AdaptiveHNSWConfig:
+    """Configuration container for AdaptiveHNSW index."""
+    dim: int
+    policy_config: Optional[AdaptivePolicyConfig] = None
+    space: str = "l2"
+    heuristic: bool = True
+    adaptive_search_ef: bool = True
+    early_exit: bool = True
+    stagnation_patience: int = 6
+    stagnation_epsilon: float = 1e-4
+    hubness_regulation: bool = True
+    hubness_penalty_weight: float = 0.15
+    quantize: bool = False
 from .signals import estimate_node_signals, compute_mle_lid, compute_local_density, profile_dataset_signals
 from .policy import AdaptivePolicy, AdaptivePolicyConfig, NodeParameters
 from .quantization import ScalarQuantizer
@@ -34,7 +49,7 @@ class AdaptiveHNSW:
     """
     def __init__(
         self,
-        dim: int,
+        dim: int = None,
         policy_config: Optional[AdaptivePolicyConfig] = None,
         space: str = "l2",
         heuristic: bool = True,
@@ -44,27 +59,52 @@ class AdaptiveHNSW:
         stagnation_epsilon: float = 1e-4,
         hubness_regulation: bool = True,
         hubness_penalty_weight: float = 0.15,
-        quantize: bool = False
+        quantize: bool = False,
+        config: Optional[AdaptiveHNSWConfig] = None,
     ):
-        self.dim = dim
-        self.space = space.lower()
-        self.heuristic = heuristic
-        self.adaptive_search_ef = adaptive_search_ef
-        self.early_exit = early_exit
-        self.stagnation_patience = stagnation_patience
-        self.stagnation_epsilon = stagnation_epsilon
-        self.hubness_regulation = hubness_regulation
-        self.hubness_penalty_weight = hubness_penalty_weight
-        self.quantize = quantize
+        """
+        Initialize AdaptiveHNSW.
+        Accepts either legacy positional arguments or a single AdaptiveHNSWConfig instance.
+        """
+        # Resolve configuration
+        if isinstance(dim, AdaptiveHNSWConfig):
+            cfg = dim
+        else:
+            cfg = config or AdaptiveHNSWConfig(
+                dim=dim,
+                policy_config=policy_config,
+                space=space,
+                heuristic=heuristic,
+                adaptive_search_ef=adaptive_search_ef,
+                early_exit=early_exit,
+                stagnation_patience=stagnation_patience,
+                stagnation_epsilon=stagnation_epsilon,
+                hubness_regulation=hubness_regulation,
+                hubness_penalty_weight=hubness_penalty_weight,
+                quantize=quantize,
+            )
+
+        # Assign attributes from config
+        self.dim = cfg.dim
+        self.space = cfg.space.lower()
+        self.heuristic = cfg.heuristic
+        self.adaptive_search_ef = cfg.adaptive_search_ef
+        self.early_exit = cfg.early_exit
+        self.stagnation_patience = cfg.stagnation_patience
+        self.stagnation_epsilon = cfg.stagnation_epsilon
+        self.hubness_regulation = cfg.hubness_regulation
+        self.hubness_penalty_weight = cfg.hubness_penalty_weight
+        self.quantize = cfg.quantize
+
         self.quantizer = ScalarQuantizer(dim=self.dim)
         self.quantized_data: List[np.ndarray] = []
-        
-        self.policy = AdaptivePolicy(policy_config)
+
+        self.policy = AdaptivePolicy(cfg.policy_config)
         self.dist_fn = cosine_distance if self.space == "cosine" else l2_distance
-        
+
         # Base m_l for level generation
         self.m_l = 1.0 / math.log(self.policy.config.m_base) if self.policy.config.m_base > 1 else 1.0
-        
+
         # Storage
         self.data: List[np.ndarray] = []
         self.graphs: List[Dict[int, List[int]]] = []

@@ -380,6 +380,20 @@ def serve_index():
         return FileResponse(index_path)
     return JSONResponse({"message": "AdaptiveVec API is running. Build frontend or use /docs."})
 
+@app.get("/styles.css")
+def serve_css():
+    css_path = os.path.join(frontend_dir, "styles.css")
+    if os.path.exists(css_path):
+        return FileResponse(css_path)
+    raise HTTPException(status_code=404, detail="styles.css not found")
+
+@app.get("/app.js")
+def serve_js():
+    js_path = os.path.join(frontend_dir, "app.js")
+    if os.path.exists(js_path):
+        return FileResponse(js_path)
+    raise HTTPException(status_code=404, detail="app.js not found")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
