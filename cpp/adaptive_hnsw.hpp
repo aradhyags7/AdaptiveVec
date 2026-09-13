@@ -20,6 +20,8 @@
 #include <numeric>
 #include <memory>
 #include <string>
+#include <cstdint>
+#include <cstddef>
 
 namespace adaptivevec {
 
@@ -254,7 +256,7 @@ public:
     mutable uint64_t total_dist_computations = 0;
     
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
-        : dim(dimension), space(sp), is_adaptive(adaptive), policy(cfg) {
+        : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive) {
         m_l = 1.0 / std::log(policy.m_base > 1 ? policy.m_base : 2);
     }
     
@@ -390,7 +392,7 @@ public:
     }
     
     // Algorithm 4: SELECT-NEIGHBORS-HEURISTIC
-    std::vector<tableint> select_neighbors_heuristic(const float* query, const std::vector<Candidate>& candidates, int m_limit) const {
+    std::vector<tableint> select_neighbors_heuristic(const float* /* query */, const std::vector<Candidate>& candidates, int m_limit) const {
         std::vector<Candidate> sorted_c = candidates;
         std::sort(sorted_c.begin(), sorted_c.end());
         

@@ -1,0 +1,18 @@
+CompileFlags:
+  Compiler: C:/msys64/ucrt64/bin/g++.exe
+  Add:
+    - -std=c++17
+    - -mavx2
+    - -mfma
+    - -isystem
+    - C:/msys64/ucrt64/include/c++/16.1.0
+    - -isystem
+    - C:/msys64/ucrt64/include/c++/16.1.0/x86_64-w64-mingw32
+    - -isystem
+    - C:/msys64/ucrt64/include/c++/16.1.0/backward
+    - -isystem
+    - C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/16.1.0/include
+    - -isystem
+    - C:/msys64/ucrt64/include
+    - -isystem
+    - C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/16.1.0/include-fixed
