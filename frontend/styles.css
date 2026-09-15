@@ -2099,3 +2099,219 @@ html, body {
   align-items: center;
   gap: 8px;
 }
+
+/* ==========================================================================
+   CANVAS CHART BOX CONTAINERS & DISPLAY SIZING
+   ========================================================================== */
+.chart-box-large {
+  width: 100%;
+  position: relative;
+  background: #080b12;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chart-box-large canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* ==========================================================================
+   DATASET CORPUS INSPECTOR STYLES
+   ========================================================================== */
+.corpus-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.corpus-stat-card {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 10px 14px;
+}
+.corpus-stat-card .k {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+.corpus-stat-card .v {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  margin-top: 4px;
+}
+.corpus-stat-card .sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.corpus-canvas-wrapper {
+  width: 100%;
+  height: 180px;
+  background: #080b12;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+}
+.corpus-canvas-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* ==========================================================================
+   INDEX BUILDER COMPILATION STEPPER & CONSOLE
+   ========================================================================== */
+.builder-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: relative;
+}
+.builder-stepper::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 30px;
+  right: 30px;
+  height: 2px;
+  background: var(--border-subtle);
+  z-index: 1;
+}
+.bld-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  gap: 6px;
+  flex: 1;
+}
+.bld-step-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0c101a;
+  border: 2px solid var(--border-medium);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  transition: var(--transition);
+}
+.bld-step.active .bld-step-dot {
+  background: var(--cyan-primary);
+  border-color: var(--cyan-bright);
+  color: #040810;
+  box-shadow: 0 0 12px var(--cyan-bright);
+}
+.bld-step.done .bld-step-dot {
+  background: #10b981;
+  border-color: #34d399;
+  color: #040810;
+}
+.bld-step-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+}
+.bld-step.active .bld-step-name {
+  color: var(--cyan-bright);
+}
+
+.builder-console {
+  background: #060910;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  max-height: 180px;
+  overflow-y: auto;
+  color: #94a3b8;
+}
+.builder-console .log-ts {
+  color: #64748b;
+  margin-right: 8px;
+}
+.builder-console .log-cyan {
+  color: var(--cyan-bright);
+}
+.builder-console .log-emerald {
+  color: #10b981;
+}
+.builder-console .log-amber {
+  color: #f59e0b;
+}
+
+/* ==========================================================================
+   FLOATING GLASSMORPHIC TOAST NOTIFICATION CONTAINER
+   ========================================================================== */
+#stitch-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  pointer-events: none;
+}
+.stitch-toast {
+  pointer-events: auto;
+  background: rgba(14, 19, 31, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8);
+  animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.25s, transform 0.25s;
+}
+.stitch-toast.toast-success {
+  border-color: rgba(16, 185, 129, 0.5);
+}
+.stitch-toast.toast-success .toast-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+.stitch-toast .toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyan-bright);
+  box-shadow: 0 0 8px var(--cyan-bright);
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+

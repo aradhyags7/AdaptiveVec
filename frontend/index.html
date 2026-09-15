@@ -779,7 +779,7 @@
                   <label class="stitch-radio mt-1">
                     <input type="radio" name="ql-algo" value="stock">
                     <span class="radio-circle"></span>
-                    <span>Standard HNSW (Fixed) <span class="mono text-muted text-xs">efS=64 static</span></span>
+                    <span>Standard HNSW (Fixed) <span class="badge-pill-dark" style="margin-left: 6px;">efS=64 static</span></span>
                   </label>
                 </div>
               </div>
@@ -848,7 +848,7 @@
                   <!-- Hop 0 -->
                   <div class="hop-card">
                     <div class="hop-header"><span class="hop-num text-cyan mono">HOP 0</span> <span class="hop-layer">L2</span></div>
-                    <div class="hop-node-id mono text-white">Node #10,4..</div>
+                    <div class="hop-node-id mono text-white">Node #10,402</div>
                     <div class="hop-role text-muted text-xs">Entry Point</div>
                     <div class="hop-dist mono text-xs mt-1">Dist: <span class="text-white">0.8920</span></div>
                   </div>
@@ -856,7 +856,7 @@
                   <!-- Hop 4 -->
                   <div class="hop-card">
                     <div class="hop-header"><span class="hop-num text-cyan mono">HOP 4</span> <span class="hop-layer">L1</span></div>
-                    <div class="hop-node-id mono text-white">Node #21,8..</div>
+                    <div class="hop-node-id mono text-white">Node #21,805</div>
                     <div class="hop-role text-muted text-xs">Inter-Hub Bridge</div>
                     <div class="hop-dist mono text-xs mt-1">Dist: <span class="text-white">0.4281</span></div>
                   </div>
@@ -864,7 +864,7 @@
                   <!-- Hop 8 -->
                   <div class="hop-card">
                     <div class="hop-header"><span class="hop-num text-cyan mono">HOP 8</span> <span class="hop-layer">L0</span></div>
-                    <div class="hop-node-id mono text-white">Node #44,1..</div>
+                    <div class="hop-node-id mono text-white">Node #44,118</div>
                     <div class="hop-role text-muted text-xs">Cluster Entry</div>
                     <div class="hop-dist mono text-xs mt-1">Dist: <span class="text-white">0.1843</span></div>
                   </div>
@@ -872,7 +872,7 @@
                   <!-- Hop 12 -->
                   <div class="hop-card">
                     <div class="hop-header"><span class="hop-num text-cyan mono">HOP 12</span> <span class="hop-layer">L0</span></div>
-                    <div class="hop-node-id mono text-white">Node #48,2..</div>
+                    <div class="hop-node-id mono text-white">Node #48,219</div>
                     <div class="hop-role text-muted text-xs">Target Manifold</div>
                     <div class="hop-dist mono text-xs mt-1">Dist: <span class="text-cyan">0.0418</span></div>
                   </div>
@@ -1097,7 +1097,8 @@
                 Raw JSON/CSV
               </button>
               <button class="btn-stitch btn-stitch-primary glow-cyan" id="btn-bench-export-latex">
-                &lt;&gt; Export LaTeX Table
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+                Export LaTeX Table
               </button>
             </div>
           </div>
@@ -1325,29 +1326,99 @@
         <div id="view-datasets" class="view-panel">
           <div class="research-header-banner">
             <div class="header-banner-text">
-              <div class="banner-sub-badge">VECTOR CORPUS REGISTRY</div>
+              <div class="banner-sub-badge">VECTOR CORPUS REGISTRY &bull; ONLINE LID CALIBRATION</div>
               <h2 class="banner-title">Corpus &amp; Manifold Management</h2>
-              <p class="banner-desc">Inspect, synthesize, and calibrate high-dimensional datasets with online intrinsic dimensionality profiling.</p>
+              <p class="banner-desc">Inspect, calibrate, and load high-dimensional benchmark vector spaces with online intrinsic dimensionality profiling and cluster topology estimation.</p>
+            </div>
+            <div class="banner-actions">
+              <button class="btn-stitch btn-stitch-secondary" id="btn-export-corpus-stats">Export Corpus Manifest</button>
+              <button class="btn-stitch btn-stitch-primary glow-cyan" id="btn-load-dataset-mem">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Load Corpus into Memory
+              </button>
             </div>
           </div>
-          <div class="stitch-card mt-3 p-4">
-            <h4>Loaded Benchmark Corpora</h4>
+
+          <!-- Dataset Selection Cards Grid -->
+          <div class="stitch-card mt-3 p-3">
+            <div class="card-top-row">
+              <h4>Benchmark Vector Corpora</h4>
+              <span class="mono text-xs text-muted">SELECT ACTIVE TARGET CORPUS</span>
+            </div>
             <div class="datasets-list-grid mt-3">
-              <div class="dataset-card active">
-                <div class="ds-header"><span class="ds-name">dbpedia-openai-100k-angular</span> <span class="badge-pill-cyan">ACTIVE</span></div>
+              <div class="dataset-card active" data-ds="dbpedia" id="card-ds-dbpedia">
+                <div class="ds-header"><span class="ds-name">dbpedia-openai-100k-angular</span> <span class="badge-pill-cyan" id="badge-ds-dbpedia">ACTIVE</span></div>
                 <div class="ds-meta mono text-xs mt-1">N=100,000 &bull; D=768 &bull; Cosine Metric</div>
-                <p class="text-xs text-muted mt-2">OpenAI text-embedding-3-small vectors over DBpedia encyclopedic entity abstracts.</p>
+                <p class="text-xs text-muted mt-2">OpenAI text-embedding-3-small vectors over DBpedia encyclopedic entity abstracts. High ambient dimension, clustered semantic manifolds.</p>
               </div>
-              <div class="dataset-card">
-                <div class="ds-header"><span class="ds-name">sift-128-euclidean</span> <span class="badge-pill-dark">CACHED</span></div>
-                <div class="ds-meta mono text-xs mt-1">N=1,000,000 &bull; D=128 &bull; L2 Metric</div>
-                <p class="text-xs text-muted mt-2">Standard Texmex SIFT feature descriptors across high-density image keypoints.</p>
+              <div class="dataset-card" data-ds="sift" id="card-ds-sift">
+                <div class="ds-header"><span class="ds-name">sift-128-euclidean</span> <span class="badge-pill-dark" id="badge-ds-sift">STANDBY</span></div>
+                <div class="ds-meta mono text-xs mt-1">N=1,000,000 &bull; D=128 &bull; L2 Euclidean</div>
+                <p class="text-xs text-muted mt-2">Standard Texmex SIFT feature descriptors across image keypoints. Uniform spatial density, high hubness vulnerability.</p>
               </div>
-              <div class="dataset-card">
-                <div class="ds-header"><span class="ds-name">glove-100-angular</span> <span class="badge-pill-dark">CACHED</span></div>
+              <div class="dataset-card" data-ds="glove" id="card-ds-glove">
+                <div class="ds-header"><span class="ds-name">glove-100-angular</span> <span class="badge-pill-dark" id="badge-ds-glove">STANDBY</span></div>
                 <div class="ds-meta mono text-xs mt-1">N=400,000 &bull; D=100 &bull; Cosine Metric</div>
-                <p class="text-xs text-muted mt-2">Stanford GloVe semantic word embeddings across Wikipedia and Common Crawl text.</p>
+                <p class="text-xs text-muted mt-2">Stanford GloVe semantic word embeddings across Wikipedia and Common Crawl text. Complex semantic sub-manifold hierarchy.</p>
               </div>
+            </div>
+          </div>
+
+          <!-- Active Corpus Topological Diagnostics -->
+          <div class="corpus-meta-grid mt-3">
+            <div class="corpus-stat-card">
+              <span class="k">TOTAL VECTORS (N)</span>
+              <div class="v" id="ds-stat-n">100,000</div>
+              <div class="sub mono" id="ds-stat-size">Raw Size: 307.2 MB</div>
+            </div>
+            <div class="corpus-stat-card">
+              <span class="k">AMBIENT DIMENSIONALITY (D)</span>
+              <div class="v text-cyan" id="ds-stat-d">768D</div>
+              <div class="sub mono">Representation: FP32</div>
+            </div>
+            <div class="corpus-stat-card">
+              <span class="k">INTRINSIC DIMENSIONALITY (&mu; LID)</span>
+              <div class="v text-emerald" id="ds-stat-lid">14.8 &mu;</div>
+              <div class="sub mono">Compression Ratio: 51.8x</div>
+            </div>
+            <div class="corpus-stat-card">
+              <span class="k">MANIFOLD HUBNESS CENTRALITY</span>
+              <div class="v text-amber" id="ds-stat-hub">0.18 &alpha;</div>
+              <div class="sub mono">Safe Boundary Regime</div>
+            </div>
+          </div>
+
+          <!-- Split: Vector Norm Spectrum + Vector Sample Inspector -->
+          <div class="stitch-card mt-3 p-3">
+            <div class="card-top-row">
+              <div class="title-with-pill">
+                <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                <h4 id="ds-chart-title">dbpedia-openai-100k &bull; Vector Norm Distribution &amp; Coordinate Energy</h4>
+              </div>
+              <span class="badge-pill-dark">SAMPLED 10,000 POINTS</span>
+            </div>
+            <div class="corpus-canvas-wrapper mt-3">
+              <canvas id="dataset-norm-canvas" width="1100" height="180"></canvas>
+            </div>
+
+            <!-- Sample Vector Preview Table -->
+            <div class="inspector-neighbors-table-container mt-3">
+              <div class="table-title-row">
+                <span class="text-xs text-muted">ACTIVE MANIFOLD COORDINATE SAMPLES (TOP 5 VECTORS)</span>
+                <span class="mono text-xs text-muted">NORMALIZED L2 NORM &bull; COSINE DISTANCE METRIC</span>
+              </div>
+              <table class="stitch-table-sm mt-2">
+                <thead>
+                  <tr><th>VECTOR ID</th><th>SAMPLE COORDINATES [d0..d5]</th><th>L2 NORM</th><th>EST. LID</th><th>REGION</th></tr>
+                </thead>
+                <tbody id="ds-sample-table-body">
+                  <tr><td class="text-cyan mono">#00001</td><td class="mono">[+0.042, -0.018, +0.091, +0.003, -0.054, ...]</td><td class="mono">1.0000</td><td class="mono text-emerald">12.4</td><td><span class="badge-tag-dark">Dense Core</span></td></tr>
+                  <tr><td class="text-cyan mono">#10402</td><td class="mono">[-0.081, +0.054, -0.033, +0.114, -0.009, ...]</td><td class="mono">1.0000</td><td class="mono text-emerald">11.2</td><td><span class="badge-tag-cyan">Highway Hub</span></td></tr>
+                  <tr><td class="text-cyan mono">#34011</td><td class="mono">[+0.012, +0.098, -0.076, -0.041, +0.063, ...]</td><td class="mono">1.0000</td><td class="mono text-white">18.4</td><td><span class="badge-tag-cyan">Bridge Node</span></td></tr>
+                  <tr><td class="text-cyan mono">#48219</td><td class="mono">[+0.124, -0.108, +0.085, -0.092, -0.071, ...]</td><td class="mono">1.0000</td><td class="mono text-rose">26.4</td><td><span class="badge-tag-emerald">Manifold Crest</span></td></tr>
+                  <tr><td class="text-cyan mono">#99999</td><td class="mono">[-0.035, -0.044, +0.021, +0.088, +0.039, ...]</td><td class="mono">1.0000</td><td class="mono text-emerald">13.1</td><td><span class="badge-tag-dark">Dense Core</span></td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1355,46 +1426,797 @@
         <div id="view-index-builder" class="view-panel">
           <div class="research-header-banner">
             <div class="header-banner-text">
-              <div class="banner-sub-badge">ADAPTIVE GRAPH COMPILER</div>
+              <div class="banner-sub-badge">ADAPTIVE GRAPH COMPILER &bull; HNSW C++ CORE</div>
               <h2 class="banner-title">Index Builder &amp; Hyperparameter Policy Tuner</h2>
-              <p class="banner-desc">Configure per-node edge capacity allocation bounds, signal sensitivity, and quantization mode.</p>
+              <p class="banner-desc">Configure per-node edge capacity allocation bounds, signal sensitivity &gamma;, hubness regulation &mu;, and execute real-time graph compilation.</p>
             </div>
           </div>
+
+          <!-- Hyperparameters Config Card -->
           <div class="stitch-card mt-3 p-4">
-            <h4>Compilation Hyperparameters</h4>
+            <div class="card-top-row">
+              <h4>Compilation Hyperparameters</h4>
+              <span class="badge-pill-cyan">POLICY ENGINE ACTIVE</span>
+            </div>
+            
             <div class="builder-grid mt-3">
               <div class="builder-col">
-                <label class="control-label">M Base Degree ($M_{base}$):</label>
-                <input type="number" class="stitch-input" id="bld-m-base" value="16">
+                <label class="control-label">M Base Degree (M<sub>base</sub>):</label>
+                <input type="number" class="stitch-input mono" id="bld-m-base" value="16" min="4" max="64">
+                <span class="text-xs text-muted">Baseline connectivity target for neutral manifolds.</span>
               </div>
               <div class="builder-col">
-                <label class="control-label">M Bounds [$M_{min}, M_{max}$]:</label>
+                <label class="control-label">M Dynamic Bounds [M<sub>min</sub>, M<sub>max</sub>]:</label>
                 <div class="range-inputs">
-                  <input type="number" class="stitch-input" id="bld-m-min" value="8">
-                  <span>&ndash;</span>
-                  <input type="number" class="stitch-input" id="bld-m-max" value="28">
+                  <input type="number" class="stitch-input mono" id="bld-m-min" value="8" min="4" max="16" style="width:70px;">
+                  <span class="text-muted">&ndash;</span>
+                  <input type="number" class="stitch-input mono" id="bld-m-max" value="28" min="16" max="64" style="width:70px;">
                 </div>
+                <span class="text-xs text-muted">Adaptive clamping range based on difficulty score.</span>
               </div>
               <div class="builder-col">
-                <label class="control-label">Signal Sensitivity (&gamma;):</label>
+                <label class="control-label">Signal Sensitivity (&gamma;): <span class="mono text-cyan" id="bld-gamma-val">0.50</span></label>
                 <input type="range" class="stitch-slider" id="bld-gamma" min="0.1" max="1.0" step="0.05" value="0.5">
+                <span class="text-xs text-muted">Scaling aggressiveness for manifold difficulty &theta;(x).</span>
               </div>
             </div>
-            <button class="btn-stitch btn-stitch-primary glow-cyan mt-4" id="bld-btn-compile">
+
+            <div class="builder-grid mt-3">
+              <div class="builder-col">
+                <label class="control-label">efConstruction Depth (efC):</label>
+                <input type="number" class="stitch-input mono" id="bld-efc" value="128" min="32" max="512">
+                <span class="text-xs text-muted">Exploration queue size during node insertion.</span>
+              </div>
+              <div class="builder-col">
+                <label class="control-label">Hubness Penalty (&mu;): <span class="mono text-cyan" id="bld-mu-val">0.15</span></label>
+                <input type="range" class="stitch-slider" id="bld-mu" min="0.00" max="0.50" step="0.05" value="0.15">
+                <span class="text-xs text-muted">Penalizes in-degree hubs during neighbor selection.</span>
+              </div>
+              <div class="builder-col">
+                <label class="control-label">Storage Quantization Substrate:</label>
+                <select class="stitch-input mono" id="bld-quant-select" style="cursor: pointer;">
+                  <option value="fp32">FP32 Full Precision (Uncompressed)</option>
+                  <option value="sq8" selected>SQ8 Asymmetric Scalar Quantization (75% RAM Saved)</option>
+                  <option value="pq16">Product Quantization PQ16 (87.5% RAM Saved)</option>
+                </select>
+                <span class="text-xs text-muted">Vector encoding mode in memory resident buffers.</span>
+              </div>
+            </div>
+
+            <button class="btn-stitch btn-stitch-primary glow-cyan mt-4" id="bld-btn-compile" style="font-size: 13px; padding: 10px 22px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               Start Index Compilation &rarr;
             </button>
           </div>
-        </div>
 
-        <div id="view-settings" class="view-panel">
-          <div class="research-header-banner">
-            <div class="header-banner-text">
-              <div class="banner-sub-badge">SYSTEM PREFERENCES</div>
-              <h2 class="banner-title">Settings &amp; Telemetry Configuration</h2>
-              <p class="banner-desc">Adjust runtime thread affinity, memory budget limits, and synthetic audio feedback.</p>
+          <!-- Compilation Stepper & Real-Time Build Console -->
+          <div class="stitch-card mt-3 p-4">
+            <div class="card-top-row">
+              <div class="title-with-pill">
+                <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                <h4>Index Compilation Pipeline &amp; Telemetry</h4>
+              </div>
+              <span class="badge-pill-emerald" id="bld-status-badge">READY TO COMPILE</span>
+            </div>
+
+            <!-- 5-Stage Visual Stepper -->
+            <div class="builder-stepper mt-4" id="bld-stepper">
+              <div class="bld-step active" id="bld-step-1">
+                <div class="bld-step-dot">1</div>
+                <div class="bld-step-name">Ingestion</div>
+              </div>
+              <div class="bld-step" id="bld-step-2">
+                <div class="bld-step-dot">2</div>
+                <div class="bld-step-name">Online MLE LID</div>
+              </div>
+              <div class="bld-step" id="bld-step-3">
+                <div class="bld-step-dot">3</div>
+                <div class="bld-step-name">Layer Decoupling</div>
+              </div>
+              <div class="bld-step" id="bld-step-4">
+                <div class="bld-step-dot">4</div>
+                <div class="bld-step-name">Adaptive M Routing</div>
+              </div>
+              <div class="bld-step" id="bld-step-5">
+                <div class="bld-step-dot">5</div>
+                <div class="bld-step-name">Hubness Prune</div>
+              </div>
+            </div>
+
+            <!-- Terminal Console Logs -->
+            <div class="builder-console mt-4" id="bld-console">
+              <div><span class="log-ts">[00:00.000]</span> <span class="log-cyan">AdaptiveVec Compiler v0.4.2-alpha</span> initialized on AVX-512 target.</div>
+              <div><span class="log-ts">[00:00.012]</span> Target corpus: <span class="text-white">dbpedia-openai-100k-angular</span> (100,000 vectors &bull; 768D FP32).</div>
+              <div><span class="log-ts">[00:00.024]</span> Hyperparameters loaded: M_base=16, M_min=8, M_max=28, &gamma;=0.50, &mu;=0.15, SQ8=ENABLED.</div>
+              <div><span class="log-ts">[00:00.035]</span> System state: Memory resident, 16 OpenMP threads ready. Click 'Start Index Compilation' to build graph.</div>
+            </div>
+
+            <!-- Layer Allocation Breakdown Table -->
+            <div class="inspector-neighbors-table-container mt-4">
+              <div class="table-title-row">
+                <span class="text-xs text-muted">COMPILED GRAPH LAYER ALLOCATION BREAKDOWN</span>
+                <span class="mono text-xs text-muted">TOPOLOGY: HIERARCHICAL PROXIMITY L0..L4</span>
+              </div>
+              <table class="stitch-table-sm mt-2">
+                <thead>
+                  <tr><th>LAYER</th><th>NODES PRESENT</th><th>MEAN CAPACITY M</th><th>TOTAL EDGES</th><th>RAM FOOTPRINT</th><th>STATUS</th></tr>
+                </thead>
+                <tbody id="bld-layer-breakdown-body">
+                  <tr><td class="text-cyan mono">Layer 4 (Highway)</td><td class="mono">14</td><td class="mono">M=24</td><td class="mono">336</td><td class="mono">18.2 KB</td><td><span class="badge-tag-emerald">Compiled</span></td></tr>
+                  <tr><td class="text-cyan mono">Layer 3 (Inter-Hub)</td><td class="mono">168</td><td class="mono">M=22</td><td class="mono">3,696</td><td class="mono">148.0 KB</td><td><span class="badge-tag-emerald">Compiled</span></td></tr>
+                  <tr><td class="text-cyan mono">Layer 2 (Cluster)</td><td class="mono">1,890</td><td class="mono">M=18</td><td class="mono">34,020</td><td class="mono">1.36 MB</td><td><span class="badge-tag-emerald">Compiled</span></td></tr>
+                  <tr><td class="text-cyan mono">Layer 1 (Sub-Cluster)</td><td class="mono">18,450</td><td class="mono">M=16</td><td class="mono">295,200</td><td class="mono">11.80 MB</td><td><span class="badge-tag-emerald">Compiled</span></td></tr>
+                  <tr class="row-highlight"><td class="text-cyan mono"><b>Layer 0 (Base Manifold)</b></td><td class="mono text-white"><b>100,000</b></td><td class="mono text-cyan"><b>M=15.7 (adaptive)</b></td><td class="mono text-emerald"><b>1,506,748 (-41.7%)</b></td><td class="mono text-cyan"><b>60.26 MB</b></td><td><span class="badge-tag-cyan">Optimal</span></td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
+
+        <!-- =================================================================
+             PAGE: EXPERIMENTS (Controlled Ablations & Parameter Sweeps)
+             ================================================================= -->
+        <div id="view-experiments" class="view-panel">
+          <div class="research-header-banner">
+            <div class="header-banner-text">
+              <div class="banner-sub-badge">SYSTEMATIC ABLATIONS &bull; RUN ID: exp-2024-sift-ablt-04 &bull; COMPONENT ANALYSIS</div>
+              <h2 class="banner-title">Empirical Experiments &amp; Controlled Ablations</h2>
+              <p class="banner-desc">Isolate and quantify the contribution of each adaptive heuristic against baseline fixed-M HNSW across recall, edge count, and throughput.</p>
+            </div>
+            <div class="banner-actions">
+              <button class="btn-stitch btn-stitch-secondary" id="btn-reset-ablations">Reset to Baseline</button>
+              <button class="btn-stitch btn-stitch-secondary" id="btn-export-ablations">Export Data (CSV)</button>
+              <button class="btn-stitch btn-stitch-primary glow-cyan" id="btn-run-all-ablations">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Run All Ablations
+              </button>
+            </div>
+          </div>
+
+          <!-- Experiment KPI Summary -->
+          <div class="kpi-grid-4 mt-3">
+            <div class="kpi-card">
+              <div class="kpi-label-row">
+                <span class="dot-indicator cyan-dot"></span>
+                <span class="kpi-label">ACTIVE RUN STATUS</span>
+                <span class="kpi-sub-label">PASS 6/6</span>
+              </div>
+              <div class="kpi-value-row">
+                <span class="kpi-main-val text-emerald">COMPLETE</span>
+              </div>
+              <div class="kpi-footer-row text-xs text-muted">
+                <span>All 6 configurations validated</span>
+                <span class="mono text-cyan">10k queries</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label-row">
+                <span class="dot-indicator cyan-dot"></span>
+                <span class="kpi-label">OPTIMAL CONFIGURATION</span>
+                <span class="kpi-sub-label">PARETO LEAD</span>
+              </div>
+              <div class="kpi-title-big text-cyan">Full AdaptiveVec + SQ8</div>
+              <div class="kpi-footer-row text-xs text-muted">
+                <span>Recall@10: 96.02%</span>
+                <span class="mono text-emerald">+67% QPS</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label-row">
+                <span class="dot-indicator cyan-dot"></span>
+                <span class="kpi-label">PEAK EDGE COMPACTION</span>
+                <span class="kpi-delta-pill text-emerald">-42.5%</span>
+              </div>
+              <div class="kpi-value-row">
+                <span class="kpi-main-val">1.84M</span>
+                <span class="kpi-secondary-val">vs 3.20M</span>
+              </div>
+              <div class="kpi-footer-row text-xs text-muted">
+                <span>Layer-decoupled pruning</span>
+                <span class="mono text-cyan">153.4 MB saved</span>
+              </div>
+            </div>
+
+            <div class="kpi-card highlight-cyan-card">
+              <div class="kpi-label-row">
+                <span class="kpi-label text-cyan">THROUGHPUT SPEEDUP</span>
+                <span class="kpi-delta-pill text-cyan">+28.1%</span>
+              </div>
+              <div class="kpi-title-hero text-cyan">7,840 <span class="unit-text text-white">QPS</span></div>
+              <div class="kpi-footer-row text-xs text-muted mt-1">
+                <span>Baseline HNSW: 6,120 QPS</span>
+                <span class="mono text-emerald">P99: 2.15ms</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ablation Matrix Table & Sweep Playground -->
+          <div class="overview-split-layout mt-3">
+            <!-- Left 60%: Stepwise Component Ablation Table -->
+            <div class="stitch-card p-3">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 11-4 0"/></svg>
+                  <h4>Stepwise Component Ablation Matrix</h4>
+                </div>
+                <span class="badge-pill-cyan">SIFT-1M EVALUATION</span>
+              </div>
+              <p class="text-xs text-muted mt-1">Incremental evaluation isolating the exact marginal gain of each algorithmic heuristic.</p>
+
+              <div class="table-scroll-wrapper mt-3">
+                <table class="stitch-table-results">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>CONFIGURATION</th>
+                      <th>GRAPH EDGES</th>
+                      <th>BUILD TIME</th>
+                      <th>RECALL@10</th>
+                      <th>QPS</th>
+                      <th>PRIMARY BENEFIT</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td class="text-white mono">Baseline HNSW (M=16, efC=150)</td>
+                      <td class="mono">32.1 M (100%)</td>
+                      <td class="mono">242.6 s</td>
+                      <td class="mono text-white">97.85%</td>
+                      <td class="mono">18,690</td>
+                      <td><span class="badge-tag-dark">Control Baseline</span></td>
+                    </tr>
+                    <tr>
+                      <td>2</td>
+                      <td class="text-cyan mono">+ Dynamic M(x) &amp; efC(x)</td>
+                      <td class="mono text-emerald">27.4 M (-14.6%)</td>
+                      <td class="mono text-emerald">198.2 s (-18%)</td>
+                      <td class="mono text-white">97.82%</td>
+                      <td class="mono">19,840</td>
+                      <td><span class="badge-tag-cyan">Prunes Dense Core</span></td>
+                    </tr>
+                    <tr>
+                      <td>3</td>
+                      <td class="text-cyan mono">+ Layer-Decoupled Scaling</td>
+                      <td class="mono text-emerald">25.7 M (-19.9%)</td>
+                      <td class="mono text-emerald">183.1 s (-24%)</td>
+                      <td class="mono text-white">97.80%</td>
+                      <td class="mono">20,120</td>
+                      <td><span class="badge-tag-cyan">Compresses High Layers</span></td>
+                    </tr>
+                    <tr>
+                      <td>4</td>
+                      <td class="text-cyan mono">+ Hubness Regulation (&mu;=0.15)</td>
+                      <td class="mono">25.8 M (-19.6%)</td>
+                      <td class="mono">186.4 s (-23%)</td>
+                      <td class="mono text-emerald">97.89% (+0.1%)</td>
+                      <td class="mono">20,950</td>
+                      <td><span class="badge-tag-emerald">Flattens In-Degree</span></td>
+                    </tr>
+                    <tr class="row-highlight">
+                      <td>5</td>
+                      <td class="text-cyan mono"><b>+ Ada-ef Early Exit (p=6)</b></td>
+                      <td class="mono">25.8 M (-19.6%)</td>
+                      <td class="mono">186.4 s (-23%)</td>
+                      <td class="mono text-white">97.80%</td>
+                      <td class="mono text-cyan"><b>22,450 (+20.1%)</b></td>
+                      <td><span class="badge-tag-emerald">Truncates Search Hops</span></td>
+                    </tr>
+                    <tr class="row-highlight">
+                      <td>6</td>
+                      <td class="text-cyan mono"><b>+ Asymmetric INT8 SQ8</b></td>
+                      <td class="mono">25.8 M (-19.6%)</td>
+                      <td class="mono text-emerald"><b>148.2 s (-39%)</b></td>
+                      <td class="mono text-white">96.02%</td>
+                      <td class="mono text-cyan"><b>31,200 (+66.9%)</b></td>
+                      <td><span class="badge-tag-emerald">75% RAM Reduction</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right 40%: Live Parameter Sweep Playground -->
+            <div class="stitch-card p-3">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                  <h4>Parameter Sweep Playground</h4>
+                </div>
+                <span class="badge-pill-dark">LIVE TUNER</span>
+              </div>
+              <p class="text-xs text-muted mt-1">Adjust policy sensitivity coefficients and observe real-time predicted graph topology changes.</p>
+
+              <div class="slider-row-item mt-3">
+                <div class="slider-meta">
+                  <span class="q-tool-title">SIGNAL SENSITIVITY (&gamma;)</span>
+                  <span class="mono text-cyan" id="swp-gamma-val">0.40</span>
+                </div>
+                <input type="range" class="stitch-slider" id="swp-gamma-slider" min="0.10" max="0.80" step="0.05" value="0.40">
+                <span class="text-xs text-muted">Controls how aggressively M and efConstruction scale with manifold score.</span>
+              </div>
+
+              <div class="slider-row-item mt-3">
+                <div class="slider-meta">
+                  <span class="q-tool-title">HUBNESS PENALTY (&mu;)</span>
+                  <span class="mono text-cyan" id="swp-mu-val">0.15</span>
+                </div>
+                <input type="range" class="stitch-slider" id="swp-mu-slider" min="0.00" max="0.50" step="0.05" value="0.15">
+                <span class="text-xs text-muted">Penalizes candidate in-degree centrality to prevent hub traversal bottlenecks.</span>
+              </div>
+
+              <div class="slider-row-item mt-3">
+                <div class="slider-meta">
+                  <span class="q-tool-title">ADA-EF PATIENCE (p hops)</span>
+                  <span class="mono text-cyan" id="swp-patience-val">6 hops</span>
+                </div>
+                <input type="range" class="stitch-slider" id="swp-patience-slider" min="2" max="16" step="1" value="6">
+                <span class="text-xs text-muted">Number of consecutive sub-epsilon hops before triggering early exit.</span>
+              </div>
+
+              <div class="chart-box-large mt-3" style="height: 140px;">
+                <canvas id="experiment-sweep-canvas" width="380" height="140"></canvas>
+              </div>
+
+              <button class="btn-stitch btn-stitch-primary glow-cyan mt-3" style="width: 100%; justify-content: center;" id="btn-execute-sweep">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Execute Parameter Sweep (50 Runs)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================================================================
+             PAGE: NODE ANALYSIS (Topological Manifold & Degree Inspector)
+             ================================================================= -->
+        <div id="view-node-analysis" class="view-panel">
+          <div class="research-header-banner">
+            <div class="header-banner-text">
+              <div class="banner-sub-badge">TOPOLOGICAL PROFILER &bull; ONLINE LID &bull; DEGREE CENTRALITY</div>
+              <h2 class="banner-title">Node Analysis: Manifold Geometry &amp; Centrality</h2>
+              <p class="banner-desc">Inspect per-vector local intrinsic dimensionality, density distribution, candidate distance spectra, and degree centrality bounds.</p>
+            </div>
+            <div class="banner-actions">
+              <div class="explorer-target-controls">
+                <span class="k">NODE ID:</span>
+                <input type="text" class="input-target-box mono" id="node-analysis-input" value="#48219">
+                <button class="btn-jump-target" id="btn-load-node-analysis">ANALYZE</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Node Selector Pills -->
+          <div class="stitch-card mt-3 p-2">
+            <div class="explorer-toolbar-row">
+              <span class="text-xs text-muted">FEATURED PROFILES:</span>
+              <div class="query-chip-group">
+                <button class="chip-stitch active" data-node="48219">#48,219 (Boundary Crest &bull; High LID)</button>
+                <button class="chip-stitch" data-node="10402">#10,402 (Highway Hub &bull; Layer 4)</button>
+                <button class="chip-stitch" data-node="34011">#34,011 (Inter-Cluster Bridge)</button>
+                <button class="chip-stitch" data-node="12890">#12,890 (Dense Core &bull; M=10)</button>
+              </div>
+              <span class="spacer"></span>
+              <span class="mono text-xs text-muted">METRIC: COSINE_SIM &bull; AMBIENT: 768D</span>
+            </div>
+          </div>
+
+          <!-- 3-Column Node Analysis Grid -->
+          <div class="kpi-grid-4 mt-3" style="grid-template-columns: 1.2fr 1.4fr 1.4fr;">
+            <!-- Column 1: Node Telemetry Card -->
+            <div class="stitch-card p-3">
+              <div class="inspector-card-header">
+                <div>
+                  <span class="text-muted text-xs">SELECTED TARGET PROFILE</span>
+                  <h3 class="inspector-target-id text-cyan" id="na-node-title">Node #48,219</h3>
+                </div>
+                <span class="badge-pill-cyan" id="na-node-tag">MANIFOLD CREST</span>
+              </div>
+
+              <div class="inspector-metrics-grid mt-3">
+                <div class="insp-stat-cell">
+                  <span class="k">LOCAL INTRINSIC DIM (LID)</span>
+                  <div class="v-row"><span class="val text-white" id="na-lid-val">26.4</span> <span class="pill-high">HIGH</span></div>
+                  <span class="sub text-muted text-xs">Top 5% complexity zone</span>
+                </div>
+                <div class="insp-stat-cell">
+                  <span class="k">ASSIGNED CAPACITY (M)</span>
+                  <div class="v-row"><span class="val text-cyan" id="na-m-val">22 / 24</span></div>
+                  <span class="sub text-muted text-xs">Base: 16 (+6 boost)</span>
+                </div>
+                <div class="insp-stat-cell">
+                  <span class="k">LOCAL DENSITY (k=20)</span>
+                  <div class="v-row"><span class="val text-white" id="na-density-val">0.041</span></div>
+                  <span class="sub text-muted text-xs">Sparse boundary void</span>
+                </div>
+                <div class="insp-stat-cell">
+                  <span class="k">DIFFICULTY SCORE</span>
+                  <div class="v-row"><span class="val text-emerald" id="na-score-val">+1.64 &sigma;</span></div>
+                  <span class="sub text-muted text-xs">Standardized z-score</span>
+                </div>
+              </div>
+
+              <div class="inspector-detail-list mt-3">
+                <div class="detail-line"><span class="k">In-Degree / Out-Degree:</span> <span class="v mono text-white">18 in / 22 out</span></div>
+                <div class="detail-line"><span class="k">Hubness Coefficient (&alpha;):</span> <span class="v mono text-cyan">0.41 (Safe &lt; 1.0)</span></div>
+                <div class="detail-line"><span class="k">Layer Hierarchy:</span> <span class="v mono text-white">Layer 0, Layer 1</span></div>
+                <div class="detail-line"><span class="k">efConstruction Applied:</span> <span class="v mono text-white">192 (Max: 220)</span></div>
+                <div class="detail-line"><span class="k">Manifold Coordinates:</span> <span class="v mono text-muted text-xs">[0.724, 0.469, 0.118]</span></div>
+              </div>
+            </div>
+
+            <!-- Column 2: Candidate Distance Distribution Histogram -->
+            <div class="stitch-card p-3">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                  <h4>Candidate Distance Spectrum</h4>
+                </div>
+                <span class="badge-pill-cyan">MLE BALL r_k</span>
+              </div>
+              <p class="text-xs text-muted mt-1">Distance distribution to 50 nearest candidates and fitted Levina-Bickel power law curve.</p>
+
+              <div class="chart-box-large mt-3" style="height: 220px;">
+                <canvas id="node-distance-spectrum-canvas" width="380" height="220"></canvas>
+              </div>
+
+              <div class="chart-caption-strip mt-2">
+                <span class="mono text-xs text-muted">r_1 = <strong class="text-cyan">0.0418</strong> | r_k = <strong class="text-white">0.1843</strong></span>
+                <span class="spacer"></span>
+                <span class="mono text-emerald text-xs">MLE Log-Sum: -1.82</span>
+              </div>
+            </div>
+
+            <!-- Column 3: Degree Centrality vs Hubness Trap Bounds -->
+            <div class="stitch-card p-3">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                  <h4>Degree Bounds &amp; Hubness Safety</h4>
+                </div>
+                <span class="badge-pill-emerald">CAPPED</span>
+              </div>
+              <p class="text-xs text-muted mt-1">In-degree vs out-degree scatter comparison against canonical HNSW bottleneck threshold.</p>
+
+              <div class="chart-box-large mt-3" style="height: 220px;">
+                <canvas id="node-degree-scatter-canvas" width="380" height="220"></canvas>
+              </div>
+
+              <div class="chart-caption-strip mt-2">
+                <span class="text-xs text-muted">Target is safely within <strong class="text-emerald">Safe Centrality Boundary</strong></span>
+                <span class="spacer"></span>
+                <span class="mono text-cyan text-xs">Max Cap: 72</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================================================================
+             PAGE: SYSTEM METRICS (Hardware Substrate & Memory Breakdown)
+             ================================================================= -->
+        <div id="view-system-metrics" class="view-panel">
+          <div class="research-header-banner">
+            <div class="header-banner-text">
+              <div class="banner-sub-badge">HARDWARE SUBSTRATE &bull; SIMD AVX-512 &bull; MEMORY BUS SATURATION</div>
+              <h2 class="banner-title">System Metrics &amp; Hardware Telemetry</h2>
+              <p class="banner-desc">Real-time hardware telemetry: instruction set throughput, DRAM bandwidth, cache hierarchy hit rates, and latency SLA quantiles.</p>
+            </div>
+            <div class="banner-actions">
+              <button class="btn-stitch btn-stitch-secondary" id="btn-refresh-sys-metrics">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Refresh Telemetry
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 Hardware Metrics Cards -->
+          <div class="kpi-grid-4 mt-3">
+            <div class="kpi-card">
+              <div class="kpi-label-row">
+                <span class="dot-indicator cyan-dot"></span>
+                <span class="kpi-label">SIMD VECTOR ENGINE</span>
+                <span class="kpi-sub-label">16 THREADS</span>
+              </div>
+              <div class="kpi-value-row">
+                <span class="kpi-main-val text-cyan">AVX-512</span>
+                <span class="kpi-badge-pill text-emerald">92.4% Util</span>
+              </div>
+              <div class="kpi-footer-row text-xs text-muted">
+                <span>Fused Multiply-Add (FMA3)</span>
+                <span class="mono text-white">2.30 GHz</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label-row">
+                <span class="dot-indicator cyan-dot"></span>
+                <span class="kpi-label">DRAM RESIDENCY</span>
+                <span class="kpi-delta-pill text-emerald">-41.7%</span>
+              </div>
+              <div class="kpi-value-row">
+                <span class="kpi-main-val">214.6 MB</span>
+                <span class="kpi-secondary-val">/ 64 GB</span>
+              </div>
+              <div class="kpi-footer-row text-xs text-muted">
+                <span>DRAM Bandwidth: 14.2 GB/s</span>
+                <span class="mono text-cyan">Zero Swap</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label-row">
+                <span class="dot-indicator cyan-dot"></span>
+                <span class="kpi-label">CACHE HIERARCHY</span>
+                <span class="kpi-sub-label">L1 / L2 / L3</span>
+              </div>
+              <div class="kpi-value-row">
+                <span class="kpi-main-val text-emerald">98.2%</span>
+                <span class="kpi-secondary-val">L1D Hit</span>
+              </div>
+              <div class="kpi-footer-row text-xs text-muted">
+                <span>L2 Hit: 91.5% &bull; L3 LLC: 84.1%</span>
+                <span class="mono text-emerald">Prefetch On</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-label-row">
+                <span class="dot-indicator cyan-dot"></span>
+                <span class="kpi-label">TAIL LATENCY SLA (P99)</span>
+                <span class="kpi-delta-pill text-emerald">-37.1%</span>
+              </div>
+              <div class="kpi-value-row">
+                <span class="kpi-main-val text-cyan">2.15 ms</span>
+                <span class="kpi-secondary-val text-strike">3.42 ms</span>
+              </div>
+              <div class="kpi-footer-row text-xs text-muted">
+                <span>Target SLA: &lt; 3.00 ms</span>
+                <span class="mono text-emerald">PASS</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-Time Rolling Throughput & Latency Timeline -->
+          <div class="overview-split-layout mt-3">
+            <div class="stitch-card p-3">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  <h4>Real-Time Query Throughput &amp; Load Timeline</h4>
+                </div>
+                <div class="legend-pills">
+                  <span class="leg-item"><span class="leg-line cyan-line"></span> QPS (Queries/s)</span>
+                  <span class="leg-item"><span class="leg-line dash-line"></span> Target Capacity</span>
+                </div>
+              </div>
+              <div class="chart-box-large mt-3" style="height: 230px;">
+                <canvas id="system-throughput-canvas" width="680" height="230"></canvas>
+              </div>
+              <div class="chart-caption-strip mt-2">
+                <span class="text-xs text-muted">Real-time rolling ticker across 60-second window</span>
+                <span class="spacer"></span>
+                <span class="mono text-cyan text-xs">Peak Sustained: 8,420 QPS</span>
+              </div>
+            </div>
+
+            <!-- Memory Subsystem Breakdown -->
+            <div class="stitch-card p-3">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                  <h4>Memory Subsystem Allocation</h4>
+                </div>
+                <span class="badge-pill-cyan">214.6 MB TOTAL</span>
+              </div>
+
+              <div class="m-allocation-bars mt-3">
+                <div class="m-bar-row">
+                  <span class="m-label" style="width: 140px;">Vector Payloads (FP32)</span>
+                  <div class="m-track"><div class="m-fill" style="width: 58%; background: var(--cyan-primary);"></div></div>
+                  <span class="m-pct" style="width: 50px;">124.8 MB</span>
+                </div>
+                <div class="m-bar-row mt-2">
+                  <span class="m-label" style="width: 140px;">Adjacency Edges</span>
+                  <div class="m-track"><div class="m-fill" style="width: 29%; background: var(--emerald);"></div></div>
+                  <span class="m-pct" style="width: 50px;">62.4 MB</span>
+                </div>
+                <div class="m-bar-row mt-2">
+                  <span class="m-label" style="width: 140px;">Visited Bitset Pool</span>
+                  <div class="m-track"><div class="m-fill" style="width: 8%; background: var(--amber);"></div></div>
+                  <span class="m-pct" style="width: 50px;">18.2 MB</span>
+                </div>
+                <div class="m-bar-row mt-2">
+                  <span class="m-label" style="width: 140px;">Queue Scratchpads</span>
+                  <div class="m-track"><div class="m-fill" style="width: 5%; background: var(--sapphire);"></div></div>
+                  <span class="m-pct" style="width: 50px;">9.2 MB</span>
+                </div>
+              </div>
+
+              <div class="early-exit-savings-banner mt-4">
+                <div class="banner-left">
+                  <svg class="bolt-icon text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                  <div>
+                    <div class="savings-main-text">INT8 SQ8 Quantization Ready</div>
+                    <div class="savings-sub-text">Compresses vector payload from 124.8 MB to 31.2 MB</div>
+                  </div>
+                </div>
+                <div class="banner-right-stat mono text-cyan">-75% <span>RAM</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =================================================================
+             PAGE: SETTINGS (Hardware Preferences & System Tuning)
+             ================================================================= -->
+        <div id="view-settings" class="view-panel">
+          <div class="research-header-banner">
+            <div class="header-banner-text">
+              <div class="banner-sub-badge">SYSTEM CONFIGURATION &bull; ENGINE PREFERENCES</div>
+              <h2 class="banner-title">Settings &amp; Telemetry Configuration</h2>
+              <p class="banner-desc">Adjust runtime execution substrate, thread affinity, memory budget quotas, and synthetic audio micro-haptics.</p>
+            </div>
+            <div class="banner-actions">
+              <button class="btn-stitch btn-stitch-secondary" id="btn-settings-reset">Restore Defaults</button>
+              <button class="btn-stitch btn-stitch-primary glow-cyan" id="btn-settings-save">
+                Save &amp; Apply Changes
+              </button>
+            </div>
+          </div>
+
+          <div class="bench-grid-2x2 mt-3">
+            <!-- Settings Card 1: Execution Engine & Threads -->
+            <div class="stitch-card p-4">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
+                  <h4>Execution Substrate &amp; Parallelism</h4>
+                </div>
+                <span class="badge-pill-cyan">HARDWARE</span>
+              </div>
+
+              <div class="builder-col mt-3">
+                <label class="control-label">Instruction Set Architecture (ISA):</label>
+                <div class="pill-segmented mt-1" style="width: 100%;">
+                  <button class="pill-btn active" style="flex: 1;">AVX-512 (Native)</button>
+                  <button class="pill-btn" style="flex: 1;">AVX2 + FMA</button>
+                  <button class="pill-btn" style="flex: 1;">SSE4.2</button>
+                  <button class="pill-btn" style="flex: 1;">Scalar</button>
+                </div>
+              </div>
+
+              <div class="slider-row-item mt-4">
+                <div class="slider-meta">
+                  <span class="q-tool-title">WORKER THREAD POOL</span>
+                  <span class="mono text-cyan" id="cfg-threads-val">16 Threads</span>
+                </div>
+                <input type="range" class="stitch-slider" id="cfg-threads-slider" min="1" max="32" value="16">
+              </div>
+
+              <div class="builder-col mt-4">
+                <label class="stitch-checkbox">
+                  <input type="checkbox" id="cfg-numa-pin" checked>
+                  <span class="chk-box"></span>
+                  <span>Pin worker threads to NUMA Node 0 (`physcpubind=0-15`)</span>
+                </label>
+                <label class="stitch-checkbox mt-2">
+                  <input type="checkbox" id="cfg-prefetch-cache" checked>
+                  <span class="chk-box"></span>
+                  <span>Enable L1/L2 hardware prefetching pipeline (`__builtin_prefetch`)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Settings Card 2: Memory & Quantization Mode -->
+            <div class="stitch-card p-4">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                  <h4>Quantization &amp; Memory Limits</h4>
+                </div>
+                <span class="badge-pill-cyan">MEMORY</span>
+              </div>
+
+              <div class="builder-col mt-3">
+                <label class="control-label">Vector Storage Quantization:</label>
+                <div class="pill-segmented mt-1" style="width: 100%;">
+                  <button class="pill-btn active" style="flex: 1;">Float32 (Exact)</button>
+                  <button class="pill-btn" style="flex: 1;">Float16 (Half)</button>
+                  <button class="pill-btn" style="flex: 1;">INT8 SQ8 (75% Comp)</button>
+                </div>
+              </div>
+
+              <div class="slider-row-item mt-4">
+                <div class="slider-meta">
+                  <span class="q-tool-title">MAXIMUM RAM BUDGET</span>
+                  <span class="mono text-cyan" id="cfg-ram-val">4.0 GB</span>
+                </div>
+                <input type="range" class="stitch-slider" id="cfg-ram-slider" min="1" max="16" value="4">
+              </div>
+
+              <div class="builder-col mt-4">
+                <label class="stitch-checkbox">
+                  <input type="checkbox" id="cfg-twostage-rerank" checked>
+                  <span class="chk-box"></span>
+                  <span>Two-stage Float32 re-ranking over candidate pool</span>
+                </label>
+                <label class="stitch-checkbox mt-2">
+                  <input type="checkbox" id="cfg-layer-decouple" checked>
+                  <span class="chk-box"></span>
+                  <span>Layer-decoupled express link compression (&lambda;=0.75)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Settings Card 3: Online Signal Tracking -->
+            <div class="stitch-card p-4">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                  <h4>Online Signal Estimators</h4>
+                </div>
+                <span class="badge-pill-cyan">ALGORITHM</span>
+              </div>
+
+              <div class="builder-col mt-3">
+                <label class="control-label">Intrinsic Dimensionality Estimator:</label>
+                <select class="stitch-input mt-1" style="width: 100%; background: #090c14; color: #fff;">
+                  <option selected>Maximum Likelihood (Levina-Bickel MLE)</option>
+                  <option>Method of Moments</option>
+                  <option>Correlation Dimension (Grassberger-Procaccia)</option>
+                </select>
+              </div>
+
+              <div class="slider-row-item mt-4">
+                <div class="slider-meta">
+                  <span class="q-tool-title">WELFORD EMA MOMENTUM (&gamma;)</span>
+                  <span class="mono text-cyan">0.05</span>
+                </div>
+                <input type="range" class="stitch-slider" min="0.01" max="0.20" step="0.01" value="0.05">
+              </div>
+
+              <div class="slider-row-item mt-3">
+                <div class="slider-meta">
+                  <span class="q-tool-title">PROBE SAMPLE SIZE (k_probe)</span>
+                  <span class="mono text-cyan">15 candidates</span>
+                </div>
+                <input type="range" class="stitch-slider" min="5" max="30" step="5" value="15">
+              </div>
+            </div>
+
+            <!-- Settings Card 4: Backend API & Telemetry -->
+            <div class="stitch-card p-4">
+              <div class="card-top-row">
+                <div class="title-with-pill">
+                  <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                  <h4>Backend API &amp; Micro-Haptics</h4>
+                </div>
+                <span class="badge-pill-cyan">ENDPOINT</span>
+              </div>
+
+              <div class="builder-col mt-3">
+                <label class="control-label">FastAPI Engine Server URL:</label>
+                <input type="text" class="stitch-input mono mt-1" id="cfg-api-url" value="http://127.0.0.1:8000">
+              </div>
+
+              <div class="builder-col mt-3">
+                <button class="btn-stitch btn-stitch-secondary" id="btn-ping-backend" style="width: 100%; justify-content: center;">
+                  <span class="ready-dot"></span> Test Connection &bull; Ping Endpoint
+                </button>
+              </div>
+
+              <div class="builder-col mt-4">
+                <label class="stitch-checkbox">
+                  <input type="checkbox" id="cfg-audio-haptics" checked>
+                  <span class="chk-box"></span>
+                  <span>Enable Web Audio synthetic micro-haptics on user interaction</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
 
       </main>
     </div>
@@ -1417,8 +2239,12 @@
     </div>
   </div>
 
+  <!-- Floating Glassmorphic Toast Notification Container -->
+  <div id="stitch-toast-container"></div>
+
   <!-- Main JavaScript Engine -->
   <script src="app.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
+
