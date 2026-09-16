@@ -219,19 +219,19 @@
                 <span class="kpi-sub-label">D_AMB</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val">768</span>
-                <span class="kpi-badge-pill text-cyan">ID ~14.2</span>
+                <span class="kpi-main-val">128</span>
+                <span class="kpi-badge-pill text-cyan">LID ~9.8</span>
               </div>
               <div class="kpi-footer-row">
-                <span>text-embedding-3-small</span>
-                <span class="mono text-muted">FP32</span>
+                <span>Texmex IRISA (SIFT-100K)</span>
+                <span class="mono text-muted">FP32 / L2</span>
               </div>
             </div>
 
             <div class="kpi-card">
               <div class="kpi-label-row">
                 <span class="dot-indicator cyan-dot"></span>
-                <span class="kpi-label">GRAPH EDGES</span>
+                <span class="kpi-label">GRAPH EDGES (STEP 5 &amp; 6)</span>
                 <span class="kpi-delta-pill text-emerald">-7.4%</span>
               </div>
               <div class="kpi-value-row">
@@ -239,8 +239,8 @@
                 <span class="kpi-secondary-val">2.71M</span>
               </div>
               <div class="kpi-footer-row">
-                <span>Baseline HNSW: 2.71M edges</span>
-                <span class="mono text-cyan">M_avg=15.7</span>
+                <span>Baseline: 2.71M &rarr; Ada: 2.51M</span>
+                <span class="mono text-cyan">M_avg=15.2</span>
               </div>
               <div class="kpi-sparkline">
                 <div class="sparkline-bar" style="width: 57.5%;"></div>
@@ -250,16 +250,16 @@
             <div class="kpi-card">
               <div class="kpi-label-row">
                 <span class="dot-indicator cyan-dot"></span>
-                <span class="kpi-label">RECALL@10</span>
-                <span class="kpi-delta-pill text-muted">-0.19% &Delta;</span>
+                <span class="kpi-label">RECALL@10 (STEP 5 ADA-EF)</span>
+                <span class="kpi-delta-pill text-emerald">Parity</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val text-cyan">0.9854</span>
-                <span class="kpi-secondary-val">Base: 98.91%</span>
+                <span class="kpi-main-val text-cyan">0.9745</span>
+                <span class="kpi-secondary-val">Base: 0.9913</span>
               </div>
               <div class="kpi-footer-row">
-                <span>Exact 1-NN: 97.4%</span>
-                <span class="mono text-emerald">&epsilon;-Preserved</span>
+                <span>Parity: 0.9856 &bull; Step 4: 0.9854</span>
+                <span class="mono text-muted">Step 6 SQ8: 0.9594</span>
               </div>
             </div>
           </div>
@@ -268,21 +268,21 @@
           <div class="kpi-grid-4 mt-3">
             <div class="kpi-card compact">
               <div class="kpi-label-row">
-                <span class="kpi-label">BUILD TIME</span>
-                <span class="kpi-delta-pill text-emerald">-28.2%</span>
+                <span class="kpi-label">BUILD TIME (STEP 5 ADA-EF)</span>
+                <span class="kpi-delta-pill text-emerald">-28.1%</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val">41.8s</span>
-                <span class="kpi-secondary-val text-strike">58.2s</span>
+                <span class="kpi-main-val">33.5s</span>
+                <span class="kpi-secondary-val text-strike">46.6s</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
-                Adaptive efConstruction pruning
+                12T AVX2 &bull; Step 6 (with SQ8): 64.0s
               </div>
             </div>
 
             <div class="kpi-card compact">
               <div class="kpi-label-row">
-                <span class="kpi-label">QUERY LATENCY (P95)</span>
+                <span class="kpi-label">QUERY LATENCY P95 (STEP 5)</span>
                 <span class="kpi-delta-pill text-emerald">-24.9%</span>
               </div>
               <div class="kpi-value-row">
@@ -290,27 +290,27 @@
                 <span class="kpi-secondary-val text-strike">1.89 ms</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
-                Reduced edge hops in dense core
+                Ada-ef early exit &bull; Step 6 SQ8: 2.35 ms
               </div>
             </div>
 
             <div class="kpi-card compact">
               <div class="kpi-label-row">
-                <span class="kpi-label">SEARCH QPS</span>
-                <span class="kpi-delta-pill text-cyan">+28.1%</span>
+                <span class="kpi-label">PEAK QPS (STEP 5, BEFORE SQ8)</span>
+                <span class="kpi-delta-pill text-cyan">+50.3%</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val">7,840</span>
-                <span class="kpi-secondary-val">Base: 6,120</span>
+                <span class="kpi-main-val">7,075.3</span>
+                <span class="kpi-secondary-val">Base: 4,708.1</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
-                Intel Core 5 210H (8C/12T, AVX2/FMA)
+                Ada-ef FP32 &bull; Step 6 (SQ8 Re-rank): 2,987.6 QPS
               </div>
             </div>
 
             <div class="kpi-card compact">
               <div class="kpi-label-row">
-                <span class="kpi-label">MEMORY FOOTPRINT</span>
+                <span class="kpi-label">MEMORY (STEP 6, ASYM SQ8)</span>
                 <span class="kpi-delta-pill text-emerald">-62.4%</span>
               </div>
               <div class="kpi-value-row">
@@ -318,7 +318,7 @@
                 <span class="kpi-secondary-val text-strike">59.9 MB</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
-                Index adjacency list compressed
+                SQ8 Quantized &bull; Step 1-5 (FP32): 59.2 MB
               </div>
             </div>
           </div>
@@ -1965,7 +1965,7 @@
               <div class="kpi-label-row">
                 <span class="dot-indicator cyan-dot"></span>
                 <span class="kpi-label">SIMD VECTOR ENGINE</span>
-                <span class="kpi-sub-label">16 THREADS</span>
+                <span class="kpi-sub-label">12 THREADS</span>
               </div>
               <div class="kpi-value-row">
                 <span class="kpi-main-val text-cyan">AVX2 / FMA</span>
@@ -1980,7 +1980,7 @@
             <div class="kpi-card">
               <div class="kpi-label-row">
                 <span class="dot-indicator cyan-dot"></span>
-                <span class="kpi-label">DRAM RESIDENCY</span>
+                <span class="kpi-label">DRAM RESIDENCY (STEP 6 SQ8)</span>
                 <span class="kpi-delta-pill text-emerald">-62.4%</span>
               </div>
               <div class="kpi-value-row">
@@ -1988,7 +1988,7 @@
                 <span class="kpi-secondary-val">/ 16.0 GB</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
-                <span>DRAM Bandwidth: 14.2 GB/s</span>
+                <span>Step 1-5 (FP32): 59.2 MB</span>
                 <span class="mono text-cyan">Zero Swap</span>
               </div>
             </div>
@@ -2045,7 +2045,7 @@
               <div class="chart-caption-strip mt-2">
                 <span class="text-xs text-muted">Real-time rolling ticker across 60-second window</span>
                 <span class="spacer"></span>
-                <span class="mono text-cyan text-xs">Peak Sustained: 7,075.3 QPS</span>
+                <span class="mono text-cyan text-xs">Peak Sustained: 7,075.3 QPS (Step 5 Ada-ef; Step 6 SQ8: 2,987.6 QPS)</span>
               </div>
             </div>
 
@@ -2056,7 +2056,7 @@
                   <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
                   <h4>Memory Subsystem Allocation</h4>
                 </div>
-                <span class="badge-pill-cyan">59.2 MB TOTAL (22.5 MB SQ8)</span>
+                <span class="badge-pill-cyan">STEP 6 SQ8: 22.5 MB (STEP 1-5 FP32: 59.2 MB)</span>
               </div>
 
               <div class="m-allocation-bars mt-3">
