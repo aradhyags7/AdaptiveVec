@@ -1,0 +1,13 @@
+dataset,configuration,n_samples,dim,n_queries,build_time_sec,total_edges,layer0_edges,upper_layer_edges,edge_change_pct,build_speedup_pct,memory_mb,recall_at_10,qps,distance_evaluations_per_query
+SIFT-100K subset,1. Baseline HNSW (Fixed M=16),100000,128,10000,219.83,2709123,2608358,100765,0.0,0.0,59.88,0.9913,2504.6,1121.2
+SIFT-100K subset,2. + Dynamic M(x) & efC(x),100000,128,10000,92.14,2549819,2453655,96164,-5.88,58.09,59.27,0.9883,3025.7,1017.6
+SIFT-100K subset,3. + Layer-Decoupled Scaling,100000,128,10000,116.81,2515281,2441957,73324,-7.15,46.86,59.17,0.9887,5076.0,991.8
+SIFT-100K subset,4. + Hubness Regulation (mu=0.15),100000,128,10000,35.15,2510342,2436412,73930,-7.34,84.01,59.15,0.9854,5277.6,979.5
+SIFT-100K subset,5. + Ada-ef Stagnation Exit,100000,128,10000,48.16,2509165,2434689,74476,-7.38,78.09,59.15,0.7056,16578.0,263.3
+SIFT-100K subset,6. + Asymmetric INT8 SQ8,100000,128,10000,34.32,2509867,2435422,74445,-7.35,84.39,22.46,0.6923,15596.2,326.8
+Synthetic-Multi-Cluster,1. Baseline HNSW (Fixed M=16),50000,64,1000,17.6374,1284614,1230644,53970,0.0,0.0,17.49,0.922,5484.1,1430.0
+Synthetic-Multi-Cluster,2. + Dynamic M(x) & efC(x),50000,64,1000,16.8071,1288175,1239067,49108,0.28,4.71,17.5,0.9172,5920.9,1428.3
+Synthetic-Multi-Cluster,3. + Layer-Decoupled Scaling,50000,64,1000,16.4008,1257271,1220619,36652,-2.13,7.01,17.38,0.9145,5812.9,1397.8
+Synthetic-Multi-Cluster,4. + Hubness Regulation (mu=0.15),50000,64,1000,16.2831,1289398,1251468,37930,0.37,7.68,17.51,0.7821,6149.1,1297.2
+Synthetic-Multi-Cluster,5. + Ada-ef Stagnation Exit,50000,64,1000,16.9117,1263970,1224992,38978,-1.61,4.11,17.41,0.3483,6960.1,323.5
+Synthetic-Multi-Cluster,6. + Asymmetric INT8 SQ8,50000,64,1000,48.1318,1293780,1257232,36548,0.71,-172.9,8.37,0.3475,5788.4,385.0
