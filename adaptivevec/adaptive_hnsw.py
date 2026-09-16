@@ -189,19 +189,7 @@ class AdaptiveHNSW:
             if c_dist > furthest_d:
                 break
                 
-            # Stagnation early-stopping check (active primarily on layer 0 search)
-            if early_exit and len(w_furthest) >= min(ef, 10):
-                current_best = min(-neg_d for neg_d, _ in w_furthest)
-                if best_dist - current_best > stagnation_epsilon:
-                    best_dist = current_best
-                    stagnation_counter = 0
-                else:
-                    stagnation_counter += 1
-                    if stagnation_counter >= stagnation_patience:
-                        if record_trace:
-                            trace_steps.append({"action": "early_exit", "node": c_node, "dist": current_best, "layer": lc, "stagnation": stagnation_counter})
-                        break
-
+            improved = False
             neighbors = self.graphs[lc].get(c_node, [])
             for e_node in neighbors:
                 if e_node not in visited:
@@ -211,15 +199,35 @@ class AdaptiveHNSW:
                     
                     if e_dist < furthest_d or len(w_furthest) < ef:
                         heapq.heappush(candidates, (e_dist, e_node))
-                        heapq.heappush(w_furthest, (-e_dist, e_node))
                         
+                        if len(w_furthest) >= ef:
+                            old_f = -w_furthest[0][0]
+                            heapq.heappop(w_furthest)
+                            heapq.heappush(w_furthest, (-e_dist, e_node))
+                            new_f = -w_furthest[0][0]
+                            if old_f - new_f > stagnation_epsilon:
+                                improved = True
+                        else:
+                            heapq.heappush(w_furthest, (-e_dist, e_node))
+                            improved = True
+                            
+                        if best_dist - e_dist > stagnation_epsilon:
+                            best_dist = e_dist
+                            improved = True
+                            
                         if record_trace:
                             trace_steps.append({"action": "explore", "from": c_node, "node": e_node, "dist": e_dist, "layer": lc})
-                            
-                        if len(w_furthest) > ef:
-                            removed_d, removed_node = heapq.heappop(w_furthest)
-                            if record_trace:
-                                trace_steps.append({"action": "prune_w", "node": removed_node, "dist": -removed_d, "layer": lc})
+
+            # Stagnation early-stopping check (active on layer 0 after beam has filled)
+            if early_exit and lc == 0 and len(w_furthest) >= ef:
+                if improved:
+                    stagnation_counter = 0
+                else:
+                    stagnation_counter += 1
+                    if stagnation_counter >= stagnation_patience:
+                        if record_trace:
+                            trace_steps.append({"action": "early_exit", "node": c_node, "dist": best_dist, "layer": lc, "stagnation": stagnation_counter})
+                        break
 
         result = sorted([(-neg_d, node) for neg_d, node in w_furthest], key=lambda x: x[0])
         if record_trace:

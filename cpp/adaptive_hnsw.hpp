@@ -530,17 +530,7 @@ public:
             
             if (curr.dist > furthest_d) break;
             
-            // Ada-ef Stagnation early exit for layer 0 search
-            if (early_exit && lc == 0 && (int)w_furthest.size() >= std::min(ef, 10)) {
-                if (best_dist - curr.dist > policy.ada_ef_epsilon) {
-                    best_dist = curr.dist;
-                    stagnation_counter = 0;
-                } else {
-                    if (++stagnation_counter >= policy.ada_ef_patience) {
-                        break;
-                    }
-                }
-            }
+            bool improved = false;
             
             if (lc < (int)graphs.size() && curr.id < graphs[lc].size()) {
                 const auto& neighbors = graphs[lc][curr.id];
@@ -566,12 +556,38 @@ public:
                         
                         if (d < furthest_d || (int)w_furthest.size() < ef) {
                             candidates.push({d, neighbor});
-                            w_furthest.push({d, neighbor});
                             
-                            if ((int)w_furthest.size() > ef) {
+                            if ((int)w_furthest.size() >= ef) {
+                                dist_t old_f = w_furthest.top().dist;
                                 w_furthest.pop();
+                                w_furthest.push({d, neighbor});
+                                dist_t new_f = w_furthest.top().dist;
+                                if (old_f - new_f > policy.ada_ef_epsilon) {
+                                    improved = true;
+                                }
+                            } else {
+                                w_furthest.push({d, neighbor});
+                                improved = true;
+                            }
+                            
+                            if (best_dist - d > policy.ada_ef_epsilon) {
+                                best_dist = d;
+                                improved = true;
                             }
                         }
+                    }
+                }
+            }
+            
+            // Ada-ef Stagnation early exit for layer 0 search:
+            // Activates only after beam W has accumulated at least ef candidates,
+            // tracking whether the candidate expansion successfully improved W.
+            if (early_exit && lc == 0 && (int)w_furthest.size() >= ef) {
+                if (improved) {
+                    stagnation_counter = 0;
+                } else {
+                    if (++stagnation_counter >= policy.ada_ef_patience) {
+                        break;
                     }
                 }
             }
