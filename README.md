@@ -243,63 +243,71 @@ $$\frac{T_{\text{probe}}}{T_{\text{insert}}} \le \frac{ef_{\text{probe}}}{\sum_{
 ## 6. Empirical Evaluation & Benchmark Results
 
 ### 6.1 Experimental Setup & Testbed
-* **Processor:** AMD Ryzen / Intel x86_64 architecture with AVX2 & FMA3 extensions enabled.
-* **Compiler:** `g++ 16.1.0` (MSYS2 / MinGW-w64) with flags `-O3 -mavx2 -mfma -std=c++17`.
-* **Runtime:** Python 3.11.9 (64-bit) with CPython NumPy 1.26.4 BLAS acceleration.
-* **Datasets Evaluated:**
-  1. `Multi-Manifold Synthetic` ($N=10,000, D=64$): 4 distinct geometric topologies (2D Swiss-Roll, 1D Archimedean Spiral, 8D Hyper-Ellipsoid, 64D Gaussian Cloud).
-  2. `SIFT-128D Simulator` ($N=10,000, D=128$): Clustered gradient orientation descriptors with exponential scales.
-  3. `Technical Semantic Corpus` ($D=64$): Real technical literature embeddings for RAG evaluation.
-* **Ground Truth:** Exact brute-force oracle computed via exhaustive distance evaluation.
+* **Testbed Hardware:** Intel Core 5 210H (8 cores / 12 threads), 16.0 GB physical RAM.
+* **Operating System:** Windows 11 Home Single Language (64-bit, build 26100).
+* **Native C++ Compiler:** `g++ 16.1.0` (MSYS2 / MinGW-w64) with flags `-O3 -mavx2 -mfma -std=c++17`.
+* **Python Environment:** Python 3.14 / 3.11 with NumPy BLAS acceleration.
+* **Evaluated Corpora & Provenance:**
+  1. **`SIFT-100K subset`** ($N=100{,}000, D=128$, L2 space): Extracted directly from canonical Texmex IRISA `sift_base.fvecs` (`ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz`, verified against official MD5 `b23d1b3b2ee8469d819b61ca900ef0ed`). Evaluated against $Q=10{,}000$ genuine test queries (`sift_query.fvecs`) with exact brute-force ground truth computed over the 100K subset.
+  2. **`Synthetic-Multi-Cluster`** ($N=50{,}000, D=64$, L2 space): 8-cluster Gaussian mixture with varying sub-manifold dimensions, evaluated against $Q=1{,}000$ test queries with exact brute-force ground truth.
+  3. **`DBpedia-100K`:** Explicitly reported as **`NOT RUN`** (real OpenAI `text-embedding-3-small` embeddings unavailable locally; no synthetic data substituted).
+  4. **`GloVe-100`:** Available via canonical Stanford NLP source (`https://nlp.stanford.edu/data/glove.6B.zip`).
+* **Graph & Memory Accounting Formulations:**
+  * Total graph edges: $\sum_{l=0}^{l_{\max}} \sum_{u=0}^{N-1} \text{deg}^{(l)}(u)$ (sum of directed adjacency list sizes across all layers).
+  * Index RAM: $\text{RAM}_{\text{FP32}} = \frac{N \times D \times 4 + E \times 4}{1024^2} \text{ MB}$; $\text{RAM}_{\text{SQ8}} = \frac{N \times D \times 1 + D \times 8 + E \times 4}{1024^2} \text{ MB}$.
 
 ---
 
-### 6.2 Macro-Benchmark Comparison
+### 6.2 Empirical Ablation Benchmarks (Local Hardware Testbed)
 
-Comprehensive side-by-side benchmark ($N = 10,000$, $D = 64$, $Q = 200$ test queries, $k = 10$):
+All results below are **actual measured outputs** from the standalone native C++ benchmark harness (`benchmark_runner.exe`) running locally on the testbed with $efSearch = 64$ and $k = 10$. Results are exported in machine-readable format to [`benchmark_results.json`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/benchmark_results.json) and [`benchmark_results.csv`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/benchmark_results.csv).
 
-| Evaluation Metric | Stock HNSW ($M=16, efC=150$) | AdaptiveVec ($M \in [8, 22]$) | AdaptiveVec + SQ8 (Quantized) | Delta / Advantage |
-| :--- | :---: | :---: | :---: | :---: |
-| **Index Build Time (s)** | 1.867 s | **1.410 s** | 1.542 s | **⚡ +24.5% Faster Build** |
-| **Total Graph Edges** | 260,248 | **208,410** | **208,410** | **💾 -19.9% Graph Memory** |
-| **Avg Edges / Node** | 26.0 links | **20.8 links** | **20.8 links** | **📉 -5.2 links/node** |
-| **Vector Memory (MB)** | 2.44 MB | 2.44 MB | **0.61 MB** | **💾 -75.0% Vector RAM** |
-| **Total Index RAM (MB)** | 3.48 MB | 3.28 MB | **1.45 MB** | **🔥 -58.3% Total Footprint** |
-| **Recall@10** | 0.9915 | **0.9920** | 0.9855 | **🎯 $\pm 0.05\%$ Recall Parity** |
-| **Query Throughput (QPS)** | 8,795 QPS | **8,763 QPS** | 8,240 QPS | **⚡ Comparable Throughput** |
-| **Native C++ AVX2 QPS** | 26,960 QPS | 24,683 QPS | N/A | **🚀 ~27,000 QPS (Native)** |
-| **p50 Latency (ms)** | 0.095 ms | **0.088 ms** | 0.098 ms | **⚡ -7.3% Median Latency** |
-| **p99 Latency (ms)** | 0.280 ms | **0.231 ms** | 0.252 ms | **🎯 -17.5% Tail Latency** |
+#### A. SIFT-100K Subset ($N = 100{,}000, D = 128, Q = 10{,}000$ queries)
+
+| Step / Configuration | Graph Edges | Δ Edges | Build Time | Index RAM | Recall@10 | QPS | Dist Evals/q |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1. Baseline HNSW (Fixed $M=16, efC=200$)** | 2,709,123 | Baseline | 219.8 s | 59.9 MB | **0.9913** | 2,504.6 | 1,121.2 |
+| **2. + Dynamic $M(x)$ & $efC(x)$** | 2,549,819 | **-5.9%** | **92.1 s (-58.1%)** | 59.3 MB | **0.9883** | 3,025.7 (+20.8%) | 1,017.6 (-9.2%) |
+| **3. + Layer-Decoupled Scaling ($\lambda=0.75$)** | 2,515,281 | **-7.2%** | 116.8 s | 59.2 MB | **0.9887** | **5,076.0 (+102.7%)** | 991.8 |
+| **4. + Hubness Regulation ($\mu=0.15$)** | 2,510,342 | **-7.3%** | 35.2 s | 59.2 MB | **0.9854** | **5,277.6** | 979.5 |
+| **5. + Ada-ef Stagnation Exit ($p=6, \epsilon=10^{-4}$)** | 2,509,165 | **-7.4%** | 48.2 s | 59.2 MB | 0.7056 | **16,578.0 (6.6×)** | **263.3 (-76.5%)** |
+| **6. + Asymmetric INT8 SQ8 ($K_{\text{rerank}}=20$)** | 2,509,867 | **-7.4%** | 34.3 s | **22.5 MB (-62.4%)** | 0.6923 | **15,596.2 (6.2×)** | 326.8 |
+
+#### B. Synthetic-Multi-Cluster ($N = 50{,}000, D = 64, Q = 1{,}000$ queries)
+
+| Step / Configuration | Graph Edges | Δ Edges | Build Time | Index RAM | Recall@10 | QPS | Dist Evals/q |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1. Baseline HNSW (Fixed $M=16, efC=200$)** | 1,284,614 | Baseline | 17.6 s | 17.5 MB | **0.9220** | 5,484.1 | 1,430.0 |
+| **2. + Dynamic $M(x)$ & $efC(x)$** | 1,288,175 | +0.3% | 16.8 s | 17.5 MB | **0.9172** | 5,920.9 (+8.0%) | 1,428.3 |
+| **3. + Layer-Decoupled Scaling ($\lambda=0.75$)** | 1,257,271 | **-2.1%** | 16.4 s | 17.4 MB | **0.9145** | 5,812.9 | 1,397.8 |
+| **4. + Hubness Regulation ($\mu=0.15$)** | 1,289,398 | +0.4% | 16.3 s | 17.5 MB | 0.7821 | 6,149.1 | 1,297.2 |
+| **5. + Ada-ef Stagnation Exit ($p=6, \epsilon=10^{-4}$)** | 1,263,970 | **-1.6%** | 16.9 s | 17.4 MB | 0.3483 | **6,960.1 (+26.9%)** | **323.5 (-77.4%)** |
+| **6. + Asymmetric INT8 SQ8 ($K_{\text{rerank}}=20$)** | 1,293,780 | +0.7% | 48.1 s | **8.4 MB (-52.0%)** | 0.3475 | 5,788.4 | 385.0 |
 
 ---
 
-### 6.3 Detailed Ablation Studies
+### 6.3 Unverified claims in current paper draft (to be revised)
 
-#### Ablation 1: Signal Disentanglement (LID vs. Density vs. Combined)
-To quantify individual signal contributions, we disable signals selectively on the multi-manifold dataset ($N=10,000$):
+> [!WARNING]
+> **Integrity Disclosure & Gap Alignment**:
+> The research paper draft ([`AdaptiveVec_Research_Paper.pdf`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/AdaptiveVec_Research_Paper.pdf)) contains experimental targets and draft tables assembled prior to the completion of the local hardware testbed implementation. Those numbers **must not be treated as empirical ground truth** until updated in the paper draft.
 
-```
-Edge Savings vs. Recall Trade-off across Policies:
-┌─────────────────────────────────────────────────────────────┐
-│ Policy Type           Total Edges   Edge Savings   Recall@10 │
-├─────────────────────────────────────────────────────────────┤
-│ Uniform Stock HNSW        260,248       0.0%         0.9915 │
-│ Density-Only (β=1.0)      224,810     -13.6%         0.9890 │
-│ LID-Only (α=1.0)          216,400     -16.8%         0.9905 │
-│ Full AdaptiveVec (Combined) 208,410   -19.9%         0.9920 │
-└─────────────────────────────────────────────────────────────┘
-```
-> **Observation:** Local Density alone under-allocates in dense high-LID noise clusters. LID alone under-allocates in sparse 1D spirals. Combining both signals via standard score normalization delivers the highest memory compression without recall penalty.
+Below is an honest, unmanipulated accounting of where the current code and measurements stand relative to the draft:
 
-#### Ablation 2: Hubness Regulation on In-Degree Variance
-Evaluating node degree distributions across $10,000$ points:
-* **Without Hubness Penalty ($\omega = 0$):** Maximum in-degree $\text{deg}_{\text{max}} = 74$, Standard deviation $\sigma_{\text{deg}} = 8.42$. Search trajectories display high variance with occasional tail-latency spikes.
-* **With Hubness Penalty ($\omega = 0.15$):** Maximum in-degree $\text{deg}_{\text{max}} = 48$, Standard deviation $\sigma_{\text{deg}} = 5.11$. Tail latency ($p99$) drops by **17.5%**.
-
-#### Ablation 3: Early-Stopping Distance Stagnation Efficiency
-Across 200 test queries with patience $S = 6$:
-* **Standard Search (ef=50):** Average distance computations per query $= 248.6$.
-* **Ada-ef Stagnation Search:** Average distance computations per query $= 169.2$ (**-31.9% distance evaluations**) with identical Recall@10 ($0.9920$).
+1. **Dataset Scale & Naming**:
+   * The paper draft references full $N=1\text{M}$ SIFT-1M and GloVe-100 benchmarks. The local testbed benchmarks presented above evaluated the canonical **`SIFT-100K subset`** ($N=100{,}000, Q=10{,}000$) and **`Synthetic-Multi-Cluster`** ($N=50{,}000$).
+   * **DBpedia-100K** is reported as **`NOT RUN`** because authentic OpenAI `text-embedding-3-small` embeddings are unavailable locally. In accordance with strict scientific integrity rules, synthetic data was never substituted under the DBpedia name.
+2. **Edge Reduction Magnitude**:
+   * The paper draft claimed a uniform $19.9\%$ edge reduction based on early toy 10K benchmarks.
+   * On the real canonical `SIFT-100K subset`, dynamic allocation ($M(x) \in [8, 24]$) and geometric layer scaling ($\lambda = 0.75$) achieve a **$7.4\%$ edge reduction** ($\approx 200,000$ fewer edges: $2{,}709{,}123 \to 2{,}509{,}165$), while slashing build time by **$58.1\%$** ($219.8\text{ s} \to 92.1\text{ s}$).
+   * On synthetic multi-cluster data, edge counts fluctuate slightly ($\pm 1\%–2\%$) depending on cluster density distributions.
+3. **Recall vs. Speedup Trade-Off in Ada-ef Early Exit**:
+   * The paper draft reported zero recall degradation with Ada-ef.
+   * On the local testbed with aggressive default stagnation parameters ($p = 6$ consecutive non-improving hops, $\epsilon = 10^{-4}$), distance evaluations drop precipitously by **$76.5\%$** ($1{,}121 \to 263$ evals/query) and QPS surges from $2{,}504$ to **$16{,}578\text{ QPS}$ ($6.6\times$)**. However, Recall@10 drops from $0.9913$ to $0.7056$ on SIFT-100K and to $0.3483$ on Synthetic.
+   * Higher recall can be preserved by increasing patience $p \ge 12$ or lowering $efSearch$ thresholding, which represents a classical Pareto trade-off rather than free speedup.
+4. **Scalar Quantization (SQ8) Memory Savings**:
+   * Asymmetric INT8 SQ8 demonstrates clear memory compression on the local testbed: index memory on SIFT-100K drops from **$59.9\text{ MB}$ to $22.5\text{ MB}$ ($-62.4\%$ total memory savings)** and vector data drops by $75\%$.
+   * On SIFT-100K, two-stage float32 re-ranking ($K = 20$) yields $0.6923$ Recall@10 at over $15{,}500\text{ QPS}$.
 
 ---
 
@@ -316,21 +324,27 @@ AdaptiveVec/
 │   ├── quantization.py          # Asymmetric INT8 Scalar Quantizer (SQ8) & two-stage reranker
 │   ├── hnsw_base.py             # Pure-Python baseline stock HNSW (Malkov & Yashunin 2020)
 │   ├── adaptive_hnsw.py         # AdaptiveVec Dynamic Proximity Graph implementation
-│   ├── datasets.py              # Multi-manifold, SIFT-128D & synthetic data generators
+│   ├── datasets.py              # Canonical binary .fvecs/.ivecs loaders & synthetic generators
 │   ├── benchmark.py             # Precision evaluation harness (Recall@K, QPS, Latency)
 │   └── semantic_search.py       # Dual-engine Semantic Search / RAG document retriever
+├── benchmarks/                  # Paper Reproducibility & Benchmark Pipeline
+│   ├── prepare_datasets.py      # Automated canonical download from IRISA Texmex & Stanford NLP (MD5-verified)
+│   └── run_paper_benchmarks.py  # One-command C++ compile, execution & consolidated JSON/CSV export
 ├── cpp/                         # High-Performance Native C++17 Core
-│   ├── adaptive_hnsw.hpp        # Header-only C++ Stock & Adaptive HNSW with AVX2 SIMD
-│   ├── benchmark_main.cpp       # Standalone native benchmark runner binary
+│   ├── adaptive_hnsw.hpp        # Header-only C++ Engine: Welford, Layer Scaling, Hubness, SQ8, AVX2 SIMD
+│   ├── dataset_loader.hpp       # Fast binary .fvecs / .ivecs parser
+│   ├── benchmark_main.cpp       # 6-Step ablation & macro benchmark runner
 │   └── benchmark_runner.exe     # Compiled native benchmark runner executable
 ├── frontend/                    # Web Visualization & Simulator Studio
 │   ├── index.html               # Multi-tab responsive visual dashboard
 │   ├── styles.css               # Dark-mode glassmorphic design system
 │   └── app.js                   # Interactive Canvas 2D/3D visualizer & search simulator
-├── tests/                       # Automated Test Suite (15 Unit Tests)
+├── tests/                       # Automated Test Suite (16 Unit Tests)
 │   ├── test_signals.py          # Mathematical verification of LID on known manifolds
 │   ├── test_policy.py           # Welford streaming, quantile, and layer-scaling unit tests
 │   └── test_hnsw.py             # Connectivity, early exit, hubness & SQ8 recall verification
+├── benchmark_results.json       # Consolidated machine-readable empirical benchmark outputs
+├── benchmark_results.csv        # Consolidated empirical benchmark CSV
 ├── server.py                    # FastAPI REST server exposing REST endpoints & UI
 ├── test_api.py                  # API automated test harness
 ├── requirements.txt             # Python dependency specification
@@ -341,7 +355,19 @@ AdaptiveVec/
 
 ## 8. Quickstart & Reproducibility
 
-### 8.1 Environment Setup
+### 8.1 Single-Command Paper Benchmark Reproduction
+To re-run the entire benchmark suite from scratch on your local hardware:
+```bash
+python benchmarks/run_paper_benchmarks.py
+```
+This automated pipeline:
+1. Detects your CPU architecture, memory, and AVX2/FMA instruction support.
+2. Compiles the native C++ engine with `g++ -O3 -mavx2 -mfma -std=c++17`.
+3. Verifies or downloads the canonical Texmex IRISA dataset with MD5 checksum verification.
+4. Executes the complete 6-step ablation sequence on both `SIFT-100K subset` and `Synthetic-Multi-Cluster`.
+5. Exports consolidated empirical results to `benchmark_results.json` and `benchmark_results.csv`.
+
+### 8.2 Environment Setup & Installation
 ```bash
 # Clone the repository
 git clone https://github.com/aradhyags7/AdaptiveVec.git
@@ -360,13 +386,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 8.2 Execute the Full Automated Test Suite
+### 8.3 Execute the Automated Test Suite
 ```bash
-# Runs all 15 unit tests covering LID math, Welford tracking, Hubness, and SQ8
-python -m unittest discover -s tests -p "test_*.py"
+# Run pytest on all 16 algorithmic and policy unit tests
+pytest
 ```
 
-### 8.3 Launch the Interactive Research Studio
+### 8.4 Launch the Interactive Research Studio
 ```bash
 # Starts FastAPI server on port 8000
 python -m uvicorn server:app --host 127.0.0.1 --port 8000
@@ -377,7 +403,7 @@ Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** to interact with:
 * **Live Benchmark Studio:** Interactive Chart.js benchmark comparing Recall vs. QPS.
 * **Semantic Document Search (RAG):** Live technical document retrieval tracking edge savings.
 
-### 8.4 Compile and Run Native C++ AVX2 Benchmark
+### 8.5 Compile and Run Native C++ AVX2 Benchmark Manually
 ```bash
 cd cpp
 g++ -O3 -mavx2 -mfma -std=c++17 benchmark_main.cpp -o benchmark_runner.exe
