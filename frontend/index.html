@@ -1482,6 +1482,49 @@
               </div>
             </div>
 
+            <!-- Live Theoretical Degree Allocation Formula & Memory Estimator -->
+          <div class="stitch-card mt-3 p-3">
+            <div class="card-top-row">
+              <div class="title-with-pill">
+                <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <h4>Theoretical Degree Policy: M(x) Formula Evaluator</h4>
+              </div>
+              <span class="badge-pill-cyan mono" id="bld-formula-pill">LIVE MODEL ESTIMATE</span>
+            </div>
+            
+            <div class="formula-box mt-2 p-3" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-cyan); border-radius: var(--radius-sm);">
+              <div class="mono text-cyan" style="font-size: 13px; font-weight: 600;">
+                M(x) = clamp( M<sub>base</sub> &middot; [1 + &gamma;&middot;&theta;(x) &minus; &mu;&middot;(deg(x)/d̄)], M<sub>min</sub>, M<sub>max</sub> )
+              </div>
+              <div class="text-xs text-muted mt-1">
+                Where &theta;(x) = &alpha;&middot;LID*(x) &minus; &beta;&middot;&delta;*(x) is the local topological difficulty score.
+              </div>
+            </div>
+
+            <div class="kpi-grid-4 mt-3">
+              <div class="kpi-card" style="padding: 10px 12px;">
+                <span class="text-xs text-muted">Dense Core (Low LID)</span>
+                <div class="mono text-cyan" style="font-size: 16px; font-weight: 700;" id="bld-est-dense">M = 10 <span class="text-xs text-emerald">-37.5%</span></div>
+                <span class="text-xs text-dim mono">LID=8.5, &delta;=0.12</span>
+              </div>
+              <div class="kpi-card" style="padding: 10px 12px;">
+                <span class="text-xs text-muted">Neutral Manifold</span>
+                <div class="mono text-white" style="font-size: 16px; font-weight: 700;" id="bld-est-neutral">M = 16 <span class="text-xs text-muted">&plusmn;0%</span></div>
+                <span class="text-xs text-dim mono">LID=14.8, &delta;=0.08</span>
+              </div>
+              <div class="kpi-card" style="padding: 10px 12px;">
+                <span class="text-xs text-muted">Manifold Crest</span>
+                <div class="mono text-amber" style="font-size: 16px; font-weight: 700;" id="bld-est-crest">M = 24 <span class="text-xs text-cyan">+50.0%</span></div>
+                <span class="text-xs text-dim mono">LID=26.4, &delta;=0.04</span>
+              </div>
+              <div class="kpi-card" style="padding: 10px 12px;">
+                <span class="text-xs text-muted">Predicted RAM (100k)</span>
+                <div class="mono text-emerald" style="font-size: 16px; font-weight: 700;" id="bld-est-ram">92.4 MB <span class="text-xs text-emerald">-74.9%</span></div>
+                <span class="text-xs text-dim mono" id="bld-est-quant">SQ8 Quantized</span>
+              </div>
+            </div>
+          </div>
+
             <button class="btn-stitch btn-stitch-primary glow-cyan mt-4" id="bld-btn-compile" style="font-size: 13px; padding: 10px 22px;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:16px;height:16px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               Start Index Compilation &rarr;
