@@ -269,6 +269,7 @@ int main(int argc, char** argv) {
     size_t max_queries = 10000;
     int ef_search = 64;
     int k = 10;
+    int repeats = 1;
     bool force_synthetic = false;
     std::string json_out = "benchmark_results.json";
     std::string csv_out = "benchmark_results.csv";
@@ -282,6 +283,7 @@ int main(int argc, char** argv) {
         else if (arg == "--max_samples" && i + 1 < argc) max_samples = std::stoul(argv[++i]);
         else if (arg == "--max_queries" && i + 1 < argc) max_queries = std::stoul(argv[++i]);
         else if (arg == "--ef_search" && i + 1 < argc) ef_search = std::stoi(argv[++i]);
+        else if (arg == "--repeats" && i + 1 < argc) repeats = std::stoi(argv[++i]);
         else if (arg == "--synthetic") force_synthetic = true;
         else if (arg == "--out" && i + 1 < argc) json_out = argv[++i];
         else if (arg == "--csv" && i + 1 < argc) csv_out = argv[++i];
@@ -337,7 +339,39 @@ int main(int argc, char** argv) {
 
     std::cout << "\n[*] Beginning 6-Step Ablation Matrix on " << ds.name << " (N=" << ds.n_samples << ", D=" << ds.dim << ", Q=" << ds.n_queries << "):\n" << std::endl;
 
-    std::vector<BenchmarkRecord> records;
+    struct StatSummary {
+        double mean;
+        double std_dev;
+        double min_val;
+        double max_val;
+    };
+
+    auto calc_stats = [](const std::vector<double>& vals) -> StatSummary {
+        if (vals.empty()) return {0, 0, 0, 0};
+        double sum = 0.0;
+        double min_v = vals[0];
+        double max_v = vals[0];
+        for (double v : vals) {
+            sum += v;
+            if (v < min_v) min_v = v;
+            if (v > max_v) max_v = v;
+        }
+        double mean = sum / vals.size();
+        double sq_diff_sum = 0.0;
+        for (double v : vals) {
+            sq_diff_sum += (v - mean) * (v - mean);
+        }
+        double std_dev = (vals.size() > 1) ? std::sqrt(sq_diff_sum / (vals.size() - 1)) : 0.0;
+        return {mean, std_dev, min_v, max_v};
+    };
+
+    struct ConfigItem {
+        std::string name;
+        PolicyConfig cfg;
+        bool is_adaptive;
+    };
+
+    std::vector<ConfigItem> configs;
 
     // Configuration 1: Baseline HNSW (Fixed M=16, efC=200)
     PolicyConfig cfg1;
@@ -348,11 +382,7 @@ int main(int argc, char** argv) {
     cfg1.enable_sq8 = false;
     cfg1.m_base = 16;
     cfg1.ef_c_base = 200;
-    auto rec1 = run_single_benchmark(ds, "1. Baseline HNSW (Fixed M=16)", cfg1, false, ef_search, k, 0, 0.0);
-    records.push_back(rec1);
-
-    size_t base_edges = rec1.total_edges;
-    double base_build_time = rec1.build_time_s;
+    configs.push_back({"1. Baseline HNSW (Fixed M=16)", cfg1, false});
 
     // Configuration 2: + Dynamic M(x) & efC(x)
     PolicyConfig cfg2;
@@ -368,63 +398,178 @@ int main(int argc, char** argv) {
     cfg2.ef_c_min = 40;
     cfg2.ef_c_max = 220;
     cfg2.sensitivity = 0.4f;
-    records.push_back(run_single_benchmark(ds, "2. + Dynamic M(x) & efC(x)", cfg2, true, ef_search, k, base_edges, base_build_time));
+    configs.push_back({"2. + Dynamic M(x) & efC(x)", cfg2, true});
 
     // Configuration 3: + Layer-Decoupled Scaling
     PolicyConfig cfg3 = cfg2;
     cfg3.enable_layer_scaling = true;
     cfg3.lambda_layer = 0.75f;
     cfg3.m_min_layer = 4;
-    records.push_back(run_single_benchmark(ds, "3. + Layer-Decoupled Scaling", cfg3, true, ef_search, k, base_edges, base_build_time));
+    configs.push_back({"3. + Layer-Decoupled Scaling", cfg3, true});
 
     // Configuration 4: + Hubness Regulation
     PolicyConfig cfg4 = cfg3;
     cfg4.enable_hubness_regulation = true;
     cfg4.hubness_mu = 0.15f;
-    records.push_back(run_single_benchmark(ds, "4. + Hubness Regulation (mu=0.15)", cfg4, true, ef_search, k, base_edges, base_build_time));
+    configs.push_back({"4. + Hubness Regulation (mu=0.15)", cfg4, true});
 
     // Configuration 5: + Ada-ef Stagnation Exit
     PolicyConfig cfg5 = cfg4;
     cfg5.enable_ada_ef = true;
     cfg5.ada_ef_patience = 6;
     cfg5.ada_ef_epsilon = 1e-4f;
-    records.push_back(run_single_benchmark(ds, "5. + Ada-ef Stagnation Exit", cfg5, true, ef_search, k, base_edges, base_build_time));
+    configs.push_back({"5. + Ada-ef Stagnation Exit", cfg5, true});
 
     // Configuration 6: + Asymmetric INT8 SQ8
     PolicyConfig cfg6 = cfg5;
     cfg6.enable_sq8 = true;
-    records.push_back(run_single_benchmark(ds, "6. + Asymmetric INT8 SQ8", cfg6, true, ef_search, k, base_edges, base_build_time));
+    configs.push_back({"6. + Asymmetric INT8 SQ8", cfg6, true});
 
-    // Print Formatted Ablation Table
-    std::cout << "\n====================================================================================================================" << std::endl;
-    std::cout << "                                  ACTUAL MEASURED STEPWISE ABLATION MATRIX                                          " << std::endl;
-    std::cout << "====================================================================================================================" << std::endl;
-    std::cout << std::left << std::setw(34) << "Ablation Configuration" 
-              << std::setw(14) << "Graph Edges" 
-              << std::setw(12) << "Build Time" 
-              << std::setw(12) << "RAM (MB)"
-              << std::setw(12) << "Recall@10" 
-              << std::setw(12) << "QPS" 
-              << "Dist Evals/q" << std::endl;
-    std::cout << "--------------------------------------------------------------------------------------------------------------------" << std::endl;
+    std::cout << "\n[*] Beginning 6-Step Ablation Matrix on " << ds.name 
+              << " (N=" << ds.n_samples << ", D=" << ds.dim << ", Q=" << ds.n_queries 
+              << ", Repeats=" << repeats << "):\n" << std::endl;
 
-    for (const auto& r : records) {
-        std::stringstream edges_str, build_str;
-        edges_str << r.total_edges << " (" << (r.edge_change_pct >= 0 ? "+" : "") << std::fixed << std::setprecision(1) << r.edge_change_pct << "%)";
-        build_str << std::fixed << std::setprecision(1) << r.build_time_s << "s";
-        
-        std::cout << std::left << std::setw(34) << r.config_name
-                  << std::setw(14) << edges_str.str()
-                  << std::setw(12) << build_str.str()
-                  << std::setw(12) << std::fixed << std::setprecision(1) << r.ram_mb
-                  << std::setw(12) << std::fixed << std::setprecision(4) << r.recall_10
-                  << std::setw(12) << std::fixed << std::setprecision(1) << r.qps
-                  << std::fixed << std::setprecision(1) << r.avg_dist_evals << std::endl;
+    struct ConfigStats {
+        std::string name;
+        StatSummary build_time;
+        StatSummary edges;
+        StatSummary ram;
+        StatSummary recall;
+        StatSummary qps;
+        StatSummary dist_evals;
+    };
+    std::vector<ConfigStats> stats_list;
+    std::vector<BenchmarkRecord> all_trials;
+    std::vector<BenchmarkRecord> summary_records;
+
+    size_t base_edges = 0;
+    double base_build_time = 0.0;
+
+    for (size_t c_idx = 0; c_idx < configs.size(); ++c_idx) {
+        const auto& citem = configs[c_idx];
+        std::vector<BenchmarkRecord> trials;
+        std::cout << "\n>>> [" << (c_idx + 1) << "/6] " << citem.name << " (" << repeats << " trial" << (repeats > 1 ? "s" : "") << ") <<<" << std::endl;
+
+        for (int rep = 0; rep < repeats; ++rep) {
+            if (repeats > 1) {
+                std::cout << "  [Trial " << (rep + 1) << "/" << repeats << "] ";
+            }
+            auto rec = run_single_benchmark(ds, citem.name, citem.cfg, citem.is_adaptive, ef_search, k, base_edges, base_build_time);
+            trials.push_back(rec);
+            all_trials.push_back(rec);
+        }
+
+        if (c_idx == 0) {
+            base_edges = (size_t)trials[0].total_edges;
+            base_build_time = trials[0].build_time_s;
+        }
+
+        std::vector<double> v_build, v_edges, v_ram, v_rec, v_qps, v_dist;
+        for (const auto& t : trials) {
+            v_build.push_back(t.build_time_s);
+            v_edges.push_back((double)t.total_edges);
+            v_ram.push_back(t.ram_mb);
+            v_rec.push_back(t.recall_10);
+            v_qps.push_back(t.qps);
+            v_dist.push_back(t.avg_dist_evals);
+        }
+
+        ConfigStats cs;
+        cs.name = citem.name;
+        cs.build_time = calc_stats(v_build);
+        cs.edges = calc_stats(v_edges);
+        cs.ram = calc_stats(v_ram);
+        cs.recall = calc_stats(v_rec);
+        cs.qps = calc_stats(v_qps);
+        cs.dist_evals = calc_stats(v_dist);
+        stats_list.push_back(cs);
+
+        double edge_change_pct = (base_edges > 0) ? ((cs.edges.mean - (double)base_edges) / (double)base_edges * 100.0) : 0.0;
+        double build_speedup_pct = (base_build_time > 0.0) ? ((base_build_time - cs.build_time.mean) / base_build_time * 100.0) : 0.0;
+
+        summary_records.push_back({
+            ds.name,
+            citem.name,
+            ds.n_samples,
+            ds.dim,
+            ds.n_queries,
+            cs.build_time.mean,
+            (size_t)std::round(cs.edges.mean),
+            trials[0].layer0_edges,
+            trials[0].upper_layer_edges,
+            edge_change_pct,
+            build_speedup_pct,
+            cs.ram.mean,
+            cs.recall.mean,
+            cs.qps.mean,
+            cs.dist_evals.mean
+        });
     }
-    std::cout << "====================================================================================================================\n" << std::endl;
 
-    write_json(json_out, records);
-    write_csv(csv_out, records);
+    if (repeats > 1) {
+        std::cout << "\n================================================================================================================================================" << std::endl;
+        std::cout << "                                  EMPIRICAL STATISTICAL SUMMARY (Mean ± Std over " << repeats << " trials)                                      " << std::endl;
+        std::cout << "================================================================================================================================================" << std::endl;
+        std::cout << std::left << std::setw(34) << "Ablation Configuration" 
+                  << std::setw(18) << "Graph Edges" 
+                  << std::setw(20) << "Build Time (s)" 
+                  << std::setw(12) << "RAM (MB)"
+                  << std::setw(22) << "Recall@10" 
+                  << std::setw(22) << "QPS" 
+                  << "Dist Evals/q" << std::endl;
+        std::cout << "------------------------------------------------------------------------------------------------------------------------------------------------" << std::endl;
+
+        for (const auto& cs : stats_list) {
+            std::stringstream edges_ss, build_ss, recall_ss, qps_ss, dist_ss, ram_ss;
+            edges_ss << std::fixed << std::setprecision(0) << cs.edges.mean;
+            if (cs.edges.std_dev > 0.5) edges_ss << " ± " << std::setprecision(0) << cs.edges.std_dev;
+            
+            build_ss << std::fixed << std::setprecision(1) << cs.build_time.mean << " ± " << cs.build_time.std_dev;
+            ram_ss << std::fixed << std::setprecision(1) << cs.ram.mean;
+            recall_ss << std::fixed << std::setprecision(4) << cs.recall.mean << " ± " << cs.recall.std_dev;
+            qps_ss << std::fixed << std::setprecision(1) << cs.qps.mean << " ± " << cs.qps.std_dev;
+            dist_ss << std::fixed << std::setprecision(1) << cs.dist_evals.mean << " ± " << cs.dist_evals.std_dev;
+
+            std::cout << std::left << std::setw(34) << cs.name
+                      << std::setw(18) << edges_ss.str()
+                      << std::setw(20) << build_ss.str()
+                      << std::setw(12) << ram_ss.str()
+                      << std::setw(22) << recall_ss.str()
+                      << std::setw(22) << qps_ss.str()
+                      << dist_ss.str() << std::endl;
+        }
+        std::cout << "================================================================================================================================================\n" << std::endl;
+    } else {
+        std::cout << "\n====================================================================================================================" << std::endl;
+        std::cout << "                                  ACTUAL MEASURED STEPWISE ABLATION MATRIX                                          " << std::endl;
+        std::cout << "====================================================================================================================" << std::endl;
+        std::cout << std::left << std::setw(34) << "Ablation Configuration" 
+                  << std::setw(14) << "Graph Edges" 
+                  << std::setw(12) << "Build Time" 
+                  << std::setw(12) << "RAM (MB)"
+                  << std::setw(12) << "Recall@10" 
+                  << std::setw(12) << "QPS" 
+                  << "Dist Evals/q" << std::endl;
+        std::cout << "--------------------------------------------------------------------------------------------------------------------" << std::endl;
+
+        for (const auto& r : summary_records) {
+            std::stringstream edges_str, build_str;
+            edges_str << r.total_edges << " (" << (r.edge_change_pct >= 0 ? "+" : "") << std::fixed << std::setprecision(1) << r.edge_change_pct << "%)";
+            build_str << std::fixed << std::setprecision(1) << r.build_time_s << "s";
+            
+            std::cout << std::left << std::setw(34) << r.config_name
+                      << std::setw(14) << edges_str.str()
+                      << std::setw(12) << build_str.str()
+                      << std::setw(12) << std::fixed << std::setprecision(1) << r.ram_mb
+                      << std::setw(12) << std::fixed << std::setprecision(4) << r.recall_10
+                      << std::setw(12) << std::fixed << std::setprecision(1) << r.qps
+                      << std::fixed << std::setprecision(1) << r.avg_dist_evals << std::endl;
+        }
+        std::cout << "====================================================================================================================\n" << std::endl;
+    }
+
+    write_json(json_out, summary_records);
+    write_csv(csv_out, summary_records);
 
     return 0;
 }

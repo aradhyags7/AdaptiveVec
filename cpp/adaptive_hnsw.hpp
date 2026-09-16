@@ -611,19 +611,13 @@ public:
     ) const {
         std::vector<Candidate> sorted_c = candidates;
         
+        // Candidates sorted by true metric distance to base query
+        std::sort(sorted_c.begin(), sorted_c.end());
+        
+        float mean_deg = 1.0f;
         if (policy.enable_hubness_regulation && lc == 0 && !in_degrees.empty() && num_elements > 0) {
-            float mean_deg = (float)total_in_degrees / (float)std::max((size_t)1, num_elements);
+            mean_deg = (float)total_in_degrees / (float)std::max((size_t)1, num_elements);
             mean_deg = std::max(1.0f, mean_deg);
-            
-            std::sort(sorted_c.begin(), sorted_c.end(), [&](const Candidate& a, const Candidate& b) {
-                float deg_a = (a.id < in_degrees.size()) ? (float)in_degrees[a.id] : 0.0f;
-                float deg_b = (b.id < in_degrees.size()) ? (float)in_degrees[b.id] : 0.0f;
-                float eff_a = a.dist * (1.0f + policy.hubness_mu * (deg_a / mean_deg));
-                float eff_b = b.dist * (1.0f + policy.hubness_mu * (deg_b / mean_deg));
-                return eff_a < eff_b;
-            });
-        } else {
-            std::sort(sorted_c.begin(), sorted_c.end());
         }
         
         std::vector<tableint> result;
@@ -636,6 +630,13 @@ public:
             bool is_diverse = true;
             for (tableint r_id : result) {
                 dist_t dist_c_r = get_distance(c_vec, get_vector(r_id));
+                
+                // Hubness Regulation: Penalize high-degree hubs from shadowing diverse neighbors
+                if (policy.enable_hubness_regulation && lc == 0 && !in_degrees.empty()) {
+                    float deg_r = (r_id < in_degrees.size()) ? (float)in_degrees[r_id] : 0.0f;
+                    dist_c_r *= (1.0f + policy.hubness_mu * (deg_r / mean_deg));
+                }
+                
                 if (dist_c_r < c.dist) {
                     is_diverse = false;
                     break;

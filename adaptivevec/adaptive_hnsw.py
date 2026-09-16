@@ -245,18 +245,15 @@ class AdaptiveHNSW:
         Algorithm 4: Relative Neighborhood Graph heuristic edge selection with
         optional Hubness Centrality penalty to prevent topological bottlenecking.
         """
-        if self.hubness_regulation and len(self.in_degrees) > 0:
-            avg_deg = max(1.0, float(np.mean(list(self.in_degrees.values()))))
-            w_sorted = sorted(
-                candidates,
-                key=lambda x: x[0] * (1.0 + self.hubness_penalty_weight * (self.in_degrees.get(x[1], 0) / avg_deg))
-            )
-        else:
-            w_sorted = sorted(candidates, key=lambda x: x[0])
+        w_sorted = sorted(candidates, key=lambda x: x[0])
             
         result_nodes: List[int] = []
         result_vectors: List[np.ndarray] = []
         discarded: List[Tuple[float, int]] = []
+        
+        avg_deg = 1.0
+        if self.hubness_regulation and len(self.in_degrees) > 0:
+            avg_deg = max(1.0, float(np.mean(list(self.in_degrees.values()))))
         
         for dist_q_e, e_node in w_sorted:
             if len(result_nodes) >= m_limit:
@@ -264,8 +261,10 @@ class AdaptiveHNSW:
             
             e_vec = self.data[e_node]
             is_diverse = True
-            for r_vec in result_vectors:
+            for r_node, r_vec in zip(result_nodes, result_vectors):
                 dist_e_r = self._distance(e_vec, r_vec)
+                if self.hubness_regulation and len(self.in_degrees) > 0:
+                    dist_e_r *= (1.0 + self.hubness_penalty_weight * (self.in_degrees.get(r_node, 0) / avg_deg))
                 if dist_e_r < dist_q_e:
                     is_diverse = False
                     break
@@ -292,14 +291,7 @@ class AdaptiveHNSW:
     ) -> List[int]:
         if self.heuristic:
             return self._select_neighbors_heuristic(query, candidates, m_limit)
-        if self.hubness_regulation and len(self.in_degrees) > 0:
-            avg_deg = max(1.0, float(np.mean(list(self.in_degrees.values()))))
-            sorted_c = sorted(
-                candidates,
-                key=lambda x: x[0] * (1.0 + self.hubness_penalty_weight * (self.in_degrees.get(x[1], 0) / avg_deg))
-            )
-        else:
-            sorted_c = sorted(candidates, key=lambda x: x[0])
+        sorted_c = sorted(candidates, key=lambda x: x[0])
         return [node for _, node in sorted_c[:m_limit]]
 
     def insert(self, vector: np.ndarray) -> int:
@@ -489,9 +481,10 @@ class AdaptiveHNSW:
             top_k = exact_results[:k]
         
         if record_trace:
+            dist_evals = sum(1 for s in all_traces if s.get("action") in ("enter", "explore"))
             trace_info = {
                 "steps": all_traces,
-                "total_dist_evals": len(all_traces),
+                "total_dist_evals": dist_evals,
                 "top_k": top_k,
                 "used_ef": ef_val,
                 "entry_point": curr_ep
