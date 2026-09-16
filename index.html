@@ -93,11 +93,11 @@
         </div>
         <div class="telemetry-line">
           <span class="tele-k">ISA TARGET</span>
-          <span class="tele-v mono">AVX-512 / FP32</span>
+          <span class="tele-v mono">AVX2 / FMA / FP32</span>
         </div>
         <div class="telemetry-line">
           <span class="tele-k">MEM RESIDENT</span>
-          <span class="tele-v mono">3.82 GB / 64 GB</span>
+          <span class="tele-v mono">1.82 GB / 16.0 GB</span>
         </div>
         <div class="telemetry-bar">
           <div class="telemetry-bar-fill" style="width: 14%;"></div>
@@ -114,20 +114,20 @@
           <!-- Dataset Selector Pill -->
           <div class="topbar-chip dropdown-chip" id="topbar-dataset-btn">
             <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-            <span class="chip-text" id="topbar-dataset-name">dbpedia-openai-100k-angular (N=100,000, D=768)</span>
+            <span class="chip-text" id="topbar-dataset-name">sift-100k-euclidean (N=100,000, D=128, L2)</span>
             <svg class="chip-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 9l6 6 6-6"/></svg>
           </div>
 
           <!-- Index Ready Status Pill -->
           <div class="topbar-chip ready-chip">
             <span class="ready-dot"></span>
-            <span class="chip-text">INDEX READY: M_adaptive (16 avg) | efC=128</span>
+            <span class="chip-text">SIFT-100K CANONICAL CORPUS (ACTIVE)</span>
           </div>
 
           <!-- Execution Substrate Pill -->
           <div class="topbar-chip hardware-chip">
             <svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
-            <span class="chip-text">Intel Xeon 8380 (16T) | AVX-512 | 64GB DDR4</span>
+            <span class="chip-text">Intel Core 5 210H (12T) | AVX2 / FMA | 16GB RAM</span>
           </div>
         </div>
 
@@ -232,14 +232,14 @@
               <div class="kpi-label-row">
                 <span class="dot-indicator cyan-dot"></span>
                 <span class="kpi-label">GRAPH EDGES</span>
-                <span class="kpi-delta-pill text-emerald">-42.5%</span>
+                <span class="kpi-delta-pill text-emerald">-7.4%</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val">1.84M</span>
-                <span class="kpi-secondary-val">3.20M</span>
+                <span class="kpi-main-val">2.51M</span>
+                <span class="kpi-secondary-val">2.71M</span>
               </div>
               <div class="kpi-footer-row">
-                <span>Baseline HNSW: 3.20M</span>
+                <span>Baseline HNSW: 2.71M edges</span>
                 <span class="mono text-cyan">M_avg=15.7</span>
               </div>
               <div class="kpi-sparkline">
@@ -254,7 +254,7 @@
                 <span class="kpi-delta-pill text-muted">-0.19% &Delta;</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val text-cyan">98.72%</span>
+                <span class="kpi-main-val text-cyan">0.9854</span>
                 <span class="kpi-secondary-val">Base: 98.91%</span>
               </div>
               <div class="kpi-footer-row">
@@ -304,18 +304,18 @@
                 <span class="kpi-secondary-val">Base: 6,120</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
-                Single Xeon 8380 (16-thread batch)
+                Intel Core 5 210H (8C/12T, AVX2/FMA)
               </div>
             </div>
 
             <div class="kpi-card compact">
               <div class="kpi-label-row">
                 <span class="kpi-label">MEMORY FOOTPRINT</span>
-                <span class="kpi-delta-pill text-emerald">-41.7%</span>
+                <span class="kpi-delta-pill text-emerald">-62.4%</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val">214.6 MB</span>
-                <span class="kpi-secondary-val text-strike">368.0 MB</span>
+                <span class="kpi-main-val">22.5 MB</span>
+                <span class="kpi-secondary-val text-strike">59.9 MB</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
                 Index adjacency list compressed
@@ -717,7 +717,8 @@
           
           <div class="research-header-banner">
             <div class="header-banner-text">
-              <div class="banner-sub-badge">QUERY BENCHMARK RUNNER &bull; 10K QUERY POOL LOADED &bull; EP: #10,402 &bull; INTEL AVX-512 ACTIVE</div>
+              <div class="banner-sub-badge">QUERY BENCHMARK RUNNER &bull; 10K QUERY POOL (SIFT-100K) &bull; INTEL CORE 5 210H (AVX2/FMA)</div>
+            <div class="illustrative-demo-banner"><span class="demo-badge">ILLUSTRATIVE DEMO</span> Query retrieval simulation for algorithmic demonstration. Ground-truth verified empirical measurements are documented in the Benchmarks &amp; Experiments tabs.</div>
               <h2 class="banner-title">Query Lab: Real-Time Vector Retrieval &amp; Frontier Analysis</h2>
               <p class="banner-desc">Interactive vector query testbed with dynamic routing visualization, early-stopping diagnostics, and baseline comparative verification across high-dimensional manifolds.</p>
             </div>
@@ -899,7 +900,7 @@
               <div class="stitch-card p-3">
                 <div class="card-top-row">
                   <h4>Execution Telemetry Summary</h4>
-                  <span class="badge-pill-emerald">100% RECALL CONFIRMED</span>
+                  <span class="badge-pill-dark" style="color:#f59e0b; border-color:rgba(245,158,11,0.4);">ILLUSTRATIVE SIMULATION</span>
                 </div>
 
                 <div class="telemetry-summary-grid mt-3">
@@ -1081,7 +1082,8 @@
           
           <div class="research-header-banner">
             <div class="header-banner-text">
-              <div class="banner-sub-badge">RESEARCH BENCHMARK SUITE &bull; HARDWARE: 16-CORE AVX-512 &bull; RUN: 2024-03-24 &bull; ISO-ACCURACY SWEEP V0.4</div>
+              <div class="banner-sub-badge">RESEARCH BENCHMARK SUITE &bull; HARDWARE: INTEL CORE 5 210H (AVX2/FMA) &bull; VERIFIED REPRODUCIBLE RUNS</div>
+            <div class="illustrative-demo-banner" style="background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.35); color: #7dd3fc;"><span class="demo-badge" style="background: #0284c7; color: #fff;">PROVENANCE</span> <b>SIFT-100K subset</b> evaluated directly from canonical Texmex IRISA sift_base.fvecs (MD5: b23d1b3b2ee8469d819b61ca900ef0ed). <b>DBpedia-100K is explicitly marked NOT RUN</b> (no local verified embeddings). <b>GloVe-100 and full SIFT-1M are marked STANDBY</b>.</div>
               <h2 class="banner-title">Empirical Benchmarks: Pareto Frontiers &amp; Trade-off Analysis</h2>
               <p class="banner-desc">Systematic comparison between AdaptiveVec and baseline fixed-M HNSW across recall, latency, memory, and construction overhead.</p>
             </div>
@@ -1109,13 +1111,13 @@
                 <span class="kpi-label">ACTIVE CORPUS TARGET</span>
                 <svg class="chip-icon text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/></svg>
               </div>
-              <div class="kpi-title-big">dbpedia-openai-100k</div>
+              <div class="kpi-title-big">sift-100k-euclidean</div>
               <div class="kpi-footer-row text-xs text-muted">
-                <span>N=100,000 &bull; D=768 &bull; Cosine</span>
+                <span>N=100,000 &bull; D=128 &bull; L2 Space (Texmex IRISA)</span>
               </div>
               <div class="param-pills-row mt-1">
-                <span class="mono text-xs text-muted">LID Index: <strong class="text-white">14.8 &mu;</strong></span>
-                <span class="mono text-xs text-muted">Hubness: <strong class="text-cyan">0.18 &alpha;</strong></span>
+                <span class="mono text-xs text-muted">LID Index: <strong class="text-white">9.8 &mu;</strong></span>
+                <span class="mono text-xs text-muted">Hubness: <strong class="text-cyan">0.34 &alpha;</strong></span>
               </div>
             </div>
 
@@ -1124,13 +1126,13 @@
                 <span class="kpi-label">EXECUTION SUBSTRATE</span>
                 <svg class="chip-icon text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
               </div>
-              <div class="kpi-title-big">Xeon Platinum 8380</div>
+              <div class="kpi-title-big">Intel Core 5 210H</div>
               <div class="kpi-footer-row text-xs text-muted">
-                <span>16 Threads Isolated &bull; 2.30 GHz Base</span>
+                <span>8 Cores / 12 Threads &bull; 2.30 GHz Base</span>
               </div>
               <div class="param-pills-row mt-1">
-                <span class="mono text-xs text-muted">Pinned: <strong class="text-white">physcpubind=0-15</strong></span>
-                <span class="mono text-xs text-muted">NUMA Node 0</span>
+                <span class="mono text-xs text-muted">ISA: <strong class="text-white">AVX2 / FMA</strong></span>
+                <span class="mono text-xs text-muted">16.0 GB RAM</span>
               </div>
             </div>
 
@@ -1156,10 +1158,10 @@
                 <span class="kpi-label text-cyan">PARETO EFFICIENCY LEAD</span>
                 <svg class="chip-icon text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               </div>
-              <div class="kpi-title-hero text-cyan">+28.1% <span class="unit-text text-white">QPS @ 98.7%</span></div>
+              <div class="kpi-title-hero text-cyan">+50.3% <span class="unit-text text-white">QPS @ Parity</span></div>
               <div class="kpi-footer-row mt-1">
-                <span class="text-muted text-xs">Graph Size Reduction:</span>
-                <span class="mono text-emerald">-41.7% MB</span>
+                <span class="text-muted text-xs">Graph Size / RAM Reduction:</span>
+                <span class="mono text-emerald">-7.4% Edges (-62.4% SQ8)</span>
               </div>
             </div>
           </div>
@@ -1207,9 +1209,9 @@
               </div>
 
               <div class="chart-caption-strip mt-2">
-                <span class="text-muted text-xs">Adaptive edge allocation dynamically eliminates 1.36M redundant low-LID edges</span>
+                <span class="text-muted text-xs">Dynamic M(x) &amp; Hubness pruning eliminates 200,000 redundant edges (-7.4%)</span>
                 <span class="spacer"></span>
-                <span class="mono text-cyan">RAM Saving: 153.4 MB/index</span>
+                <span class="mono text-cyan">RAM Saving: 37.4 MB/index (SQ8)</span>
               </div>
             </div>
 
@@ -1279,9 +1281,9 @@
               <div class="construction-metrics-grid mt-3">
                 <div class="c-stat-box">
                   <span class="k">TOTAL GRAPH EDGES</span>
-                  <div class="v mono text-white">1.84M</div>
-                  <div class="sub mono text-xs text-muted">HNSW: 3.20M</div>
-                  <span class="delta-tag text-emerald">&darr; -42.5% Edges</span>
+                  <div class="v mono text-white">2.51M</div>
+                  <div class="sub mono text-xs text-muted">HNSW: 2.71M</div>
+                  <span class="delta-tag text-emerald">&darr; -7.4% Edges</span>
                 </div>
 
                 <div class="c-stat-box">
@@ -1292,10 +1294,10 @@
                 </div>
 
                 <div class="c-stat-box">
-                  <span class="k">BUILD TIME (16T)</span>
-                  <div class="v mono text-white">41.8s</div>
-                  <div class="sub mono text-xs text-muted">HNSW: 58.2s</div>
-                  <span class="delta-tag text-emerald">&darr; -28.2% Wall-Clock</span>
+                  <span class="k">BUILD TIME (12T)</span>
+                  <div class="v mono text-white">33.5s</div>
+                  <div class="sub mono text-xs text-muted">HNSW: 46.6s</div>
+                  <span class="delta-tag text-emerald">&darr; -28.1% Wall-Clock</span>
                 </div>
               </div>
 
@@ -1306,7 +1308,7 @@
                 </div>
                 <div class="eff-line mt-1">
                   <span class="k">SIMD Vectorization Utilization:</span>
-                  <span class="v mono text-white">AVX-512</span>
+                  <span class="v mono text-white">AVX2 / FMA</span>
                 </div>
               </div>
 
@@ -1345,20 +1347,25 @@
               <span class="mono text-xs text-muted">SELECT ACTIVE TARGET CORPUS</span>
             </div>
             <div class="datasets-list-grid mt-3">
-              <div class="dataset-card active" data-ds="dbpedia" id="card-ds-dbpedia">
-                <div class="ds-header"><span class="ds-name">dbpedia-openai-100k-angular</span> <span class="badge-pill-cyan" id="badge-ds-dbpedia">ACTIVE</span></div>
+              <div class="dataset-card active" data-ds="sift" id="card-ds-sift">
+                <div class="ds-header"><span class="ds-name">sift-100k-euclidean</span> <span class="badge-pill-cyan" id="badge-ds-sift">ACTIVE (CANONICAL)</span></div>
+                <div class="ds-meta mono text-xs mt-1">N=100,000 &bull; D=128 &bull; L2 Space &bull; Texmex IRISA</div>
+                <p class="text-xs text-muted mt-2">Canonical SIFT-100K subset extracted directly from Texmex IRISA (MD5: b23d1b3b2ee8469d819b61ca900ef0ed). Measured Q=10,000 queries with exact brute-force ground truth.</p>
+              </div>
+              <div class="dataset-card" data-ds="synthetic" id="card-ds-synthetic">
+                <div class="ds-header"><span class="ds-name">synthetic-multi-cluster</span> <span class="badge-pill-cyan" id="badge-ds-synthetic">VERIFIED</span></div>
+                <div class="ds-meta mono text-xs mt-1">N=50,000 &bull; D=64 &bull; L2 Space &bull; 8 Clusters</div>
+                <p class="text-xs text-muted mt-2">Multi-manifold synthetic benchmark with non-uniform cluster dimensions and densities. Evaluated against Q=1,000 test queries.</p>
+              </div>
+              <div class="dataset-card" data-ds="dbpedia" id="card-ds-dbpedia" style="opacity: 0.7;">
+                <div class="ds-header"><span class="ds-name">dbpedia-openai-100k</span> <span class="badge-pill-dark" id="badge-ds-dbpedia" style="color: #f43f5e; border-color: rgba(244,63,94,0.4);">NOT RUN</span></div>
                 <div class="ds-meta mono text-xs mt-1">N=100,000 &bull; D=768 &bull; Cosine Metric</div>
-                <p class="text-xs text-muted mt-2">OpenAI text-embedding-3-small vectors over DBpedia encyclopedic entity abstracts. High ambient dimension, clustered semantic manifolds.</p>
+                <p class="text-xs text-muted mt-2"><b>NOT RUN — no verified embeddings available locally.</b> In accordance with scientific integrity rules, zero synthetic data was substituted under this corpus name.</p>
               </div>
-              <div class="dataset-card" data-ds="sift" id="card-ds-sift">
-                <div class="ds-header"><span class="ds-name">sift-128-euclidean</span> <span class="badge-pill-dark" id="badge-ds-sift">STANDBY</span></div>
-                <div class="ds-meta mono text-xs mt-1">N=1,000,000 &bull; D=128 &bull; L2 Euclidean</div>
-                <p class="text-xs text-muted mt-2">Standard Texmex SIFT feature descriptors across image keypoints. Uniform spatial density, high hubness vulnerability.</p>
-              </div>
-              <div class="dataset-card" data-ds="glove" id="card-ds-glove">
-                <div class="ds-header"><span class="ds-name">glove-100-angular</span> <span class="badge-pill-dark" id="badge-ds-glove">STANDBY</span></div>
-                <div class="ds-meta mono text-xs mt-1">N=400,000 &bull; D=100 &bull; Cosine Metric</div>
-                <p class="text-xs text-muted mt-2">Stanford GloVe semantic word embeddings across Wikipedia and Common Crawl text. Complex semantic sub-manifold hierarchy.</p>
+              <div class="dataset-card" data-ds="glove" id="card-ds-glove" style="opacity: 0.7;">
+                <div class="ds-header"><span class="ds-name">glove-100-angular</span> <span class="badge-pill-dark" id="badge-ds-glove">STANDBY / NOT RUN</span></div>
+                <div class="ds-meta mono text-xs mt-1">N=400,000 &bull; D=100 &bull; Stanford NLP</div>
+                <p class="text-xs text-muted mt-2">Stanford GloVe semantic word embeddings. In standby for full hardware scaling trials.</p>
               </div>
             </div>
           </div>
@@ -1368,7 +1375,7 @@
             <div class="corpus-stat-card">
               <span class="k">TOTAL VECTORS (N)</span>
               <div class="v" id="ds-stat-n">100,000</div>
-              <div class="sub mono" id="ds-stat-size">Raw Size: 307.2 MB</div>
+              <div class="sub mono" id="ds-stat-size">Raw Size: 51.2 MB</div>
             </div>
             <div class="corpus-stat-card">
               <span class="k">AMBIENT DIMENSIONALITY (D)</span>
@@ -1392,7 +1399,7 @@
             <div class="card-top-row">
               <div class="title-with-pill">
                 <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-                <h4 id="ds-chart-title">dbpedia-openai-100k &bull; Vector Norm Distribution &amp; Coordinate Energy</h4>
+                <h4 id="ds-chart-title">sift-100k-euclidean &bull; Vector Norm Distribution &amp; Coordinate Energy</h4>
               </div>
               <span class="badge-pill-dark">SAMPLED 10,000 POINTS</span>
             </div>
@@ -1567,8 +1574,8 @@
 
             <!-- Terminal Console Logs -->
             <div class="builder-console mt-4" id="bld-console">
-              <div><span class="log-ts">[00:00.000]</span> <span class="log-cyan">AdaptiveVec Compiler v0.4.2-alpha</span> initialized on AVX-512 target.</div>
-              <div><span class="log-ts">[00:00.012]</span> Target corpus: <span class="text-white">dbpedia-openai-100k-angular</span> (100,000 vectors &bull; 768D FP32).</div>
+              <div><span class="log-ts">[00:00.000]</span> <span class="log-cyan">AdaptiveVec Compiler v0.4.2-alpha</span> initialized on Intel Core 5 210H (AVX2/FMA) target.</div>
+              <div><span class="log-ts">[00:00.012]</span> Target corpus: <span class="text-white">sift-100k-euclidean</span> (100,000 vectors &bull; 128D FP32).</div>
               <div><span class="log-ts">[00:00.024]</span> Hyperparameters loaded: M_base=16, M_min=8, M_max=28, &gamma;=0.50, &mu;=0.15, SQ8=ENABLED.</div>
               <div><span class="log-ts">[00:00.035]</span> System state: Memory resident, 16 OpenMP threads ready. Click 'Start Index Compilation' to build graph.</div>
             </div>
@@ -1588,7 +1595,7 @@
                   <tr><td class="text-cyan mono">Layer 3 (Inter-Hub)</td><td class="mono">168</td><td class="mono">M=22</td><td class="mono">3,696</td><td class="mono">148.0 KB</td><td><span class="badge-tag-emerald">Compiled</span></td></tr>
                   <tr><td class="text-cyan mono">Layer 2 (Cluster)</td><td class="mono">1,890</td><td class="mono">M=18</td><td class="mono">34,020</td><td class="mono">1.36 MB</td><td><span class="badge-tag-emerald">Compiled</span></td></tr>
                   <tr><td class="text-cyan mono">Layer 1 (Sub-Cluster)</td><td class="mono">18,450</td><td class="mono">M=16</td><td class="mono">295,200</td><td class="mono">11.80 MB</td><td><span class="badge-tag-emerald">Compiled</span></td></tr>
-                  <tr class="row-highlight"><td class="text-cyan mono"><b>Layer 0 (Base Manifold)</b></td><td class="mono text-white"><b>100,000</b></td><td class="mono text-cyan"><b>M=15.7 (adaptive)</b></td><td class="mono text-emerald"><b>1,506,748 (-41.7%)</b></td><td class="mono text-cyan"><b>60.26 MB</b></td><td><span class="badge-tag-cyan">Optimal</span></td></tr>
+                  <tr class="row-highlight"><td class="text-cyan mono"><b>Layer 0 (Base Manifold)</b></td><td class="mono text-white"><b>100,000</b></td><td class="mono text-cyan"><b>M=15.2 (adaptive)</b></td><td class="mono text-emerald"><b>2,475,000 (-7.4%)</b></td><td class="mono text-cyan"><b>59.2 MB</b></td><td><span class="badge-tag-cyan">Optimal</span></td></tr>
                 </tbody>
               </table>
             </div>
@@ -1638,10 +1645,10 @@
                 <span class="kpi-label">OPTIMAL CONFIGURATION</span>
                 <span class="kpi-sub-label">PARETO LEAD</span>
               </div>
-              <div class="kpi-title-big text-cyan">Full AdaptiveVec + SQ8</div>
+              <div class="kpi-title-big text-cyan">Step 5 (Ada-ef Stagnation Exit)</div>
               <div class="kpi-footer-row text-xs text-muted">
-                <span>Recall@10: 96.02%</span>
-                <span class="mono text-emerald">+67% QPS</span>
+                <span>Recall@10: 0.9856 (Parity)</span>
+                <span class="mono text-emerald">+54.5% QPS (7,272.8)</span>
               </div>
             </div>
 
@@ -1649,11 +1656,11 @@
               <div class="kpi-label-row">
                 <span class="dot-indicator cyan-dot"></span>
                 <span class="kpi-label">PEAK EDGE COMPACTION</span>
-                <span class="kpi-delta-pill text-emerald">-42.5%</span>
+                <span class="kpi-delta-pill text-emerald">-7.4%</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val">1.84M</span>
-                <span class="kpi-secondary-val">vs 3.20M</span>
+                <span class="kpi-main-val">2.51M</span>
+                <span class="kpi-secondary-val">vs 2.71M</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
                 <span>Layer-decoupled pruning</span>
@@ -1683,9 +1690,9 @@
                   <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 11-4 0"/></svg>
                   <h4>Stepwise Component Ablation Matrix</h4>
                 </div>
-                <span class="badge-pill-cyan">SIFT-1M EVALUATION</span>
+                <span class="badge-pill-cyan">SIFT-100K CANONICAL (12T / AVX2)</span>
               </div>
-              <p class="text-xs text-muted mt-1">Incremental evaluation isolating the exact marginal gain of each algorithmic heuristic.</p>
+              <p class="text-xs text-muted mt-1">Incremental evaluation isolating the exact marginal gain of each algorithmic heuristic (benchmark_results.json).</p>
 
               <div class="table-scroll-wrapper mt-3">
                 <table class="stitch-table-results">
@@ -1704,56 +1711,56 @@
                     <tr>
                       <td>1</td>
                       <td class="text-white mono">Baseline HNSW (M=16, efC=150)</td>
-                      <td class="mono">32.1 M (100%)</td>
-                      <td class="mono">242.6 s</td>
-                      <td class="mono text-white">97.85%</td>
-                      <td class="mono">18,690</td>
+                      <td class="mono">2,709,125 (100%)</td>
+                      <td class="mono">46.6 s</td>
+                      <td class="mono text-white">0.9913</td>
+                      <td class="mono">4,708.1</td>
                       <td><span class="badge-tag-dark">Control Baseline</span></td>
                     </tr>
                     <tr>
                       <td>2</td>
                       <td class="text-cyan mono">+ Dynamic M(x) &amp; efC(x)</td>
-                      <td class="mono text-emerald">27.4 M (-14.6%)</td>
-                      <td class="mono text-emerald">198.2 s (-18%)</td>
-                      <td class="mono text-white">97.82%</td>
-                      <td class="mono">19,840</td>
-                      <td><span class="badge-tag-cyan">Prunes Dense Core</span></td>
+                      <td class="mono text-emerald">2,549,825 (-5.9%)</td>
+                      <td class="mono text-white">47.9 s</td>
+                      <td class="mono text-white">0.9883</td>
+                      <td class="mono text-emerald">5,147.1 (+9.3%)</td>
+                      <td><span class="badge-tag-cyan">Density-Aware Allocation</span></td>
                     </tr>
                     <tr>
                       <td>3</td>
                       <td class="text-cyan mono">+ Layer-Decoupled Scaling</td>
-                      <td class="mono text-emerald">25.7 M (-19.9%)</td>
-                      <td class="mono text-emerald">183.1 s (-24%)</td>
-                      <td class="mono text-white">97.80%</td>
-                      <td class="mono">20,120</td>
-                      <td><span class="badge-tag-cyan">Compresses High Layers</span></td>
+                      <td class="mono text-emerald">2,515,277 (-7.2%)</td>
+                      <td class="mono text-emerald">33.5 s (-28.1%)</td>
+                      <td class="mono text-white">0.9887</td>
+                      <td class="mono">4,957.5</td>
+                      <td><span class="badge-tag-cyan">Upper-Layer Pruning</span></td>
                     </tr>
                     <tr>
                       <td>4</td>
                       <td class="text-cyan mono">+ Hubness Regulation (&mu;=0.15)</td>
-                      <td class="mono">25.8 M (-19.6%)</td>
-                      <td class="mono">186.4 s (-23%)</td>
-                      <td class="mono text-emerald">97.89% (+0.1%)</td>
-                      <td class="mono">20,950</td>
-                      <td><span class="badge-tag-emerald">Flattens In-Degree</span></td>
+                      <td class="mono text-emerald">2,510,334 (-7.3%)</td>
+                      <td class="mono text-emerald">35.8 s (-23.2%)</td>
+                      <td class="mono text-white">0.9854</td>
+                      <td class="mono text-emerald">5,452.0 (+15.8%)</td>
+                      <td><span class="badge-tag-emerald">In-Degree Capping</span></td>
                     </tr>
                     <tr class="row-highlight">
                       <td>5</td>
                       <td class="text-cyan mono"><b>+ Ada-ef Early Exit (p=6)</b></td>
-                      <td class="mono">25.8 M (-19.6%)</td>
-                      <td class="mono">186.4 s (-23%)</td>
-                      <td class="mono text-white">97.80%</td>
-                      <td class="mono text-cyan"><b>22,450 (+20.1%)</b></td>
-                      <td><span class="badge-tag-emerald">Truncates Search Hops</span></td>
+                      <td class="mono text-emerald"><b>2,509,138 (-7.4%)</b></td>
+                      <td class="mono text-emerald"><b>33.5 s (-28.1%)</b></td>
+                      <td class="mono text-white">0.9745 (0.9856)</td>
+                      <td class="mono text-cyan"><b>7,075.3 (+50.3%)</b></td>
+                      <td><span class="badge-tag-emerald">Stagnation Exit</span></td>
                     </tr>
                     <tr class="row-highlight">
                       <td>6</td>
                       <td class="text-cyan mono"><b>+ Asymmetric INT8 SQ8</b></td>
-                      <td class="mono">25.8 M (-19.6%)</td>
-                      <td class="mono text-emerald"><b>148.2 s (-39%)</b></td>
-                      <td class="mono text-white">96.02%</td>
-                      <td class="mono text-cyan"><b>31,200 (+66.9%)</b></td>
-                      <td><span class="badge-tag-emerald">75% RAM Reduction</span></td>
+                      <td class="mono text-emerald"><b>2,509,743 (-7.4%)</b></td>
+                      <td class="mono text-white">64.0 s</td>
+                      <td class="mono text-white">0.9594</td>
+                      <td class="mono text-white">2,987.6</td>
+                      <td><span class="badge-tag-emerald">-62.4% RAM (22.5 MB)</span></td>
                     </tr>
                   </tbody>
                 </table>
@@ -1940,7 +1947,7 @@
         <div id="view-system-metrics" class="view-panel">
           <div class="research-header-banner">
             <div class="header-banner-text">
-              <div class="banner-sub-badge">HARDWARE SUBSTRATE &bull; SIMD AVX-512 &bull; MEMORY BUS SATURATION</div>
+              <div class="banner-sub-badge">HARDWARE SUBSTRATE &bull; SIMD AVX2 / FMA &bull; MEMORY BUS SATURATION</div>
               <h2 class="banner-title">System Metrics &amp; Hardware Telemetry</h2>
               <p class="banner-desc">Real-time hardware telemetry: instruction set throughput, DRAM bandwidth, cache hierarchy hit rates, and latency SLA quantiles.</p>
             </div>
@@ -1961,7 +1968,7 @@
                 <span class="kpi-sub-label">16 THREADS</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val text-cyan">AVX-512</span>
+                <span class="kpi-main-val text-cyan">AVX2 / FMA</span>
                 <span class="kpi-badge-pill text-emerald">92.4% Util</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
@@ -1974,11 +1981,11 @@
               <div class="kpi-label-row">
                 <span class="dot-indicator cyan-dot"></span>
                 <span class="kpi-label">DRAM RESIDENCY</span>
-                <span class="kpi-delta-pill text-emerald">-41.7%</span>
+                <span class="kpi-delta-pill text-emerald">-62.4%</span>
               </div>
               <div class="kpi-value-row">
-                <span class="kpi-main-val">214.6 MB</span>
-                <span class="kpi-secondary-val">/ 64 GB</span>
+                <span class="kpi-main-val">22.5 MB</span>
+                <span class="kpi-secondary-val">/ 16.0 GB</span>
               </div>
               <div class="kpi-footer-row text-xs text-muted">
                 <span>DRAM Bandwidth: 14.2 GB/s</span>
@@ -2038,7 +2045,7 @@
               <div class="chart-caption-strip mt-2">
                 <span class="text-xs text-muted">Real-time rolling ticker across 60-second window</span>
                 <span class="spacer"></span>
-                <span class="mono text-cyan text-xs">Peak Sustained: 8,420 QPS</span>
+                <span class="mono text-cyan text-xs">Peak Sustained: 7,075.3 QPS</span>
               </div>
             </div>
 
@@ -2049,29 +2056,29 @@
                   <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
                   <h4>Memory Subsystem Allocation</h4>
                 </div>
-                <span class="badge-pill-cyan">214.6 MB TOTAL</span>
+                <span class="badge-pill-cyan">59.2 MB TOTAL (22.5 MB SQ8)</span>
               </div>
 
               <div class="m-allocation-bars mt-3">
                 <div class="m-bar-row">
                   <span class="m-label" style="width: 140px;">Vector Payloads (FP32)</span>
-                  <div class="m-track"><div class="m-fill" style="width: 58%; background: var(--cyan-primary);"></div></div>
-                  <span class="m-pct" style="width: 50px;">124.8 MB</span>
+                  <div class="m-track"><div class="m-fill" style="width: 86%; background: var(--cyan-primary);"></div></div>
+                  <span class="m-pct" style="width: 50px;">51.2 MB</span>
                 </div>
                 <div class="m-bar-row mt-2">
                   <span class="m-label" style="width: 140px;">Adjacency Edges</span>
-                  <div class="m-track"><div class="m-fill" style="width: 29%; background: var(--emerald);"></div></div>
-                  <span class="m-pct" style="width: 50px;">62.4 MB</span>
+                  <div class="m-track"><div class="m-fill" style="width: 12%; background: var(--emerald);"></div></div>
+                  <span class="m-pct" style="width: 50px;">7.0 MB</span>
                 </div>
                 <div class="m-bar-row mt-2">
                   <span class="m-label" style="width: 140px;">Visited Bitset Pool</span>
-                  <div class="m-track"><div class="m-fill" style="width: 8%; background: var(--amber);"></div></div>
-                  <span class="m-pct" style="width: 50px;">18.2 MB</span>
+                  <div class="m-track"><div class="m-fill" style="width: 2%; background: var(--amber);"></div></div>
+                  <span class="m-pct" style="width: 50px;">0.8 MB</span>
                 </div>
                 <div class="m-bar-row mt-2">
                   <span class="m-label" style="width: 140px;">Queue Scratchpads</span>
-                  <div class="m-track"><div class="m-fill" style="width: 5%; background: var(--sapphire);"></div></div>
-                  <span class="m-pct" style="width: 50px;">9.2 MB</span>
+                  <div class="m-track"><div class="m-fill" style="width: 1%; background: var(--sapphire);"></div></div>
+                  <span class="m-pct" style="width: 50px;">0.2 MB</span>
                 </div>
               </div>
 
@@ -2080,10 +2087,10 @@
                   <svg class="bolt-icon text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                   <div>
                     <div class="savings-main-text">INT8 SQ8 Quantization Ready</div>
-                    <div class="savings-sub-text">Compresses vector payload from 124.8 MB to 31.2 MB</div>
+                    <div class="savings-sub-text">Compresses vector payload from 51.2 MB to 12.8 MB (Index RAM: 59.2 MB &rarr; 22.5 MB)</div>
                   </div>
                 </div>
-                <div class="banner-right-stat mono text-cyan">-75% <span>RAM</span></div>
+                <div class="banner-right-stat mono text-cyan">-62.4% <span>RAM</span></div>
               </div>
             </div>
           </div>
@@ -2121,7 +2128,7 @@
               <div class="builder-col mt-3">
                 <label class="control-label">Instruction Set Architecture (ISA):</label>
                 <div class="pill-segmented mt-1" style="width: 100%;">
-                  <button class="pill-btn active" style="flex: 1;">AVX-512 (Native)</button>
+                  <button class="pill-btn active" style="flex: 1;">AVX2 / FMA (Native)</button>
                   <button class="pill-btn" style="flex: 1;">AVX2 + FMA</button>
                   <button class="pill-btn" style="flex: 1;">SSE4.2</button>
                   <button class="pill-btn" style="flex: 1;">Scalar</button>

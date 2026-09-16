@@ -2315,3 +2315,29 @@ html, body {
   }
 }
 
+
+/* Illustrative Demo Persistent Banner */
+.illustrative-demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #fcd34d;
+  font-family: var(--font-sans);
+}
+.illustrative-demo-banner .demo-badge {
+  background: #f59e0b;
+  color: #040810;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
