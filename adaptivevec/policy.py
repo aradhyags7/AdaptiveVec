@@ -10,6 +10,7 @@ Maps estimated local signals (Density, LID, Variance) to per-node construction p
 
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, Tuple, Literal
+import math
 import numpy as np
 
 PolicyType = Literal["continuous", "quantile", "lid_only", "density_only", "budget_constrained"]
@@ -19,16 +20,20 @@ class AdaptivePolicyConfig:
     """Configuration for AdaptiveVec policy mapping."""
     policy_type: PolicyType = "continuous"
     m_base: int = 16
-    m_min: int = 6
-    m_max: int = 32
-    ef_construction_base: int = 150
+    m_min: int = 8
+    m_max: int = 24
+    ef_construction_base: int = 120
     ef_construction_min: int = 40
-    ef_construction_max: int = 300
+    ef_construction_max: int = 220
     
     # Weighting factors
-    alpha_lid: float = 0.6       # Weight of LID signal
-    beta_density: float = 0.4    # Weight of Density signal (sparse -> higher score)
-    sensitivity: float = 0.5     # Sensitivity/scaling factor
+    alpha_lid: float = 0.5       # Weight of LID signal
+    beta_density: float = 0.5    # Weight of Density signal
+    sensitivity: float = 0.4     # Sensitivity factor gamma
+    
+    # Layer Scaling
+    lambda_layer: float = 0.75
+    m_min_layer: int = 4
     
     # Reference stats (calibrated via dataset profiling or running estimates)
     density_mean: float = 1.0
@@ -96,18 +101,16 @@ class NodeParameters:
     density: float
 
     def get_m_for_layer(self, layer: int) -> int:
-        """Dynamic edge budget scaled by layer hierarchy."""
+        """Dynamic edge budget scaled geometrically by layer hierarchy."""
         if layer == 0:
             return self.m
-        scale = max(0.5, 1.0 - 0.15 * layer)
-        return max(4, int(round(self.m * scale)))
+        return max(4, int(math.floor(self.m * (0.75 ** layer))))
 
     def get_m_max_for_layer(self, layer: int) -> int:
         """Dynamic maximum edge capacity for neighbor pruning at layer lc."""
         if layer == 0:
             return self.m_max0
-        scale = max(0.5, 1.0 - 0.15 * layer)
-        return max(4, int(round(self.m_max * scale)))
+        return max(4, int(math.floor(self.m_max * (0.75 ** layer))))
 
 class AdaptivePolicy:
     """Policy engine mapping local signals to graph hyper-parameters."""

@@ -36,3 +36,14 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Benchmark datasets & binary archives
+data/
+*.fvecs
+*.ivecs
+*.bvecs
+*.hdf5
+*.tar.gz
+*.zip
+*.bin
+

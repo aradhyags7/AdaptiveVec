@@ -8,6 +8,8 @@ Includes:
 4. Brute-Force Ground Truth Oracle
 """
 
+import os
+import struct
 import numpy as np
 from typing import Tuple, Dict, Any, Optional
 
@@ -91,7 +93,7 @@ def generate_multi_manifold_dataset(
     queries = all_vectors[query_indices] + np.random.normal(0, 0.1, size=(n_queries, ambient_dim)).astype(np.float32)
     
     metadata = {
-        "name": "Synthetic Multi-Manifold (Mixed LID & Density)",
+        "name": "Synthetic-Multi-Cluster",
         "dim": ambient_dim,
         "n_samples": len(all_vectors),
         "n_queries": n_queries,
@@ -183,20 +185,72 @@ def compute_ground_truth(
         
     return gt_indices, gt_distances
 
+def read_fvecs(filepath: str, max_vectors: Optional[int] = None) -> np.ndarray:
+    """Reads .fvecs binary file into a 2D numpy float32 array."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+    with open(filepath, "rb") as f:
+        dim_bytes = f.read(4)
+        if not dim_bytes:
+            return np.empty((0, 0), dtype=np.float32)
+        d = struct.unpack("i", dim_bytes)[0]
+        f.seek(0, 2)
+        total_bytes = f.tell()
+        vec_bytes = 4 + 4 * d
+        total_vecs = total_bytes // vec_bytes
+        n = min(total_vecs, max_vectors) if max_vectors is not None else total_vecs
+        f.seek(0)
+        data = np.empty((n, d), dtype=np.float32)
+        for i in range(n):
+            f.read(4)
+            data[i] = np.frombuffer(f.read(4 * d), dtype=np.float32)
+        return data
+
+def read_ivecs(filepath: str, max_queries: Optional[int] = None) -> np.ndarray:
+    """Reads .ivecs binary file into a 2D numpy int32 array."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"File not found: {filepath}")
+    with open(filepath, "rb") as f:
+        k_bytes = f.read(4)
+        if not k_bytes:
+            return np.empty((0, 0), dtype=np.int32)
+        k = struct.unpack("i", k_bytes)[0]
+        f.seek(0, 2)
+        total_bytes = f.tell()
+        vec_bytes = 4 + 4 * k
+        total_queries = total_bytes // vec_bytes
+        n = min(total_queries, max_queries) if max_queries is not None else total_queries
+        f.seek(0)
+        data = np.empty((n, k), dtype=np.int32)
+        for i in range(n):
+            f.read(4)
+            data[i] = np.frombuffer(f.read(4 * k), dtype=np.int32)
+        return data
+
 def load_or_generate_dataset(
-    dataset_name: str = "multi_manifold",
+    dataset_name: str = "synthetic",
     n_samples: int = 5000,
     dim: int = 64,
     n_queries: int = 100
 ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
-    """Universal dataset resolver."""
+    """Universal dataset resolver. Loads real files if available, otherwise Synthetic-Multi-Cluster."""
     name = dataset_name.lower()
-    if "sift" in name:
-        return generate_sift_like_dataset(n_samples=n_samples, dim=dim or 128, n_queries=n_queries)
-    elif "glove" in name or "word" in name:
-        # GloVe-style dense semantic vectors (normalized)
-        data, queries, meta = generate_sift_like_dataset(n_samples=n_samples, dim=dim or 100, n_queries=n_queries)
-        meta["name"] = f"GloVe-{dim}D Semantic Vector Simulator"
+    
+    # Check for real SIFT dataset files in data/
+    sift_subset_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "sift_subset_100k.fvecs")
+    sift_query_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "sift_query.fvecs")
+    if "sift" in name and os.path.exists(sift_subset_path) and os.path.exists(sift_query_path):
+        data = read_fvecs(sift_subset_path, max_vectors=n_samples)
+        queries = read_fvecs(sift_query_path, max_vectors=n_queries)
+        meta = {
+            "name": "SIFT-100K subset",
+            "dim": data.shape[1],
+            "n_samples": len(data),
+            "n_queries": len(queries)
+        }
         return data, queries, meta
-    else:
-        return generate_multi_manifold_dataset(n_samples=n_samples, ambient_dim=dim or 64, n_queries=n_queries)
+    
+    # Default to strictly labeled Synthetic-Multi-Cluster
+    data, queries, meta = generate_multi_manifold_dataset(n_samples=n_samples, ambient_dim=dim or 64, n_queries=n_queries)
+    meta["name"] = "Synthetic-Multi-Cluster"
+    return data, queries, meta
