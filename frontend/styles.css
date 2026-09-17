@@ -2924,3 +2924,76 @@ html, body {
   border-radius: var(--radius-xs);
   margin-left: 8px;
 }
+
+/* ==========================================================================
+   Flowing Graph Controls & Fluid Canvas Effects
+   ========================================================================== */
+.flow-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  background: var(--bg-pill);
+  border: 1px solid var(--border-medium);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.flow-pill-btn:hover {
+  background: var(--bg-pill-hover);
+  border-color: var(--border-cyan);
+  color: var(--text-primary);
+}
+
+.flow-pill-btn.active {
+  color: #0891b2;
+  background: rgba(8, 145, 178, 0.08);
+  border-color: rgba(8, 145, 178, 0.38);
+}
+
+[data-theme="dark"] .flow-pill-btn.active {
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.12);
+  border-color: rgba(34, 211, 238, 0.45);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
+}
+
+.flow-dot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: #0891b2;
+  box-shadow: 0 0 8px rgba(8, 145, 178, 0.6);
+  animation: flowDotPulse 1.8s infinite ease-in-out;
+}
+
+[data-theme="dark"] .flow-dot {
+  background: #22d3ee;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.85);
+}
+
+.flow-pill-btn:not(.active) .flow-dot {
+  background: var(--text-muted);
+  box-shadow: none;
+  animation: none;
+  opacity: 0.5;
+}
+
+@keyframes flowDotPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+

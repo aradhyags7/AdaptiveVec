@@ -44,7 +44,10 @@ document.addEventListener("DOMContentLoaded", () => {
       queryProbe: null, // { x, y, pulse: 1.0, hops: [] }
       nodes: [],
       edges: [],
-      rawNodes: []
+      rawNodes: [],
+      flowEnabled: true,
+      flowParticles: [],
+      adjacency: []
     },
 
     // Graph Explorer State
@@ -384,6 +387,110 @@ document.addEventListener("DOMContentLoaded", () => {
   initThemeToggle();
 
   // ==========================================================================
+  // FLOWING GRAPH DYNAMICS & VECTOR STREAM ENGINE
+  // ==========================================================================
+  const FLOW_COLOR_PALETTE = [
+    { rgb: "34, 211, 238", brightHex: "#67e8f9" },  // Electric Cyan
+    { rgb: "52, 211, 153", brightHex: "#6ee7b7" },  // Spectral Emerald
+    { rgb: "96, 165, 250", brightHex: "#93c5fd" },  // Sapphire Sky
+    { rgb: "251, 191, 36", brightHex: "#fde047" },  // Amber Gold
+    { rgb: "168, 85, 247", brightHex: "#c084fc" }   // Hyper Violet
+  ];
+
+  function assignNodeDriftProperties(n) {
+    n.driftPhaseX = Math.random() * Math.PI * 2;
+    n.driftPhaseY = Math.random() * Math.PI * 2;
+    n.driftSpeed = 0.0006 + Math.random() * 0.0008;
+    n.driftAmp = n.isTarget ? 0.0025 : (0.004 + Math.random() * 0.005);
+  }
+
+  function buildAdjacency(nodes, edges) {
+    if (!nodes || nodes.length === 0) return [];
+    const adj = Array.from({ length: nodes.length }, () => []);
+    edges.forEach(([u, v], edgeIdx) => {
+      if (adj[u] && adj[v]) {
+        adj[u].push({ target: v, edgeIdx });
+        adj[v].push({ target: u, edgeIdx });
+      }
+    });
+    return adj;
+  }
+
+  function initFlowParticles(nodes, edges, count = 70) {
+    if (!edges || edges.length === 0) return [];
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      const edgeIdx = Math.floor(Math.random() * edges.length);
+      const [u, v] = edges[edgeIdx];
+      const forward = Math.random() > 0.5;
+      const color = FLOW_COLOR_PALETTE[i % FLOW_COLOR_PALETTE.length];
+      particles.push({
+        edgeIdx: edgeIdx,
+        fromNode: forward ? u : v,
+        toNode: forward ? v : u,
+        progress: Math.random(),
+        speed: 0.0035 + Math.random() * 0.0065,
+        size: 1.5 + Math.random() * 1.3,
+        tailLen: 0.18 + Math.random() * 0.16,
+        rgb: color.rgb,
+        brightHex: color.brightHex
+      });
+    }
+    return particles;
+  }
+
+  function updateFlowParticles(particles, nodes, edges, adj, dt) {
+    if (!particles || particles.length === 0 || !edges || edges.length === 0) return;
+    const stepFactor = dt ? Math.min(2.5, dt / 16.666) : 1;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      p.progress += p.speed * stepFactor;
+
+      if (p.progress >= 1.0) {
+        const dest = p.toNode;
+        const outgoing = adj && adj[dest] ? adj[dest] : null;
+
+        if (outgoing && outgoing.length > 0) {
+          let candidates = outgoing.filter(o => o.edgeIdx !== p.edgeIdx);
+          if (candidates.length === 0) candidates = outgoing;
+          const nextEdge = candidates[Math.floor(Math.random() * candidates.length)];
+          p.edgeIdx = nextEdge.edgeIdx;
+          p.fromNode = dest;
+          p.toNode = nextEdge.target;
+          p.progress = p.progress - 1.0;
+        } else {
+          const edgeIdx = Math.floor(Math.random() * edges.length);
+          const [u, v] = edges[edgeIdx];
+          const forward = Math.random() > 0.5;
+          p.edgeIdx = edgeIdx;
+          p.fromNode = forward ? u : v;
+          p.toNode = forward ? v : u;
+          p.progress = 0;
+        }
+      }
+    }
+  }
+
+  function getNodePos(n, now) {
+    if (!n) return { x: 0.5, y: 0.5 };
+    if (!state.overview.flowEnabled) {
+      return { x: n.x, y: n.y };
+    }
+    const t = typeof now === "number" ? now : performance.now();
+    const speed = n.driftSpeed || 0.0008;
+    const amp = n.isTarget ? 0.0022 : (n.driftAmp || 0.005);
+    const px = n.driftPhaseX || 0;
+    const py = n.driftPhaseY || 0;
+    const dx = Math.sin(t * speed + px) * amp + Math.cos(t * speed * 0.65 + py) * (amp * 0.35);
+    const dy = Math.cos(t * speed * 1.15 + py) * amp + Math.sin(t * speed * 0.55 + px) * (amp * 0.35);
+    return {
+      x: Math.max(0.04, Math.min(0.96, n.x + dx)),
+      y: Math.max(0.04, Math.min(0.96, n.y + dy))
+    };
+  }
+
+  // ==========================================================================
   // SYNTHETIC & REAL GRAPH DATA INITIALIZER
   // ==========================================================================
   function generateSyntheticGraph() {
@@ -525,8 +632,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    nodes.forEach(assignNodeDriftProperties);
     state.overview.nodes = nodes;
     state.overview.edges = edges;
+    state.overview.adjacency = buildAdjacency(nodes, edges);
+    state.overview.flowParticles = initFlowParticles(nodes, edges, 70);
   }
 
   async function loadRealGraphProjection() {
@@ -536,23 +646,43 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const data = await ApiClient.getGraphProjection(1200);
+      const data = await ApiClient.getGraphProjection(180);
       if (data && data.nodes && data.nodes.length > 0) {
         state.overview.rawNodes = data.nodes;
-        // Normalize coordinates from [-1, 1] to [0.1, 0.9]
-        const nodes = data.nodes.map(n => {
-          const ux = 0.5 + n.x * 0.42;
-          const uy = 0.5 + n.y * 0.42;
-          const px = 0.5 + (n.x * 0.819 - n.y * 0.573) * 0.45;
-          const py = 0.5 + (n.x * 0.573 + n.y * 0.819) * 0.35;
+
+        // Dynamic Min-Max Normalization to utilize full visual canvas span
+        const rawSubset = data.nodes.slice(0, 180);
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        rawSubset.forEach(n => {
+          if (n.x < minX) minX = n.x;
+          if (n.x > maxX) maxX = n.x;
+          if (n.y < minY) minY = n.y;
+          if (n.y > maxY) maxY = n.y;
+        });
+        const spanX = Math.max(1e-4, maxX - minX);
+        const spanY = Math.max(1e-4, maxY - minY);
+
+        const nodes = rawSubset.map((n, i) => {
+          const normX = (n.x - minX) / spanX;
+          const normY = (n.y - minY) / spanY;
+          // Golden-angle topological dispersion so dense clusters fan out into visible flowing mesh
+          const angle = (i * 2.399963) % (Math.PI * 2);
+          const spread = 0.03 + ((n.id % 8) / 8) * 0.07;
+          const dispX = Math.cos(angle) * spread;
+          const dispY = Math.sin(angle) * spread;
+
+          const ux = Math.max(0.08, Math.min(0.92, 0.14 + normX * 0.72 + dispX));
+          const uy = Math.max(0.08, Math.min(0.92, 0.14 + normY * 0.72 + dispY));
+          const px = Math.max(0.08, Math.min(0.92, 0.5 + ((normX - 0.5) * 0.819 - (normY - 0.5) * 0.573) * 0.72 + dispX));
+          const py = Math.max(0.08, Math.min(0.92, 0.5 + ((normX - 0.5) * 0.573 + (normY - 0.5) * 0.819) * 0.72 + dispY));
           return {
             id: n.id,
             x: ux,
             y: uy,
             umapX: ux,
             umapY: uy,
-            pcaX: Math.max(0.08, Math.min(0.92, px)),
-            pcaY: Math.max(0.08, Math.min(0.92, py)),
+            pcaX: px,
+            pcaY: py,
             lid: n.lid,
             baseLid: n.lid,
             density: n.density,
@@ -567,17 +697,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const edges = [];
         if (data.edges_l0) {
-          data.edges_l0.forEach(e => {
+          for (let e of data.edges_l0) {
             if (e.source < nodes.length && e.target < nodes.length) {
               edges.push([e.source, e.target]);
+              if (edges.length >= 260) break;
             }
-          });
+          }
         }
 
+        nodes.forEach(assignNodeDriftProperties);
         state.overview.nodes = nodes;
         state.overview.edges = edges;
+        state.overview.adjacency = buildAdjacency(nodes, edges);
+        state.overview.flowParticles = initFlowParticles(nodes, edges, 55);
         renderOverviewCanvas();
-        showToast(`Loaded ${nodes.length} real manifold nodes from C++ index`, "success");
+        showToast(`Loaded ${nodes.length} real manifold nodes (${edges.length} edges) from C++ index`, "success");
         return;
       }
     } catch (e) {
@@ -616,13 +750,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function renderOverviewCanvas() {
+  function renderOverviewCanvas(now) {
     if (!overviewCanvas || !overviewCtx) return;
-    resizeCanvasToDisplaySize(overviewCanvas, 760, 420);
-
     const w = overviewCanvas.width;
     const h = overviewCanvas.height;
+    if (w <= 0 || h <= 0) return;
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const t = typeof now === "number" ? now : performance.now();
 
     // 1. Physically paint canvas background with current theme color
     overviewCtx.fillStyle = isDark ? "#0F1115" : "#FAFAF9";
@@ -632,71 +766,180 @@ document.addEventListener("DOMContentLoaded", () => {
     overviewCtx.translate(state.overview.panX, state.overview.panY);
     overviewCtx.scale(state.overview.zoom, state.overview.zoom);
 
-    // 2. Subtle Grid Lines (Theme Adaptive)
-    overviewCtx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
+    // 2. Subtle Grid Lines (Theme Adaptive with harmonic pulse)
+    const gridAlpha = isDark ? 0.045 + 0.015 * Math.sin(t * 0.001) : 0.045;
+    overviewCtx.strokeStyle = isDark ? `rgba(255, 255, 255, ${gridAlpha})` : `rgba(0, 0, 0, ${gridAlpha})`;
     overviewCtx.lineWidth = 1;
     const gridSize = 40 * (window.devicePixelRatio || 1);
+    overviewCtx.beginPath();
     for (let x = 0; x < w; x += gridSize) {
-      overviewCtx.beginPath();
       overviewCtx.moveTo(x, 0);
       overviewCtx.lineTo(x, h);
-      overviewCtx.stroke();
     }
     for (let y = 0; y < h; y += gridSize) {
-      overviewCtx.beginPath();
       overviewCtx.moveTo(0, y);
       overviewCtx.lineTo(w, y);
-      overviewCtx.stroke();
     }
+    overviewCtx.stroke();
 
     const pad = 40;
     const plotW = w - pad * 2;
     const plotH = h - pad * 2;
 
-    // 3. Draw Graph Edges (Theme Adaptive Technical Indigo)
-    overviewCtx.strokeStyle = isDark ? "rgba(91, 127, 230, 0.22)" : "rgba(54, 84, 166, 0.16)";
-    overviewCtx.lineWidth = 0.8;
     const nodes = state.overview.nodes;
     const edges = state.overview.edges;
 
+    // Precalculate dynamic coordinates for all nodes at timestamp t
+    const dynPos = nodes.map(n => getNodePos(n, t));
+    const pixelPos = dynPos.map(p => ({ x: pad + p.x * plotW, y: pad + p.y * plotH }));
+
+    // 3. Draw Graph Edges (Batched into standard & highway paths for zero CPU overhead)
+    const shimmer = Math.sin(t * 0.0018);
+
+    // Standard edges
+    overviewCtx.strokeStyle = isDark
+      ? `rgba(91, 127, 230, ${0.16 + shimmer * 0.05})`
+      : `rgba(54, 84, 166, ${0.12 + shimmer * 0.04})`;
+    overviewCtx.lineWidth = 0.8;
+    overviewCtx.beginPath();
     for (let i = 0; i < edges.length; i++) {
       const [uIdx, vIdx] = edges[i];
+      const pu = pixelPos[uIdx];
+      const pv = pixelPos[vIdx];
+      if (!pu || !pv) continue;
       const u = nodes[uIdx];
       const v = nodes[vIdx];
-      if (!u || !v) continue;
-      overviewCtx.beginPath();
-      overviewCtx.moveTo(pad + u.x * plotW, pad + u.y * plotH);
-      overviewCtx.lineTo(pad + v.x * plotW, pad + v.y * plotH);
-      overviewCtx.stroke();
+      if ((u && u.layer > 0) || (v && v.layer > 0)) continue;
+      overviewCtx.moveTo(pu.x, pu.y);
+      overviewCtx.lineTo(pv.x, pv.y);
+    }
+    overviewCtx.stroke();
+
+    // Highway edges
+    overviewCtx.strokeStyle = isDark
+      ? `rgba(56, 189, 248, ${0.30 + shimmer * 0.08})`
+      : `rgba(8, 145, 178, ${0.24 + shimmer * 0.06})`;
+    overviewCtx.lineWidth = 1.2;
+    overviewCtx.beginPath();
+    for (let i = 0; i < edges.length; i++) {
+      const [uIdx, vIdx] = edges[i];
+      const pu = pixelPos[uIdx];
+      const pv = pixelPos[vIdx];
+      if (!pu || !pv) continue;
+      const u = nodes[uIdx];
+      const v = nodes[vIdx];
+      if ((u && u.layer > 0) || (v && v.layer > 0)) {
+        overviewCtx.moveTo(pu.x, pu.y);
+        overviewCtx.lineTo(pv.x, pv.y);
+      }
+    }
+    overviewCtx.stroke();
+
+    // 4. Draw Flowing Stream Particles Along Edges
+    if (state.overview.flowEnabled && state.overview.flowParticles && state.overview.flowParticles.length > 0) {
+      updateFlowParticles(state.overview.flowParticles, nodes, edges, state.overview.adjacency, 16.66);
+
+      for (let i = 0; i < state.overview.flowParticles.length; i++) {
+        const p = state.overview.flowParticles[i];
+        const pu = pixelPos[p.fromNode];
+        const pv = pixelPos[p.toNode];
+        if (!pu || !pv) continue;
+
+        const s = p.progress;
+        const hx = pu.x + (pv.x - pu.x) * s;
+        const hy = pu.y + (pv.y - pu.y) * s;
+
+        const tailS = Math.max(0, s - p.tailLen);
+        const tx = pu.x + (pv.x - pu.x) * tailS;
+        const ty = pu.y + (pv.y - pu.y) * tailS;
+
+        // Comet gradient tail line
+        const grad = overviewCtx.createLinearGradient(tx, ty, hx, hy);
+        grad.addColorStop(0, `rgba(${p.rgb}, 0)`);
+        grad.addColorStop(0.45, `rgba(${p.rgb}, 0.35)`);
+        grad.addColorStop(1, `rgba(${p.rgb}, 0.95)`);
+
+        overviewCtx.strokeStyle = grad;
+        overviewCtx.lineWidth = p.size * 0.85;
+        overviewCtx.beginPath();
+        overviewCtx.moveTo(tx, ty);
+        overviewCtx.lineTo(hx, hy);
+        overviewCtx.stroke();
+
+        // Luminous glowing head dot
+        overviewCtx.beginPath();
+        overviewCtx.arc(hx, hy, p.size + 1.2, 0, Math.PI * 2);
+        overviewCtx.fillStyle = `rgba(${p.rgb}, 0.35)`;
+        overviewCtx.fill();
+
+        overviewCtx.beginPath();
+        overviewCtx.arc(hx, hy, p.size * 0.65, 0, Math.PI * 2);
+        overviewCtx.fillStyle = isDark ? "#ffffff" : p.brightHex;
+        overviewCtx.fill();
+      }
     }
 
-    // 4. Draw Nodes (Radius scaled dynamically by capacity M: 8..24)
+    // 5. Draw Base and Highway Nodes (Batched for optimal rendering)
+    overviewCtx.fillStyle = isDark ? "#5A6D82" : "#7E8B9F";
+    overviewCtx.beginPath();
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
-      const cx = pad + n.x * plotW;
-      const cy = pad + n.y * plotH;
+      if (n.isTarget || n.layer > 0 || n.id === state.overview.selectedNode) continue;
+      const pt = pixelPos[i];
+      const capM = n.m || 16;
+      const r = 2.4 + (capM - 8) * 0.28;
+      overviewCtx.moveTo(pt.x + r, pt.y);
+      overviewCtx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+    }
+    overviewCtx.fill();
+
+    overviewCtx.fillStyle = isDark ? "#5B7FE6" : "#3654A6";
+    overviewCtx.beginPath();
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (n.isTarget || n.layer === 0 || n.id === state.overview.selectedNode) continue;
+      const pt = pixelPos[i];
+      const r = 4.6;
+      overviewCtx.moveTo(pt.x + r, pt.y);
+      overviewCtx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+    }
+    overviewCtx.fill();
+
+    // 5b. Highlight Selected and Target Nodes with Pulsing Halos
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
       const isSelected = n.id === state.overview.selectedNode;
       const isHovered = state.overview.hoveredNode && state.overview.hoveredNode.id === n.id;
-      
-      // Node size dynamically reflects capacity M (8 -> 2.4px, 16 -> 4.9px, 24 -> 7.4px)
-      const capM = n.m || 16;
-      const radius = n.isTarget ? 7.5 : (2.4 + (capM - 8) * 0.32);
+      if (!n.isTarget && !isSelected && !isHovered) continue;
+
+      const pt = pixelPos[i];
+      const radius = n.isTarget ? 7.5 : 5.5;
+
+      if (n.isTarget) {
+        const pulsePhase = (t * 0.004) % (Math.PI * 2);
+        const pulseR = radius + 3 + (Math.sin(pulsePhase) + 1) * 3.5;
+        overviewCtx.beginPath();
+        overviewCtx.arc(pt.x, pt.y, pulseR, 0, Math.PI * 2);
+        overviewCtx.strokeStyle = isDark ? "rgba(104, 139, 240, 0.45)" : "rgba(54, 84, 166, 0.4)";
+        overviewCtx.lineWidth = 1.5;
+        overviewCtx.stroke();
+      }
 
       if (isSelected || isHovered) {
         overviewCtx.beginPath();
-        overviewCtx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
+        overviewCtx.arc(pt.x, pt.y, radius + 5, 0, Math.PI * 2);
         overviewCtx.strokeStyle = isDark ? "#688BF0" : "#3654A6";
         overviewCtx.lineWidth = 2;
         overviewCtx.stroke();
       }
 
       overviewCtx.beginPath();
-      overviewCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+      overviewCtx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
       overviewCtx.fillStyle = getNodeColor(n, isDark);
       overviewCtx.fill();
     }
 
-    // 5. Calibration Scan Line Sweep Animation
+    // 6. Calibration Scan Line Sweep Animation
     if (typeof state.overview.calibrationScan === "number") {
       const scanFrac = state.overview.calibrationScan;
       const scanX = pad + scanFrac * plotW;
@@ -718,7 +961,7 @@ document.addEventListener("DOMContentLoaded", () => {
       overviewCtx.restore();
     }
 
-    // 6. Multi-Hop Beam Search Traversal Animation
+    // 7. Multi-Hop Beam Search Traversal Animation
     if (state.overview.queryProbe) {
       const probe = state.overview.queryProbe;
       const px = pad + probe.x * plotW;
@@ -742,18 +985,20 @@ document.addEventListener("DOMContentLoaded", () => {
       overviewCtx.lineTo(px, py + 8);
       overviewCtx.stroke();
 
-      // Hop Traversal Trail with glowing edges
+      // Hop Traversal Trail with flowing marching dashed edges
       if (probe.hops && probe.hops.length > 0) {
         overviewCtx.strokeStyle = isDark ? "#22d3ee" : "#0891b2";
         overviewCtx.lineWidth = 2.2;
-        overviewCtx.setLineDash([5, 3]);
+        overviewCtx.setLineDash([6, 4]);
+        overviewCtx.lineDashOffset = -t * 0.038;
         overviewCtx.beginPath();
         overviewCtx.moveTo(px, py);
         const maxHops = probe.activeHopIndex !== undefined ? probe.activeHopIndex : probe.hops.length;
         for (let h = 0; h < maxHops; h++) {
           const hNode = probe.hops[h];
           if (hNode) {
-            overviewCtx.lineTo(pad + hNode.x * plotW, pad + hNode.y * plotH);
+            const hp = getNodePos(hNode, t);
+            overviewCtx.lineTo(pad + hp.x * plotW, pad + hp.y * plotH);
           }
         }
         overviewCtx.stroke();
@@ -763,13 +1008,45 @@ document.addEventListener("DOMContentLoaded", () => {
         for (let h = 0; h < maxHops; h++) {
           const hNode = probe.hops[h];
           if (hNode) {
-            const hx = pad + hNode.x * plotW;
-            const hy = pad + hNode.y * plotH;
+            const hp = getNodePos(hNode, t);
+            const hx = pad + hp.x * plotW;
+            const hy = pad + hp.y * plotH;
             overviewCtx.beginPath();
             overviewCtx.arc(hx, hy, 6, 0, Math.PI * 2);
             overviewCtx.fillStyle = h === maxHops - 1 ? "#10b981" : (isDark ? "#38bdf8" : "#0284c7");
             overviewCtx.fill();
             overviewCtx.strokeStyle = "#fff";
+            overviewCtx.lineWidth = 1.5;
+            overviewCtx.stroke();
+          }
+        }
+
+        // Flowing signal probe traveling along the hops
+        if (maxHops > 0) {
+          const cycle = 1600;
+          const frac = (t % cycle) / cycle;
+          const waypoints = [{ x: probe.x, y: probe.y }];
+          for (let h = 0; h < maxHops; h++) {
+            if (probe.hops[h]) {
+              waypoints.push(getNodePos(probe.hops[h], t));
+            }
+          }
+          if (waypoints.length > 1) {
+            const segCount = waypoints.length - 1;
+            const curSeg = Math.min(segCount - 1, Math.floor(frac * segCount));
+            const segT = (frac * segCount) - curSeg;
+            const wp1 = waypoints[curSeg];
+            const wp2 = waypoints[curSeg + 1];
+            const sx = pad + (wp1.x + (wp2.x - wp1.x) * segT) * plotW;
+            const sy = pad + (wp1.y + (wp2.y - wp1.y) * segT) * plotH;
+
+            overviewCtx.beginPath();
+            overviewCtx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+            overviewCtx.fillStyle = "#fbbf24";
+            overviewCtx.fill();
+            overviewCtx.beginPath();
+            overviewCtx.arc(sx, sy, 8, 0, Math.PI * 2);
+            overviewCtx.strokeStyle = "rgba(251, 191, 36, 0.5)";
             overviewCtx.lineWidth = 1.5;
             overviewCtx.stroke();
           }
@@ -796,7 +1073,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Hover inspection
+      // Hover inspection with dynamic floating node positions
       const rect = overviewCanvas.getBoundingClientRect();
       if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
         const mouseX = (e.clientX - rect.left - state.overview.panX) / state.overview.zoom;
@@ -805,11 +1082,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const plotW = overviewCanvas.width - pad * 2;
         const plotH = overviewCanvas.height - pad * 2;
 
+        const now = performance.now();
         let found = null;
         for (let n of state.overview.nodes) {
-          const nx = pad + n.x * plotW;
-          const ny = pad + n.y * plotH;
-          if (Math.hypot(mouseX - nx, mouseY - ny) < 12) {
+          const np = getNodePos(n, now);
+          const nx = pad + np.x * plotW;
+          const ny = pad + np.y * plotH;
+          if (Math.hypot(mouseX - nx, mouseY - ny) < 14) {
             found = n;
             break;
           }
@@ -846,12 +1125,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const normX = Math.max(0, Math.min(1, (clickX - pad) / plotW));
       const normY = Math.max(0, Math.min(1, (clickY - pad) / plotH));
 
-      // Find closest node to click
+      // Find closest node to click using dynamic floating coordinates
+      const now = performance.now();
       let closest = null;
       let minD = 999999;
       state.overview.nodes.forEach(n => {
-        const nx = pad + n.x * plotW;
-        const ny = pad + n.y * plotH;
+        const np = getNodePos(n, now);
+        const nx = pad + np.x * plotW;
+        const ny = pad + np.y * plotH;
         const d = Math.hypot(clickX - nx, clickY - ny);
         if (d < minD) {
           minD = d;
@@ -911,6 +1192,20 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         } catch (err) {}
       }
+    });
+  }
+
+  const btnToggleFlow = document.getElementById("btn-toggle-flow");
+  if (btnToggleFlow) {
+    btnToggleFlow.addEventListener("click", () => {
+      state.overview.flowEnabled = !state.overview.flowEnabled;
+      btnToggleFlow.classList.toggle("active", state.overview.flowEnabled);
+      btnToggleFlow.innerHTML = state.overview.flowEnabled
+        ? `<span class="flow-dot"></span> FLOW: STREAMING`
+        : `<span class="flow-dot"></span> FLOW: PAUSED`;
+      playHapticBeep(state.overview.flowEnabled ? 980 : 660, 0.04);
+      showToast(state.overview.flowEnabled ? "Flowing graph dynamics active" : "Flow dynamics paused", "info");
+      renderOverviewCanvas();
     });
   }
 
@@ -1216,7 +1511,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function drawDensityCurve() {
+  function drawDensityCurve(now) {
     const cvs = document.getElementById("density-curve-canvas");
     if (!cvs) return;
     resizeCanvasToDisplaySize(cvs, 340, 55);
@@ -1224,34 +1519,87 @@ document.addEventListener("DOMContentLoaded", () => {
     const w = cvs.width;
     const h = cvs.height;
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const t = typeof now === "number" ? now : performance.now();
 
     ctx.clearRect(0, 0, w, h);
 
+    // 1. Primary Flowing Fluid Wave
     const strokeCol = isDark ? "#5B7FE6" : "#3654A6";
     ctx.strokeStyle = strokeCol;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    for (let x = 0; x < w; x++) {
-      const t = (x / w) * 6 - 3;
-      const y = Math.exp(-0.5 * t * t) * (h * 0.78);
-      const py = h - y - 6;
+    let peakX = w / 2;
+    let peakY = h / 2;
+    let maxVal = -1;
+
+    for (let x = 0; x <= w; x += 2) {
+      const u = (x / w) * 6 - 3;
+      const base = Math.exp(-0.5 * u * u);
+      const ripple1 = 0.08 * Math.sin(u * 2.4 - t * 0.0028);
+      const ripple2 = 0.04 * Math.cos(u * 4.5 + t * 0.0019);
+      const yVal = base * (1 + ripple1 + ripple2) * (h * 0.74);
+      const py = Math.max(3, h - yVal - 5);
+
+      if (yVal > maxVal) {
+        maxVal = yVal;
+        peakX = x;
+        peakY = py;
+      }
+
       if (x === 0) ctx.moveTo(x, py);
       else ctx.lineTo(x, py);
     }
     ctx.stroke();
 
+    // Fill Primary Wave
     ctx.lineTo(w, h);
     ctx.lineTo(0, h);
     ctx.closePath();
     const grad = ctx.createLinearGradient(0, 0, 0, h);
     if (isDark) {
-      grad.addColorStop(0, "rgba(91, 127, 230, 0.25)");
+      grad.addColorStop(0, "rgba(91, 127, 230, 0.28)");
       grad.addColorStop(1, "rgba(91, 127, 230, 0.0)");
     } else {
-      grad.addColorStop(0, "rgba(54, 84, 166, 0.18)");
+      grad.addColorStop(0, "rgba(54, 84, 166, 0.20)");
       grad.addColorStop(1, "rgba(54, 84, 166, 0.0)");
     }
     ctx.fillStyle = grad;
+    ctx.fill();
+
+    // 2. Secondary Translucent Crest Wave
+    ctx.beginPath();
+    ctx.strokeStyle = isDark ? "rgba(34, 211, 238, 0.35)" : "rgba(8, 145, 178, 0.30)";
+    ctx.lineWidth = 1.2;
+    for (let x = 0; x <= w; x += 3) {
+      const u = (x / w) * 6 - 3;
+      const base = Math.exp(-0.5 * u * u);
+      const ripple = 0.06 * Math.sin(u * 3.0 - t * 0.0034 + 1.2);
+      const yVal = base * (1 + ripple) * (h * 0.68);
+      const py = Math.max(3, h - yVal - 5);
+      if (x === 0) ctx.moveTo(x, py);
+      else ctx.lineTo(x, py);
+    }
+    ctx.stroke();
+
+    // 3. Floating Crest Bead & Laser Beacon
+    const beadPulse = Math.sin(t * 0.004) * 1.5;
+    ctx.strokeStyle = isDark ? "rgba(34, 211, 238, 0.3)" : "rgba(8, 145, 178, 0.25)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(peakX, peakY);
+    ctx.lineTo(peakX, h - 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.arc(peakX, peakY, 4 + beadPulse, 0, Math.PI * 2);
+    ctx.fillStyle = isDark ? "rgba(34, 211, 238, 0.35)" : "rgba(8, 145, 178, 0.30)";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(peakX, peakY, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = isDark ? "#22d3ee" : "#0891b2";
     ctx.fill();
   }
 
@@ -1408,20 +1756,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function renderDatasetNormCanvas() {
+  function renderDatasetNormCanvas(now) {
     const cvs = document.getElementById("dataset-norm-canvas");
     if (!cvs) return;
     resizeCanvasToDisplaySize(cvs, 1100, 180);
     const ctx = cvs.getContext("2d");
     const w = cvs.width;
     const h = cvs.height;
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const t = typeof now === "number" ? now : performance.now();
     ctx.clearRect(0, 0, w, h);
 
     const padL = 40, padR = 20, padT = 20, padB = 25;
     const cW = w - padL - padR;
     const cH = h - padT - padB;
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+    ctx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.06)";
     ctx.lineWidth = 1;
     for (let i = 0; i <= 3; i++) {
       const y = padT + (i / 3) * cH;
@@ -1440,9 +1790,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const x = padL + idx * (barW + 4);
       const y = padT + (cH - barH);
 
+      const barWave = 0.85 + 0.15 * Math.sin(t * 0.003 - idx * 0.45);
       const grad = ctx.createLinearGradient(0, y, 0, padT + cH);
-      grad.addColorStop(0, "#00e5ff");
-      grad.addColorStop(1, "rgba(0, 229, 255, 0.1)");
+      if (isDark) {
+        grad.addColorStop(0, `rgba(34, 211, 238, ${0.9 * barWave})`);
+        grad.addColorStop(1, "rgba(34, 211, 238, 0.1)");
+      } else {
+        grad.addColorStop(0, `rgba(8, 145, 178, ${0.9 * barWave})`);
+        grad.addColorStop(1, "rgba(8, 145, 178, 0.1)");
+      }
       ctx.fillStyle = grad;
       ctx.fillRect(x, y, barW, barH);
     });
@@ -1607,12 +1963,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const geodesicCanvas = document.getElementById("geodesic-canvas");
   const geodesicCtx = geodesicCanvas ? geodesicCanvas.getContext("2d") : null;
 
-  function renderGeodesicCanvas() {
+  function renderGeodesicCanvas(now) {
     if (!geodesicCanvas || !geodesicCtx) return;
     resizeCanvasToDisplaySize(geodesicCanvas, 700, 520);
 
     const w = geodesicCanvas.width;
     const h = geodesicCanvas.height;
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const t = typeof now === "number" ? now : performance.now();
+
     geodesicCtx.clearRect(0, 0, w, h);
 
     const cx = w / 2;
@@ -1620,29 +1979,49 @@ document.addEventListener("DOMContentLoaded", () => {
     const maxR = Math.min(w, h) * 0.44;
 
     const rings = [
-      { r: 0.90, label: "r = 0.90 (Highway Frontier)" },
-      { r: 0.65, label: "r = 0.65 (L2)" },
-      { r: 0.40, label: "r = 0.40 (L1)" },
-      { r: 0.20, label: "r = 0.20 (L0)" }
+      { r: 0.90, label: "r = 0.90 (Highway Frontier)", speed: 0.0004 },
+      { r: 0.65, label: "r = 0.65 (L2)", speed: -0.0006 },
+      { r: 0.40, label: "r = 0.40 (L1)", speed: 0.0008 },
+      { r: 0.20, label: "r = 0.20 (L0)", speed: -0.0011 }
     ];
 
-    rings.forEach(ring => {
+    rings.forEach((ring, rIdx) => {
       const radius = ring.r * maxR;
+
+      // Rotating dashed ring
+      geodesicCtx.setLineDash([6, 5]);
+      geodesicCtx.lineDashOffset = (rIdx % 2 === 0 ? 1 : -1) * t * 0.018;
       geodesicCtx.beginPath();
       geodesicCtx.arc(cx, cy, radius, 0, Math.PI * 2);
-      geodesicCtx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      geodesicCtx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(0, 0, 0, 0.08)";
       geodesicCtx.lineWidth = 1;
       geodesicCtx.stroke();
+      geodesicCtx.setLineDash([]);
+
+      // Orbiting satellite flow particles on range rings
+      const satCount = rIdx === 0 ? 3 : 2;
+      for (let s = 0; s < satCount; s++) {
+        const theta = t * ring.speed + (s * (Math.PI * 2 / satCount));
+        const sx = cx + Math.cos(theta) * radius;
+        const sy = cy + Math.sin(theta) * radius;
+
+        geodesicCtx.beginPath();
+        geodesicCtx.arc(sx, sy, 2.5, 0, Math.PI * 2);
+        geodesicCtx.fillStyle = isDark ? "rgba(34, 211, 238, 0.8)" : "rgba(8, 145, 178, 0.7)";
+        geodesicCtx.fill();
+      }
 
       geodesicCtx.font = "10px 'JetBrains Mono', monospace";
-      geodesicCtx.fillStyle = "rgba(255, 255, 255, 0.3)";
+      geodesicCtx.fillStyle = isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.4)";
       geodesicCtx.fillText(ring.label, cx + 8, cy - radius + 12);
     });
 
-    // Draw routing hops
+    // Draw routing hops with animated flowing dashed trail
     const hops = state.explorer.hops;
-    geodesicCtx.strokeStyle = "#00e5ff";
+    geodesicCtx.strokeStyle = isDark ? "#00e5ff" : "#0891b2";
     geodesicCtx.lineWidth = 2.5;
+    geodesicCtx.setLineDash([8, 4]);
+    geodesicCtx.lineDashOffset = -t * 0.045;
     geodesicCtx.beginPath();
     hops.forEach((hp, i) => {
       const hx = cx + hp.x;
@@ -1651,6 +2030,30 @@ document.addEventListener("DOMContentLoaded", () => {
       else geodesicCtx.lineTo(hx, hy);
     });
     geodesicCtx.stroke();
+    geodesicCtx.setLineDash([]);
+
+    // Packet traveling along geodesic path
+    if (hops.length > 1) {
+      const cycle = 2200;
+      const frac = (t % cycle) / cycle;
+      const segSpan = hops.length - 1;
+      const curSegIdx = Math.min(segSpan - 1, Math.floor(frac * segSpan));
+      const segFrac = (frac * segSpan) - curSegIdx;
+      const h1 = hops[curSegIdx];
+      const h2 = hops[curSegIdx + 1];
+      const px = cx + h1.x + (h2.x - h1.x) * segFrac;
+      const py = cy + h1.y + (h2.y - h1.y) * segFrac;
+
+      geodesicCtx.beginPath();
+      geodesicCtx.arc(px, py, 6, 0, Math.PI * 2);
+      geodesicCtx.fillStyle = "#10b981";
+      geodesicCtx.fill();
+      geodesicCtx.beginPath();
+      geodesicCtx.arc(px, py, 10, 0, Math.PI * 2);
+      geodesicCtx.strokeStyle = "rgba(16, 185, 129, 0.45)";
+      geodesicCtx.lineWidth = 1.5;
+      geodesicCtx.stroke();
+    }
 
     // Draw hop nodes
     hops.forEach((hp, i) => {
@@ -1658,13 +2061,22 @@ document.addEventListener("DOMContentLoaded", () => {
       const hy = cy + hp.y;
       const isTarget = i === hops.length - 1;
 
+      if (isTarget) {
+        const pulseR = 7 + (Math.sin(t * 0.005) + 1) * 3;
+        geodesicCtx.beginPath();
+        geodesicCtx.arc(hx, hy, pulseR, 0, Math.PI * 2);
+        geodesicCtx.strokeStyle = "rgba(16, 185, 129, 0.5)";
+        geodesicCtx.lineWidth = 1.5;
+        geodesicCtx.stroke();
+      }
+
       geodesicCtx.beginPath();
       geodesicCtx.arc(hx, hy, isTarget ? 7 : 5, 0, Math.PI * 2);
-      geodesicCtx.fillStyle = isTarget ? "#10b981" : "#00e5ff";
+      geodesicCtx.fillStyle = isTarget ? "#10b981" : (isDark ? "#00e5ff" : "#0891b2");
       geodesicCtx.fill();
 
       geodesicCtx.font = "bold 10px 'JetBrains Mono', monospace";
-      geodesicCtx.fillStyle = "#fff";
+      geodesicCtx.fillStyle = isDark ? "#fff" : "#1C1E21";
       geodesicCtx.fillText(hp.label, hx + 10, hy + 4);
     });
   }
@@ -1700,30 +2112,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const trajectoryCanvas = document.getElementById("trajectory-convergence-canvas");
   const trajectoryCtx = trajectoryCanvas ? trajectoryCanvas.getContext("2d") : null;
 
-  function renderTrajectoryChart() {
+  function renderTrajectoryChart(now) {
     if (!trajectoryCanvas || !trajectoryCtx) return;
     resizeCanvasToDisplaySize(trajectoryCanvas, 700, 240);
 
     const w = trajectoryCanvas.width;
     const h = trajectoryCanvas.height;
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const t = typeof now === "number" ? now : performance.now();
+
     trajectoryCtx.clearRect(0, 0, w, h);
 
     const padL = 50, padR = 30, padT = 25, padB = 40;
     const cW = w - padL - padR;
     const cH = h - padT - padB;
 
-    // Y Axis
+    // Y Axis Grid
     const yTicks = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0];
     yTicks.forEach(tick => {
       const y = padT + (1 - tick) * cH;
-      trajectoryCtx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      trajectoryCtx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.06)";
+      trajectoryCtx.lineWidth = 1;
       trajectoryCtx.beginPath();
       trajectoryCtx.moveTo(padL, y);
       trajectoryCtx.lineTo(w - padR, y);
       trajectoryCtx.stroke();
 
       trajectoryCtx.font = "10px 'JetBrains Mono', monospace";
-      trajectoryCtx.fillStyle = "rgba(255, 255, 255, 0.35)";
+      trajectoryCtx.fillStyle = isDark ? "rgba(255, 255, 255, 0.38)" : "rgba(0, 0, 0, 0.42)";
       trajectoryCtx.fillText(tick.toFixed(1), 15, y + 3);
     });
 
@@ -1731,21 +2147,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const xTicks = [0, 4, 8, 12, 16, 20, 24];
     xTicks.forEach(hop => {
       const x = padL + (hop / 24) * cW;
-      trajectoryCtx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      trajectoryCtx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.06)";
+      trajectoryCtx.lineWidth = 1;
       trajectoryCtx.beginPath();
       trajectoryCtx.moveTo(x, padT);
       trajectoryCtx.lineTo(x, padT + cH);
       trajectoryCtx.stroke();
 
       trajectoryCtx.font = "10px 'JetBrains Mono', monospace";
-      trajectoryCtx.fillStyle = "rgba(255, 255, 255, 0.35)";
+      trajectoryCtx.fillStyle = isDark ? "rgba(255, 255, 255, 0.38)" : "rgba(0, 0, 0, 0.42)";
       trajectoryCtx.fillText(`Hop ${hop}`, x - 18, padT + cH + 20);
     });
 
     const traj = state.query.trajectory;
 
-    // 1. Draw HNSW Baseline (Dashed White Line)
-    trajectoryCtx.strokeStyle = "rgba(148, 163, 184, 0.6)";
+    // 1. Draw HNSW Baseline (Dashed Line)
+    trajectoryCtx.strokeStyle = isDark ? "rgba(148, 163, 184, 0.6)" : "rgba(100, 116, 139, 0.6)";
     trajectoryCtx.lineWidth = 1.8;
     trajectoryCtx.setLineDash([4, 4]);
     trajectoryCtx.beginPath();
@@ -1758,9 +2175,10 @@ document.addEventListener("DOMContentLoaded", () => {
     trajectoryCtx.stroke();
     trajectoryCtx.setLineDash([]);
 
-    // 2. Draw AdaptiveVec (Solid Cyan Curve)
-    trajectoryCtx.strokeStyle = "#00e5ff";
-    trajectoryCtx.lineWidth = 2.5;
+    // 2. Draw AdaptiveVec (Solid Flowing Curve)
+    const adStroke = isDark ? "#00e5ff" : "#0891b2";
+    trajectoryCtx.strokeStyle = adStroke;
+    trajectoryCtx.lineWidth = 2.6;
     trajectoryCtx.beginPath();
     traj.forEach((pt, i) => {
       const x = padL + (pt.hop / 24) * cW;
@@ -1770,10 +2188,17 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     trajectoryCtx.stroke();
 
-    // Early Exit Callout Marker
+    // Early Exit Callout Marker with Pulsing Radar Ring
     const exitPt = traj.find(p => p.hop === state.query.earlyExitHop) || traj[Math.min(8, traj.length - 1)];
     const exitX = padL + (exitPt.hop / 24) * cW;
     const exitY = padT + (1 - exitPt.adaptiveDist) * cH;
+
+    const pulseR = 6 + (Math.sin(t * 0.006) + 1) * 3.2;
+    trajectoryCtx.beginPath();
+    trajectoryCtx.arc(exitX, exitY, pulseR, 0, Math.PI * 2);
+    trajectoryCtx.strokeStyle = "rgba(16, 185, 129, 0.45)";
+    trajectoryCtx.lineWidth = 1.5;
+    trajectoryCtx.stroke();
 
     trajectoryCtx.beginPath();
     trajectoryCtx.arc(exitX, exitY, 6, 0, Math.PI * 2);
@@ -1785,12 +2210,12 @@ document.addEventListener("DOMContentLoaded", () => {
     trajectoryCtx.fillText(`Early Exit (Hop ${exitPt.hop})`, exitX - 45, exitY - 14);
 
     // Stagnation Callout Box
-    trajectoryCtx.fillStyle = "rgba(148, 163, 184, 0.08)";
+    trajectoryCtx.fillStyle = isDark ? "rgba(148, 163, 184, 0.08)" : "rgba(0, 0, 0, 0.04)";
     trajectoryCtx.fillRect(exitX + 12, exitY - 45, 210, 22);
-    trajectoryCtx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+    trajectoryCtx.strokeStyle = isDark ? "rgba(148, 163, 184, 0.25)" : "rgba(0, 0, 0, 0.12)";
     trajectoryCtx.strokeRect(exitX + 12, exitY - 45, 210, 22);
     trajectoryCtx.font = "9px 'JetBrains Mono', monospace";
-    trajectoryCtx.fillStyle = "rgba(148, 163, 184, 0.85)";
+    trajectoryCtx.fillStyle = isDark ? "rgba(148, 163, 184, 0.85)" : "rgba(71, 85, 105, 0.9)";
     trajectoryCtx.fillText(`Stagnation: ε < 1e-4 (${state.query.earlyExitStagnation} hops)`, exitX + 18, exitY - 30);
   }
 
@@ -3318,6 +3743,37 @@ Synthetic-Multi-Cluster,6. + Asymmetric INT8 SQ8,50000,64,1000,14.91,1293780,125
     });
   }
 
+  // ==========================================================================
+  // MASTER 60FPS FLOWING GRAPH ANIMATION LOOP
+  // ==========================================================================
+  let globalAnimationId = null;
+  let lastAnimTime = 0;
+  function startGlobalAnimationLoop() {
+    if (globalAnimationId) return;
+
+    function loop(now) {
+      globalAnimationId = requestAnimationFrame(loop);
+
+      if (document.hidden) return;
+
+      if (now - lastAnimTime < 22) return;
+      lastAnimTime = now;
+
+      if (state.currentView === "view-overview") {
+        renderOverviewCanvas(now);
+        drawDensityCurve(now);
+      } else if (state.currentView === "view-graph-explorer") {
+        renderGeodesicCanvas(now);
+      } else if (state.currentView === "view-query-lab") {
+        renderTrajectoryChart(now);
+      } else if (state.currentView === "view-datasets") {
+        renderDatasetNormCanvas(now);
+      }
+    }
+
+    globalAnimationId = requestAnimationFrame(loop);
+  }
+
   async function startup() {
     // 1. Probe Backend
     const serverStatus = await ApiClient.checkStatus();
@@ -3340,6 +3796,7 @@ Synthetic-Multi-Cluster,6. + Asymmetric INT8 SQ8,50000,64,1000,14.91,1293780,125
     recomputeHyperparameters(0.45, 0.35, 64, 12);
     renderOverviewCanvas();
     drawDensityCurve();
+    startGlobalAnimationLoop();
   }
 
   startup();
