@@ -337,6 +337,53 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ==========================================================================
+  // Dual-Theme Switching System (Light / Dark with Live Canvas Redraw)
+  // ==========================================================================
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem("adaptivevec-theme", theme);
+    } catch (e) {}
+
+    const isDark = theme === "dark";
+    const moonIcon = document.getElementById("icon-theme-moon");
+    const sunIcon = document.getElementById("icon-theme-sun");
+    if (moonIcon && sunIcon) {
+      moonIcon.classList.toggle("hidden", isDark);
+      sunIcon.classList.toggle("hidden", !isDark);
+    }
+
+    // Explicitly repaint the canvas and curves to ensure manifold points and background redraw in theme palette
+    requestAnimationFrame(() => {
+      renderOverviewCanvas();
+      drawDensityCurve();
+    });
+  }
+
+  function initThemeToggle() {
+    const btn = document.getElementById("btn-theme-toggle");
+    let savedTheme = "light";
+    try {
+      savedTheme = localStorage.getItem("adaptivevec-theme") || "light";
+    } catch (e) {}
+
+    // Apply initial theme
+    applyTheme(savedTheme);
+
+    if (btn) {
+      btn.addEventListener("click", () => {
+        const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+        const nextTheme = currentTheme === "dark" ? "light" : "dark";
+        playHapticBeep(820, 0.03);
+        applyTheme(nextTheme);
+        showToast(`Theme switched to ${nextTheme === "dark" ? "Dark Mode" : "Light Mode"}`, "info");
+      });
+    }
+  }
+
+  initThemeToggle();
+
+  // ==========================================================================
   // SYNTHETIC & REAL GRAPH DATA INITIALIZER
   // ==========================================================================
   function generateSyntheticGraph() {
@@ -471,17 +518,27 @@ document.addEventListener("DOMContentLoaded", () => {
   const overviewCanvas = document.getElementById("overview-graph-canvas");
   const overviewCtx = overviewCanvas ? overviewCanvas.getContext("2d") : null;
 
-  function getNodeColor(node) {
-    if (node.isTarget) return "#00e5ff";
+  function getNodeColor(node, isDark) {
+    if (node.isTarget) return isDark ? "#688BF0" : "#3654A6";
     if (state.colorMode === "lid") {
       const norm = Math.min(1, Math.max(0, (node.lid - 4) / 20));
-      return norm < 0.5 ? "#38bdf8" : "#f43f5e";
+      if (isDark) {
+        return norm < 0.5 ? "#4EAA7D" : "#D9534F";
+      } else {
+        return norm < 0.5 ? "#2D6A4F" : "#B93838";
+      }
     } else if (state.colorMode === "density") {
-      return node.density > 0.08 || node.density > 30 ? "#fbbf24" : "#64748b";
+      const isDense = node.density > 0.08 || node.density > 30;
+      if (isDark) {
+        return isDense ? "#D49A3E" : "#545965";
+      } else {
+        return isDense ? "#B8802E" : "#6B7280";
+      }
     } else {
-      if (node.m <= 12) return "#38bdf8";
-      if (node.m <= 18) return "#06b6d4";
-      return "#10b981";
+      // Degree (Adaptive M capacity)
+      if (node.m <= 12) return isDark ? "#7E8B9F" : "#5A6D82";
+      if (node.m <= 18) return isDark ? "#5B7FE6" : "#3654A6";
+      return isDark ? "#4EAA7D" : "#2D6A4F";
     }
   }
 
@@ -491,14 +548,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const w = overviewCanvas.width;
     const h = overviewCanvas.height;
-    overviewCtx.clearRect(0, 0, w, h);
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+
+    // 1. Physically paint canvas background with current theme color
+    overviewCtx.fillStyle = isDark ? "#0F1115" : "#FAFAF9";
+    overviewCtx.fillRect(0, 0, w, h);
 
     overviewCtx.save();
     overviewCtx.translate(state.overview.panX, state.overview.panY);
     overviewCtx.scale(state.overview.zoom, state.overview.zoom);
 
-    // Subtle Grid Lines
-    overviewCtx.strokeStyle = "rgba(255, 255, 255, 0.04)";
+    // 2. Subtle Grid Lines (Theme Adaptive)
+    overviewCtx.strokeStyle = isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.05)";
     overviewCtx.lineWidth = 1;
     const gridSize = 40 * (window.devicePixelRatio || 1);
     for (let x = 0; x < w; x += gridSize) {
@@ -518,8 +579,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const plotW = w - pad * 2;
     const plotH = h - pad * 2;
 
-    // Draw Graph Edges
-    overviewCtx.strokeStyle = "rgba(0, 229, 255, 0.12)";
+    // 3. Draw Graph Edges (Theme Adaptive Technical Indigo)
+    overviewCtx.strokeStyle = isDark ? "rgba(91, 127, 230, 0.22)" : "rgba(54, 84, 166, 0.16)";
     overviewCtx.lineWidth = 0.8;
     const nodes = state.overview.nodes;
     const edges = state.overview.edges;
@@ -535,7 +596,7 @@ document.addEventListener("DOMContentLoaded", () => {
       overviewCtx.stroke();
     }
 
-    // Draw Nodes
+    // 4. Draw Nodes (Theme Adaptive Palette)
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
       const cx = pad + n.x * plotW;
@@ -547,32 +608,33 @@ document.addEventListener("DOMContentLoaded", () => {
       if (isSelected || isHovered) {
         overviewCtx.beginPath();
         overviewCtx.arc(cx, cy, radius + 5, 0, Math.PI * 2);
-        overviewCtx.strokeStyle = "#00e5ff";
+        overviewCtx.strokeStyle = isDark ? "#688BF0" : "#3654A6";
         overviewCtx.lineWidth = 2;
         overviewCtx.stroke();
       }
 
       overviewCtx.beginPath();
       overviewCtx.arc(cx, cy, radius, 0, Math.PI * 2);
-      overviewCtx.fillStyle = getNodeColor(n);
+      overviewCtx.fillStyle = getNodeColor(n, isDark);
       overviewCtx.fill();
     }
 
-    // Draw Click Query Probe & Trajectory Animation if active
+    // 5. Draw Click Query Probe & Trajectory Animation if active
     if (state.overview.queryProbe) {
       const probe = state.overview.queryProbe;
       const px = pad + probe.x * plotW;
       const py = pad + probe.y * plotH;
+      const probeColor = isDark ? "#D49A3E" : "#B8802E";
 
       // Outer Radar Wave
       overviewCtx.beginPath();
       overviewCtx.arc(px, py, 14 * probe.pulse, 0, Math.PI * 2);
-      overviewCtx.strokeStyle = `rgba(0, 240, 255, ${Math.max(0, 1.0 - probe.pulse * 0.5)})`;
+      overviewCtx.strokeStyle = isDark ? `rgba(91, 127, 230, ${Math.max(0, 1.0 - probe.pulse * 0.5)})` : `rgba(54, 84, 166, ${Math.max(0, 1.0 - probe.pulse * 0.5)})`;
       overviewCtx.lineWidth = 1.5;
       overviewCtx.stroke();
 
       // Crosshair Target
-      overviewCtx.strokeStyle = "#f59e0b";
+      overviewCtx.strokeStyle = probeColor;
       overviewCtx.lineWidth = 2;
       overviewCtx.beginPath();
       overviewCtx.moveTo(px - 8, py);
@@ -583,7 +645,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Animated Hop Line to closest nodes
       if (probe.hops && probe.hops.length > 0) {
-        overviewCtx.strokeStyle = "#f59e0b";
+        overviewCtx.strokeStyle = probeColor;
         overviewCtx.lineWidth = 2;
         overviewCtx.setLineDash([4, 4]);
         overviewCtx.beginPath();
@@ -801,9 +863,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const ctx = cvs.getContext("2d");
     const w = cvs.width;
     const h = cvs.height;
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+
     ctx.clearRect(0, 0, w, h);
 
-    ctx.strokeStyle = "#00e5ff";
+    const strokeCol = isDark ? "#5B7FE6" : "#3654A6";
+    ctx.strokeStyle = strokeCol;
     ctx.lineWidth = 2;
     ctx.beginPath();
     for (let x = 0; x < w; x++) {
@@ -819,8 +884,13 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.lineTo(0, h);
     ctx.closePath();
     const grad = ctx.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, "rgba(0, 229, 255, 0.25)");
-    grad.addColorStop(1, "rgba(0, 229, 255, 0.0)");
+    if (isDark) {
+      grad.addColorStop(0, "rgba(91, 127, 230, 0.25)");
+      grad.addColorStop(1, "rgba(91, 127, 230, 0.0)");
+    } else {
+      grad.addColorStop(0, "rgba(54, 84, 166, 0.18)");
+      grad.addColorStop(1, "rgba(54, 84, 166, 0.0)");
+    }
     ctx.fillStyle = grad;
     ctx.fill();
   }
