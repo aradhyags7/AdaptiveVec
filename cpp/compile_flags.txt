@@ -1,6 +1,8 @@
 -std=c++17
 -mavx2
 -mfma
+--target=x86_64-w64-mingw32
+-I.
 -isystem
 C:/msys64/ucrt64/include/c++/16.1.0
 -isystem
@@ -8,8 +10,4 @@ C:/msys64/ucrt64/include/c++/16.1.0/x86_64-w64-mingw32
 -isystem
 C:/msys64/ucrt64/include/c++/16.1.0/backward
 -isystem
-C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/16.1.0/include
--isystem
 C:/msys64/ucrt64/include
--isystem
-C:/msys64/ucrt64/lib/gcc/x86_64-w64-mingw32/16.1.0/include-fixed
