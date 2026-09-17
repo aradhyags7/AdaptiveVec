@@ -7,11 +7,10 @@
   <meta name="description" content="AdaptiveVec: Density- and Dimension-Aware Proximity Graph Index for Resource-Constrained Vector Retrieval.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- Chart.js for scientific charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <!-- Stylesheets -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2.0.0">
 </head>
 <body class="stitch-theme">
   <!-- Full Screen App Shell -->
@@ -151,6 +150,12 @@
             <svg class="icon-svg hidden" id="icon-audio-off" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
           </button>
 
+          <!-- Light / Dark Theme Toggle -->
+          <button class="topbar-icon-btn" id="btn-theme-toggle" title="Toggle Light / Dark Mode">
+            <svg class="icon-svg" id="icon-theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg class="icon-svg hidden" id="icon-theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          </button>
+
           <!-- Avatar Pill -->
           <div class="user-avatar-pill">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -166,19 +171,27 @@
              ================================================================= -->
         <div id="view-overview" class="view-panel active">
           
-          <!-- Top Header Strip & Action Buttons -->
-          <div class="research-header-banner">
-            <div class="header-banner-text">
-              <div class="banner-sub-badge">
-                EXPERIMENTAL RESEARCH BUILD &bull; RUN ID: exp-2024-hnsw-adpt-09 &bull; ESTIMATOR: LEVINA-BICKEL (K=20)
-              </div>
-              <h2 class="banner-title">AdaptiveVec</h2>
-              <p class="banner-desc">
-                Density- and Dimension-Aware Proximity Graph Index for Resource-Constrained Vector Retrieval
-              </p>
+          <!-- Editorial Research Header -->
+          <div class="editorial-header">
+            <div class="editorial-pretitle">
+              <span class="editorial-pill">SYSTEMS RESEARCH</span>
+              <span class="editorial-meta-dot">&bull;</span>
+              <span>ABLATION PROTOCOL (STEPS 1–6)</span>
+              <span class="editorial-meta-dot">&bull;</span>
+              <span>SIFT-100K CANONICAL (128-D FP32)</span>
+              <span class="editorial-meta-dot">&bull;</span>
+              <span>INTEL CORE 5 210H (12T AVX2)</span>
             </div>
+            <h2 class="editorial-title">AdaptiveVec: Density- and Dimension-Aware Proximity Graph Index</h2>
             
-            <div class="banner-actions">
+            <div class="editorial-hero-banner">
+              <div class="hero-quote-bar"></div>
+              <div class="hero-statement-text">
+                AdaptiveVec dynamically allocates local edge degree <span class="math-term">M &isin; [8, 24]</span> and query traversal budgets from local intrinsic dimensionality (<span class="math-term">LID &approx; 9.8</span>) and k-NN density. <strong>Step 5 achieves 0.9745 recall (parity band, cf. 0.9856 at Step 4) at +50.3% throughput</strong> (7,075.3 QPS) and -7.4% edge reduction (2,509,138 edges) compared to baseline HNSW. For memory-constrained environments, <strong>Step 6 (INT8 SQ8) reduces index RAM by -62.4%</strong> (22.5 MB vs. 59.9 MB baseline) at 0.9594 recall.
+              </div>
+            </div>
+
+            <div class="editorial-actions">
               <button class="btn-stitch btn-stitch-secondary" id="btn-rerun-calibration">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 Re-run Calibration
@@ -187,138 +200,120 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Export Topology
               </button>
-              <button class="btn-stitch btn-stitch-primary glow-cyan" id="btn-run-benchmark-suite">
+              <button class="btn-stitch btn-stitch-primary" id="btn-run-benchmark-suite">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 Run Benchmark Suite
               </button>
             </div>
           </div>
 
-          <!-- PRIMARY KPI METRICS GRID (ROW 1: CAPACITY, DIM, EDGES, RECALL) -->
-          <div class="kpi-grid-4 mt-3">
-            <div class="kpi-card">
-              <div class="kpi-label-row">
-                <span class="dot-indicator cyan-dot"></span>
-                <span class="kpi-label">INDEX CAPACITY</span>
-                <span class="kpi-sub-label">N_VEC</span>
+          <!-- Operating Regimes Summary (Comparative Matrix) -->
+          <div class="regimes-grid-3">
+            <!-- Regime A: High-Throughput (Step 5 Ada-ef) -->
+            <div class="regime-card featured">
+              <div class="regime-header">
+                <div class="regime-title-wrap">
+                  <span class="regime-badge highlight">REGIME A &bull; STEP 5</span>
+                  <span class="text-xs text-muted">HIGH-THROUGHPUT</span>
+                </div>
+                <span class="regime-badge highlight">FP32 PAYLOAD</span>
               </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val">100,000</span>
-                <span class="kpi-badge-pill">In-Memory</span>
+              <div class="regime-hero-number">
+                7,075.3 <span class="text-xs text-muted">QPS</span>
+                <span class="regime-delta-tag">+50.3%</span>
               </div>
-              <div class="kpi-footer-row">
-                <span>Baseline HNSW: 100k</span>
-                <span class="mono text-muted">L2-Normalized</span>
+              <div class="text-xs text-muted mt-1">
+                Dynamic efSearch with adaptive stagnation termination
               </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-label-row">
-                <span class="dot-indicator cyan-dot"></span>
-                <span class="kpi-label">VECTOR DIM</span>
-                <span class="kpi-sub-label">D_AMB</span>
-              </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val">128</span>
-                <span class="kpi-badge-pill text-cyan">LID ~9.8</span>
-              </div>
-              <div class="kpi-footer-row">
-                <span>Texmex IRISA (SIFT-100K)</span>
-                <span class="mono text-muted">FP32 / L2</span>
-              </div>
-            </div>
-
-            <div class="kpi-card">
-              <div class="kpi-label-row">
-                <span class="dot-indicator cyan-dot"></span>
-                <span class="kpi-label">GRAPH EDGES (STEP 5 &amp; 6)</span>
-                <span class="kpi-delta-pill text-emerald">-7.4%</span>
-              </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val">2.51M</span>
-                <span class="kpi-secondary-val">2.71M</span>
-              </div>
-              <div class="kpi-footer-row">
-                <span>Baseline: 2.71M &rarr; Ada: 2.51M</span>
-                <span class="mono text-cyan">M_avg=15.2</span>
-              </div>
-              <div class="kpi-sparkline">
-                <div class="sparkline-bar" style="width: 57.5%;"></div>
+              <div class="regime-metrics-grid">
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Recall@10</span>
+                  <span class="regime-metric-v text-cyan">0.9745 <span class="text-xs text-muted">(Parity cf. 0.9856)</span></span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Graph Edges</span>
+                  <span class="regime-metric-v">2,509,138 <span class="text-xs text-emerald">(-7.4%)</span></span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Latency P95</span>
+                  <span class="regime-metric-v">1.42 ms <span class="text-xs text-emerald">(-24.9%)</span></span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">RAM / Build</span>
+                  <span class="regime-metric-v">59.2 MB / 33.5s <span class="text-xs text-emerald">(-28.1%)</span></span>
+                </div>
               </div>
             </div>
 
-            <div class="kpi-card">
-              <div class="kpi-label-row">
-                <span class="dot-indicator cyan-dot"></span>
-                <span class="kpi-label">RECALL@10 (STEP 5 ADA-EF)</span>
-                <span class="kpi-delta-pill text-emerald">Parity</span>
+            <!-- Regime B: Memory-Compressed (Step 6 SQ8) -->
+            <div class="regime-card">
+              <div class="regime-header">
+                <div class="regime-title-wrap">
+                  <span class="regime-badge highlight">REGIME B &bull; STEP 6</span>
+                  <span class="text-xs text-muted">MEMORY-COMPACT</span>
+                </div>
+                <span class="regime-badge">INT8 ASYM SQ8</span>
               </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val text-cyan">0.9745</span>
-                <span class="kpi-secondary-val">Base: 0.9913</span>
+              <div class="regime-hero-number">
+                22.5 <span class="text-xs text-muted">MB RAM</span>
+                <span class="regime-delta-tag">-62.4%</span>
               </div>
-              <div class="kpi-footer-row">
-                <span>Parity: 0.9856 &bull; Step 4: 0.9854</span>
-                <span class="mono text-muted">Step 6 SQ8: 0.9594</span>
+              <div class="text-xs text-muted mt-1">
+                Quantized distance re-ranking with edge pruning preserved
               </div>
-            </div>
-          </div>
-
-          <!-- SECONDARY PERFORMANCE METRICS GRID (ROW 2: BUILD TIME, LATENCY, QPS, MEMORY) -->
-          <div class="kpi-grid-4 mt-3">
-            <div class="kpi-card compact">
-              <div class="kpi-label-row">
-                <span class="kpi-label">BUILD TIME (STEP 5 ADA-EF)</span>
-                <span class="kpi-delta-pill text-emerald">-28.1%</span>
-              </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val">33.5s</span>
-                <span class="kpi-secondary-val text-strike">46.6s</span>
-              </div>
-              <div class="kpi-footer-row text-xs text-muted">
-                12T AVX2 &bull; Step 6 (with SQ8): 64.0s
-              </div>
-            </div>
-
-            <div class="kpi-card compact">
-              <div class="kpi-label-row">
-                <span class="kpi-label">QUERY LATENCY P95 (STEP 5)</span>
-                <span class="kpi-delta-pill text-emerald">-24.9%</span>
-              </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val">1.42 ms</span>
-                <span class="kpi-secondary-val text-strike">1.89 ms</span>
-              </div>
-              <div class="kpi-footer-row text-xs text-muted">
-                Ada-ef early exit &bull; Step 6 SQ8: 2.35 ms
+              <div class="regime-metrics-grid">
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Recall@10</span>
+                  <span class="regime-metric-v">0.9594 <span class="text-xs text-muted">(INT8 payload)</span></span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Peak QPS</span>
+                  <span class="regime-metric-v">2,987.6 <span class="text-xs text-muted">(Re-ranking)</span></span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Vector Payload</span>
+                  <span class="regime-metric-v">12.8 MB <span class="text-xs text-emerald">(-75.0%)</span></span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Graph Edges / Build</span>
+                  <span class="regime-metric-v">2.51M / 64.0s</span>
+                </div>
               </div>
             </div>
 
-            <div class="kpi-card compact">
-              <div class="kpi-label-row">
-                <span class="kpi-label">PEAK QPS (STEP 5, BEFORE SQ8)</span>
-                <span class="kpi-delta-pill text-cyan">+50.3%</span>
+            <!-- Control: Baseline HNSW -->
+            <div class="regime-card">
+              <div class="regime-header">
+                <div class="regime-title-wrap">
+                  <span class="regime-badge control">CONTROL</span>
+                  <span class="text-xs text-muted">STANDARD HNSW</span>
+                </div>
+                <span class="regime-badge control">UNMODIFIED</span>
               </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val">7,075.3</span>
-                <span class="kpi-secondary-val">Base: 4,708.1</span>
+              <div class="regime-hero-number">
+                4,708.1 <span class="text-xs text-muted">QPS</span>
+                <span class="text-xs text-muted">Baseline</span>
               </div>
-              <div class="kpi-footer-row text-xs text-muted">
-                Ada-ef FP32 &bull; Step 6 (SQ8 Re-rank): 2,987.6 QPS
+              <div class="text-xs text-muted mt-1">
+                Fixed capacity M=16, efConstruction=100, efSearch=64
               </div>
-            </div>
-
-            <div class="kpi-card compact">
-              <div class="kpi-label-row">
-                <span class="kpi-label">MEMORY (STEP 6, ASYM SQ8)</span>
-                <span class="kpi-delta-pill text-emerald">-62.4%</span>
-              </div>
-              <div class="kpi-value-row">
-                <span class="kpi-main-val">22.5 MB</span>
-                <span class="kpi-secondary-val text-strike">59.9 MB</span>
-              </div>
-              <div class="kpi-footer-row text-xs text-muted">
-                SQ8 Quantized &bull; Step 1-5 (FP32): 59.2 MB
+              <div class="regime-metrics-grid">
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Recall@10</span>
+                  <span class="regime-metric-v">0.9913</span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Graph Edges</span>
+                  <span class="regime-metric-v">2,710,240 <span class="text-xs text-muted">(M=16)</span></span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">Latency P95</span>
+                  <span class="regime-metric-v">1.89 ms</span>
+                </div>
+                <div class="regime-metric-item">
+                  <span class="regime-metric-k">RAM / Build</span>
+                  <span class="regime-metric-v">59.9 MB / 46.6s</span>
+                </div>
               </div>
             </div>
           </div>
@@ -386,7 +381,7 @@
                     </div>
                     <div class="callout-row mt-1">
                       <span class="k">Assigned Capacity M:</span>
-                      <span class="v mono text-emerald"><span class="dot-em"></span> 22 / 24</span>
+                      <span class="v mono text-emerald" id="callout-m"><span class="dot-em"></span> 22 / 24</span>
                     </div>
                     <div class="callout-row">
                       <span class="k">efConstruction:</span>
@@ -394,7 +389,7 @@
                     </div>
                     <div class="callout-row">
                       <span class="k">Current In-degree:</span>
-                      <span class="v mono text-white">34 edges</span>
+                      <span class="v mono text-white" id="callout-score">34 edges</span>
                     </div>
                     <div class="callout-footer mt-2">
                       <span class="mono text-muted text-xs">COORDS: [0.724, 0.469]</span>
@@ -2292,7 +2287,7 @@
   <div id="stitch-toast-container"></div>
 
   <!-- Main JavaScript Engine -->
-  <script src="app.js"></script>
+  <script src="app.js?v=2.0.0"></script>
 </body>
 </html>
 
