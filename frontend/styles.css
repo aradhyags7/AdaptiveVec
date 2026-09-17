@@ -2630,3 +2630,297 @@ html, body {
   letter-spacing: 0.5px;
   white-space: nowrap;
 }
+
+/* ==========================================================================
+   INTERACTIVE POLICY DOCK & LIVE SIMULATOR STYLES
+   ========================================================================== */
+.interactive-dock {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition);
+}
+
+.dock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dock-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dock-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.dock-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dock-hint-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dock-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .dock-controls-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.dock-control-item {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.slider-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.slider-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.slider-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cyan-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 1px 6px;
+  box-shadow: var(--shadow-card);
+}
+
+.stitch-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  background: var(--border-medium);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  margin: 6px 0;
+  transition: background 0.15s ease;
+}
+
+.stitch-range:hover {
+  background: var(--border-strong);
+}
+
+.stitch-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cyan-primary);
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.15s ease;
+}
+
+.stitch-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: var(--cyan-bright);
+}
+
+.stitch-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cyan-primary);
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.slider-foot-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.dock-telemetry-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
+.telemetry-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.telemetry-chip .k {
+  color: var(--text-muted);
+}
+.telemetry-chip .v {
+  font-weight: 600;
+}
+
+/* Runner HUD & Live Streaming Progress */
+.runner-hud {
+  background: var(--bg-card);
+  border: 1px solid var(--border-cyan);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-card);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.runner-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.runner-status-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pulse-radar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cyan-primary);
+  box-shadow: 0 0 0 rgba(54, 84, 166, 0.4);
+  animation: radarPulse 1.5s infinite;
+}
+
+@keyframes radarPulse {
+  0% { box-shadow: 0 0 0 0 rgba(54, 84, 166, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(54, 84, 166, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(54, 84, 166, 0); }
+}
+
+.runner-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.runner-phase-tag {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  background: var(--cyan-glow);
+  color: var(--cyan-primary);
+  border: 1px solid var(--border-cyan);
+}
+
+.runner-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-card-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.runner-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan-primary), var(--emerald));
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.runner-tickers-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.runner-ticker-item {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
+.ticker-k {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.ticker-v {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.btn-stitch-subtle {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+.btn-stitch-subtle:hover {
+  background: var(--bg-pill-hover);
+  color: var(--text-primary);
+}
+.btn-xs {
+  font-size: 10.5px;
+  padding: 3px 8px;
+}
+
+.click-hint-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--cyan-primary);
+  background: var(--cyan-glow);
+  border: 1px solid var(--border-cyan);
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  margin-left: 8px;
+}

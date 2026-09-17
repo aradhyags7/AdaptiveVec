@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- Chart.js for scientific charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="styles.css?v=2.0.0">
+  <link rel="stylesheet" href="styles.css?v=2.1.0">
 </head>
 <body class="stitch-theme">
   <!-- Full Screen App Shell -->
@@ -207,6 +207,123 @@
             </div>
           </div>
 
+          <!-- Interactive Research Control Dock -->
+          <div class="stitch-card interactive-dock" id="interactive-control-dock">
+            <div class="dock-header">
+              <div class="dock-title-group">
+                <span class="dock-badge">INTERACTIVE SIMULATOR &amp; LIVE CONTROLS</span>
+                <h3 class="dock-title">Dynamic Hyperparameter Tuning &amp; Manifold Topology Sweep</h3>
+                <p class="dock-desc">Adjust hyperparameters to observe real-time recalculation of degree allocations M(x), simulated edge savings, search speedup, and manifold canvas repainting.</p>
+              </div>
+              <div class="dock-actions">
+                <button class="btn-stitch btn-stitch-secondary" id="btn-reset-dock-params" title="Reset to Canonical Step 5 Defaults">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                  Reset Baseline
+                </button>
+              </div>
+            </div>
+
+            <div class="dock-controls-grid">
+              <!-- Slider 1: alpha LID -->
+              <div class="dock-control-col">
+                <div class="dock-control-label">
+                  <span class="param-name">&alpha; (LID Degree Weight)</span>
+                  <span class="param-val mono" id="val-alpha-lid">0.45</span>
+                </div>
+                <input type="range" class="stitch-range" id="slider-alpha-lid" min="0.00" max="1.00" step="0.05" value="0.45">
+                <div class="dock-control-hint">Expands node degree in high-intrinsic dimension regions</div>
+              </div>
+
+              <!-- Slider 2: beta Density -->
+              <div class="dock-control-col">
+                <div class="dock-control-label">
+                  <span class="param-name">&beta; (Density Pruning Weight)</span>
+                  <span class="param-val mono" id="val-beta-density">0.35</span>
+                </div>
+                <input type="range" class="stitch-range" id="slider-beta-density" min="0.00" max="1.00" step="0.05" value="0.35">
+                <div class="dock-control-hint">Compresses redundant edges in dense vector clusters</div>
+              </div>
+
+              <!-- Slider 3: efSearch -->
+              <div class="dock-control-col">
+                <div class="dock-control-label">
+                  <span class="param-name">Dynamic efSearch</span>
+                  <span class="param-val mono" id="val-ef-search">64</span>
+                </div>
+                <input type="range" class="stitch-range" id="slider-ef-search" min="16" max="256" step="8" value="64">
+                <div class="dock-control-hint">Exploration beam size during candidate beam search</div>
+              </div>
+
+              <!-- Slider 4: Stagnation Window (tau) -->
+              <div class="dock-control-col">
+                <div class="dock-control-label">
+                  <span class="param-name">Stagnation Window (&tau;)</span>
+                  <span class="param-val mono" id="val-stagnation-tau">12</span>
+                </div>
+                <input type="range" class="stitch-range" id="slider-stagnation-tau" min="4" max="32" step="2" value="12">
+                <div class="dock-control-hint">Consecutive non-improving steps before early exit</div>
+              </div>
+            </div>
+
+            <!-- Realtime Telemetry Strip -->
+            <div class="dock-telemetry-strip">
+              <div class="telemetry-item">
+                <span class="k">Calculated Mean M:</span>
+                <span class="v mono" id="dock-sim-mean-m">14.8 <span class="text-xs text-muted">(vs 16.0)</span></span>
+              </div>
+              <div class="telemetry-item">
+                <span class="k">Estimated Total Edges:</span>
+                <span class="v mono text-emerald" id="dock-sim-edges-delta">2,509,138 (-7.4%)</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="k">Predicted Throughput:</span>
+                <span class="v mono text-cyan" id="dock-sim-qps">7,075.3 QPS (+50.3%)</span>
+              </div>
+              <div class="telemetry-item">
+                <span class="k">Projected Recall@10:</span>
+                <span class="v mono" id="dock-sim-recall">0.9745 (Parity band)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Benchmark & Calibration Runner HUD -->
+          <div class="stitch-card runner-hud hidden" id="live-runner-hud">
+            <div class="runner-header">
+              <div class="runner-status-pulse">
+                <span class="pulse-dot"></span>
+                <span class="runner-status-text" id="runner-status-label">BENCHMARK SUITE EXECUTING: STREAMING BATCH 1/10 (QUERIES 1-100)</span>
+              </div>
+              <button class="text-btn text-muted" id="btn-close-runner-hud">&times; Close HUD</button>
+            </div>
+            
+            <div class="runner-progress-track">
+              <div class="runner-progress-bar" id="runner-progress-fill" style="width: 0%;"></div>
+            </div>
+
+            <div class="runner-stats-grid">
+              <div class="stat-col">
+                <span class="stat-k">QUERIES EVALUATED</span>
+                <span class="stat-v mono" id="runner-ticker-queries">0 / 10,000</span>
+              </div>
+              <div class="stat-col">
+                <span class="stat-k">LIVE RECALL@10</span>
+                <span class="stat-v mono text-cyan" id="runner-ticker-recall">0.0000</span>
+              </div>
+              <div class="stat-col">
+                <span class="stat-k">MEASURED QPS</span>
+                <span class="stat-v mono text-emerald" id="runner-ticker-qps">0.0</span>
+              </div>
+              <div class="stat-col">
+                <span class="stat-k">AVG LATENCY</span>
+                <span class="stat-v mono" id="runner-ticker-latency">0.00 ms</span>
+              </div>
+              <div class="stat-col">
+                <span class="stat-k">DISTANCE EVALS</span>
+                <span class="stat-v mono" id="runner-ticker-evals">0</span>
+              </div>
+            </div>
+          </div>
+
           <!-- Operating Regimes Summary (Comparative Matrix) -->
           <div class="regimes-grid-3">
             <!-- Regime A: High-Throughput (Step 5 Ada-ef) -->
@@ -219,8 +336,8 @@
                 <span class="regime-badge highlight">FP32 PAYLOAD</span>
               </div>
               <div class="regime-hero-number">
-                7,075.3 <span class="text-xs text-muted">QPS</span>
-                <span class="regime-delta-tag">+50.3%</span>
+                <span id="regime-a-hero-qps">7,075.3</span> <span class="text-xs text-muted">QPS</span>
+                <span class="regime-delta-tag" id="regime-a-hero-delta">+50.3%</span>
               </div>
               <div class="text-xs text-muted mt-1">
                 Dynamic efSearch with adaptive stagnation termination
@@ -228,15 +345,15 @@
               <div class="regime-metrics-grid">
                 <div class="regime-metric-item">
                   <span class="regime-metric-k">Recall@10</span>
-                  <span class="regime-metric-v text-cyan">0.9745 <span class="text-xs text-muted">(Parity cf. 0.9856)</span></span>
+                  <span class="regime-metric-v text-cyan" id="regime-a-recall">0.9745 <span class="text-xs text-muted">(Parity cf. 0.9856)</span></span>
                 </div>
                 <div class="regime-metric-item">
                   <span class="regime-metric-k">Graph Edges</span>
-                  <span class="regime-metric-v">2,509,138 <span class="text-xs text-emerald">(-7.4%)</span></span>
+                  <span class="regime-metric-v" id="regime-a-edges">2,509,138 <span class="text-xs text-emerald" id="regime-a-edges-delta">(-7.4%)</span></span>
                 </div>
                 <div class="regime-metric-item">
                   <span class="regime-metric-k">Latency P95</span>
-                  <span class="regime-metric-v">1.42 ms <span class="text-xs text-emerald">(-24.9%)</span></span>
+                  <span class="regime-metric-v" id="regime-a-lat">1.42 ms <span class="text-xs text-emerald">(-24.9%)</span></span>
                 </div>
                 <div class="regime-metric-item">
                   <span class="regime-metric-k">RAM / Build</span>
@@ -351,6 +468,7 @@
                 <span>EDGES: <strong class="text-white">Visible (k=4 sample)</strong></span>
                 <span>NODE SIZE: <strong class="text-white">M_capacity (8..24)</strong></span>
                 <span>SAMPLED: <strong class="text-white">2,400 / 100,000 NODES</strong></span>
+                <span class="click-hint-badge">CLICK NODE OR CANVAS TO SIMULATE BEAM SEARCH TRAVERSAL</span>
                 <button class="text-btn text-cyan" id="btn-reset-overview-view">⟲ Reset View</button>
               </div>
 
@@ -418,12 +536,12 @@
               <div class="diag-section mt-3">
                 <div class="diag-header-row">
                   <span class="diag-title">1. LOCAL INTRINSIC DIM (LID)</span>
-                  <span class="diag-mean mono text-cyan">Mean: 12.4</span>
+                  <span class="diag-mean mono text-cyan" id="diag-lid-mean">Mean: 12.4</span>
                 </div>
                 <div class="diag-sub-row text-xs text-muted">
-                  <span>MIN: 4.1</span>
-                  <span>P95: 27.8</span>
-                  <span>MAX: 34.2</span>
+                  <span id="diag-lid-min">MIN: 4.1</span>
+                  <span id="diag-lid-p95">P95: 27.8</span>
+                  <span id="diag-lid-max">MAX: 34.2</span>
                 </div>
                 <!-- Dynamic Bar Histogram -->
                 <div class="lid-bars-wrapper mt-2" id="lid-bars-container">
@@ -446,7 +564,7 @@
               <div class="diag-section mt-4">
                 <div class="diag-header-row">
                   <span class="diag-title">2. LOCAL DENSITY (K-NN DIST)</span>
-                  <span class="diag-mean mono text-cyan">Mean: 0.084</span>
+                  <span class="diag-mean mono text-cyan" id="diag-density-mean">Mean: 0.084</span>
                 </div>
                 <div class="diag-sub-row text-xs text-muted">
                   <span>MIN: 0.012</span>
@@ -462,14 +580,14 @@
               <div class="diag-section mt-4">
                 <div class="diag-header-row">
                   <span class="diag-title">3. ADAPTIVE M ALLOCATION</span>
-                  <span class="diag-mean mono text-cyan">Std Dev: 3.4</span>
+                  <span class="diag-mean mono text-cyan" id="diag-m-std">Std Dev: 3.4</span>
                 </div>
                 <div class="diag-sub-row text-xs text-muted">
                   <span>Min: 8</span>
-                  <span class="text-white">Mean M: 15.7</span>
+                  <span class="text-white" id="diag-m-mean">Mean M: 15.7</span>
                   <span>Max: 24</span>
                 </div>
-                <div class="m-allocation-bars mt-2">
+                <div class="m-allocation-bars mt-2" id="m-allocation-bars">
                   <div class="m-bar-row">
                     <span class="m-label">M=8</span>
                     <div class="m-track"><div class="m-fill" style="width: 18%;"></div></div>
@@ -2287,7 +2405,7 @@
   <div id="stitch-toast-container"></div>
 
   <!-- Main JavaScript Engine -->
-  <script src="app.js?v=2.0.0"></script>
+  <script src="app.js?v=2.1.0"></script>
 </body>
 </html>
 
