@@ -8,8 +8,8 @@
 }
 
 .workspaceBar {
-  height: 38px;
-  min-height: 38px;
+  height: 40px;
+  min-height: 40px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-card);
@@ -23,7 +23,7 @@
 .barLeft {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .barRight {
@@ -37,69 +37,65 @@
   font-size: 11px;
 }
 
-.wireframeTag {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--semantic-amber);
-  background: var(--semantic-amber-bg);
-  padding: 2px 6px;
-  border-radius: 3px;
-  border: 1px solid rgba(217, 119, 6, 0.3);
-}
-
 .segmentedGroup {
   display: flex;
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   padding: 2px;
+  gap: 2px;
 }
 
 .segBtn {
-  padding: 3px 8px;
-  font-size: 11.5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--text-muted);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   transition: all 0.12s ease;
+  border: 1px solid transparent;
 }
 
 .segBtn:hover {
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .segBtnActive {
   background: var(--bg-card);
-  color: var(--text-primary);
+  color: var(--accent-glow);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  border-color: var(--border-default);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .barActionBtn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 9px;
-  background: var(--bg-app);
+  padding: 4px 10px;
+  background: var(--bg-card-subtle);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--text-secondary);
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   transition: all 0.12s ease;
 }
 
 .barActionBtn:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-glow);
+  background: var(--bg-hover);
 }
 
 .kbd {
   font-family: var(--font-mono);
   font-size: 9.5px;
-  padding: 1px 4px;
-  background: var(--bg-card);
+  padding: 1px 5px;
+  background: var(--bg-app);
   border: 1px solid var(--border-subtle);
-  border-radius: 3px;
+  border-radius: 2px;
   color: var(--text-muted);
 }
 
@@ -107,7 +103,7 @@
 .stageGrid2 {
   flex: 1;
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: 1.35fr 0.95fr;
   overflow: hidden;
   background: var(--bg-app);
 }
@@ -124,122 +120,247 @@
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  background: var(--bg-card);
+  background: var(--canvas-bg);
+  overflow: hidden;
 }
 
 .paneSecondary {
   display: flex;
   flex-direction: column;
-  background: var(--bg-app);
+  background: var(--bg-card);
   overflow-y: auto;
 }
 
 .paneHeader {
   height: 40px;
+  min-height: 40px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: var(--bg-card-subtle);
 }
 
 .paneTitle {
   font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.instrumentDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 5px var(--accent);
+}
+
+/* Scientific SVG Plot Area */
+.plotStageWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: var(--canvas-bg);
+}
+
+.plotHeaderTelemetry {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-hairline);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--bg-surface-sunken);
+}
+
+.svgPlotContainer {
+  flex: 1;
+  position: relative;
+  padding: 16px 20px 8px 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.svgPlot {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Axis styling */
+.axisLine {
+  stroke: var(--border-emphasis);
+  stroke-width: 1;
+}
+
+.gridLine {
+  stroke: var(--canvas-grid);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.axisLabel {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.axisTitle {
+  fill: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.paretoCurve {
+  fill: none;
+  stroke: var(--border-emphasis);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.paretoFrontierGlow {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 6px rgba(201, 125, 74, 0.4));
+}
+
+.plotNode {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.plotNode:hover {
+  transform: scale(1.18);
+}
+
+.activeReticleLine {
+  stroke: var(--accent-glow);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.6;
+}
+
+/* Hover HUD / Inspector at bottom of plot stage */
+.plotFooterHud {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+}
+
+.hudItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hudKey {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.hudVal {
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-/* Wireframe Plot Areas */
-.wireframePlot {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: var(--bg-app);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.hudValHighlight {
+  color: var(--accent-glow);
 }
 
-.plotCrosshairX {
-  position: absolute;
-  left: 30px;
-  right: 30px;
-  bottom: 40px;
-  height: 1px;
-  background: var(--border-emphasis);
-}
-
-.plotCrosshairY {
-  position: absolute;
-  left: 40px;
-  top: 30px;
-  bottom: 30px;
-  width: 1px;
-  background: var(--border-emphasis);
-}
-
-.plotPoint {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transform: translate(-50%, 50%);
-}
-
-.pointDot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid var(--bg-card);
-}
-
-.pointDotFeatured {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 8px rgba(94, 124, 226, 0.6);
-}
-
-.pointLabel {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-  background: var(--bg-card);
-  padding: 2px 6px;
-  border-radius: 3px;
-  border: 1px solid var(--border-subtle);
-  white-space: nowrap;
-}
-
-.watermark {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+/* Secondary Footprint Stage (Memory & Edges Bar Gage) */
+.footprintGageArea {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.gageHeader {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 4px;
+  font-size: 11px;
+}
+
+.gageRows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gageRowItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gageLabel {
+  width: 135px;
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text-dim);
-  opacity: 0.35;
-  pointer-events: none;
-  user-select: none;
-}
-
-.subWatermark {
   font-size: 10px;
-  font-weight: normal;
-  letter-spacing: normal;
+  color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
-/* Regime Matrix List in Secondary Pane */
+.gageTrack {
+  flex: 1;
+  height: 14px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  position: relative;
+}
+
+.gageFillBaseline {
+  height: 100%;
+  width: 100%;
+  background: var(--border-emphasis);
+  border-radius: 1px;
+}
+
+.gageFillSq8 {
+  height: 100%;
+  width: 37.6%;
+  background: var(--semantic-emerald);
+  box-shadow: 0 0 8px rgba(107, 163, 126, 0.4);
+  border-radius: 1px;
+}
+
+.gageValue {
+  width: 160px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* 3-Regime Secondary Pane */
 .regimeMatrixList {
   padding: 16px;
   display: flex;
@@ -248,17 +369,37 @@
 }
 
 .regimeBlock {
-  padding: 14px;
-  background: var(--bg-card);
+  padding: 14px 16px;
+  background: var(--bg-card-subtle);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.regimeBlock:hover {
+  border-color: var(--border-emphasis);
+  background: var(--bg-hover);
 }
 
 .blockFeatured {
   border: 1.5px solid var(--accent);
+  background: rgba(201, 125, 74, 0.05);
+  box-shadow: 0 0 16px rgba(201, 125, 74, 0.08);
+}
+
+.blockFeatured::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--accent-glow);
 }
 
 .blockRow {
@@ -269,7 +410,9 @@
 
 .blockBadge {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.03em;
   color: var(--text-primary);
 }
 
@@ -280,247 +423,144 @@
 }
 
 .blockHeroNum {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1;
 }
 
 .blockHeroUnit {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-muted);
+  font-family: var(--font-mono);
 }
 
 .blockSub {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
 }
 
-/* 2D Manifold Stage */
-.coordinateStage {
-  flex: 1;
-  position: relative;
-  background: var(--canvas-bg);
-  overflow: hidden;
-}
-
-.gridOverlay {
-  position: absolute;
-  inset: 0;
-  background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, var(--canvas-grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--canvas-grid) 1px, transparent 1px);
-}
-
-.mockCluster1 {
-  position: absolute;
-  top: 35%;
-  left: 28%;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  border: 1px dashed var(--border-default);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mockCluster2 {
-  position: absolute;
-  top: 40%;
-  left: 65%;
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  border: 1px dashed var(--border-default);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.clusterCore {
-  font-size: 10px;
-  color: var(--text-muted);
+.blockMetaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-hairline);
   font-family: var(--font-mono);
+  font-size: 10.5px;
 }
 
-.mockSelectedNode {
-  position: absolute;
-  top: 46%;
-  left: 52%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.nodePoint {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid var(--bg-card);
-  z-index: 2;
-}
-
-.pulseRing {
-  position: absolute;
-  left: -4px;
-  top: -4px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid var(--accent);
-  animation: pulse 2s infinite ease-out;
-}
-
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(2.2); opacity: 0; }
-}
-
-.nodeLabel {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  background: var(--bg-card);
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-emphasis);
-  box-shadow: var(--shadow-sm);
-}
-
-.rulerX {
-  position: absolute;
-  bottom: 12px;
-  left: 24px;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  color: var(--text-dim);
-}
-
-.rulerY {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  color: var(--text-dim);
-}
-
-/* Query Traversal Stage */
-.queryStage {
-  flex: 1;
-  padding: 24px;
+.metaItem {
   display: flex;
   flex-direction: column;
-  gap: 20px;
 }
 
-.trajectoryHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
+.metaItemKey {
+  color: var(--text-muted);
+  font-size: 9.5px;
+  text-transform: uppercase;
 }
 
-.trajectoryTitle {
-  font-size: 13px;
-  font-weight: 600;
+.metaItemVal {
   color: var(--text-primary);
+  font-weight: 500;
 }
 
-.trajectoryPathMock {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+.persistentHardwareStamp {
+  margin-top: auto;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-app);
   font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Dense 6-Step Ablation Table View */
+.ablationTableContainer {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  background: var(--bg-app);
+}
+
+.ablationTable {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 12px;
-}
-
-.entryHop {
-  padding: 6px 10px;
-  border-radius: 3px;
-  background: var(--bg-app);
   border: 1px solid var(--border-default);
+  background: var(--bg-card);
 }
 
-.midHop {
-  padding: 6px 10px;
-  border-radius: 3px;
-  background: var(--bg-app);
-  border: 1px solid var(--border-subtle);
+.ablationTable th {
+  background: var(--bg-card-subtle);
+  border-bottom: 2px solid var(--border-emphasis);
+  border-right: 1px solid var(--border-subtle);
+  padding: 10px 12px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   color: var(--text-secondary);
 }
 
-.exitHop {
-  padding: 6px 10px;
-  border-radius: 3px;
-  background: var(--semantic-emerald-bg);
-  color: var(--semantic-emerald);
-  border: 1px solid rgba(43, 138, 62, 0.3);
-  font-weight: 600;
+.ablationTable th:first-child {
+  text-align: left;
 }
 
-.hopArrow {
-  color: var(--text-dim);
-}
-
-/* Corpus Quadrant Layout */
-.corpusCard {
-  padding: 20px;
-  background: var(--bg-card);
-  border-right: 1px solid var(--border-subtle);
+.ablationTable td {
+  padding: 9px 12px;
   border-bottom: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.corpusCardUnrun {
-  background: var(--bg-app);
-}
-
-.corpusHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.corpusTitle {
-  font-size: 14px;
-  font-weight: 600;
+  border-right: 1px solid var(--border-hairline);
+  text-align: right;
+  font-family: var(--font-mono);
   color: var(--text-primary);
 }
 
-.corpusBody {
+.ablationTable td:first-child {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+
+.tableRowHighlight {
+  background: rgba(201, 125, 74, 0.08);
+}
+
+.tableRowHighlight td {
+  color: var(--accent-glow);
+  font-weight: 600;
+}
+
+/* 3-Regime Wide Matrix Layout */
+.regimeWideGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--bg-app);
+}
+
+.regimeColCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  padding: 18px;
+  gap: 14px;
 }
 
-.corpusRow {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-}
-
-.k {
-  color: var(--text-muted);
-}
-
-.unrunNotice {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--semantic-amber-bg);
-  border: 1px solid rgba(217, 119, 6, 0.25);
-  font-size: 11px;
-  color: var(--semantic-amber);
-  line-height: 1.45;
+.regimeColFeatured {
+  border: 1.5px solid var(--accent);
+  box-shadow: var(--shadow-glow);
 }

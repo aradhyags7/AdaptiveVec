@@ -1,89 +1,104 @@
 /* ==========================================================================
-   AdaptiveVec: Academic Systems Interface Design Tokens & Reset
+   AdaptiveVec: Scientific Instrument Design Tokens & Avionics Typography
+   Precision Lab Equipment Identity (Oscilloscope, Spectrum Analyzer)
    ========================================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
 :root {
-  /* Light Theme (Warm Near-White Academic Paper) */
-  --bg-app: #F8F9FA;
-  --bg-sidebar: #F1F3F5;
-  --bg-card: #FFFFFF;
-  --bg-card-subtle: #F8F9FA;
-  --bg-surface-elevated: #FFFFFF;
-  --bg-hover: rgba(0, 0, 0, 0.04);
-  --bg-active: rgba(59, 92, 204, 0.08);
+  /* Default Primary: Dark Mode (Warm Charcoal Chassis Substrate) */
+  --bg-app: #171513;
+  --bg-sidebar: #12110F;
+  --bg-card: #211E1A;
+  --bg-card-subtle: #1A1815;
+  --bg-surface-elevated: #28241F;
+  --bg-surface-sunken: #100F0D;
+  --bg-hover: rgba(232, 162, 92, 0.06);
+  --bg-active: rgba(232, 162, 92, 0.14);
 
-  --text-primary: #181C24;
-  --text-secondary: #495057;
-  --text-muted: #6C757D;
-  --text-dim: #ADB5BD;
+  --text-primary: #EAE4DC;
+  --text-secondary: #A69C8E;
+  --text-muted: #786F62;
+  --text-dim: #524B42;
 
-  --border-subtle: #E9ECEF;
-  --border-default: #DEE2E6;
-  --border-emphasis: #CED4DA;
+  --border-subtle: #2B2621;
+  --border-default: #38312A;
+  --border-emphasis: #4F463D;
+  --border-hairline: rgba(225, 210, 190, 0.08);
 
-  --accent: #3B5CCC;
-  --accent-subtle: #EDF2FF;
-  --accent-text: #2B45A3;
+  /* Filament Amber & Instrument Accents */
+  --accent: #C97D4A;
+  --accent-glow: #E8A25C;
+  --accent-subtle: rgba(201, 125, 74, 0.14);
+  --accent-text: #E8A25C;
 
-  --semantic-emerald: #2B8A3E;
-  --semantic-emerald-bg: #EBFBEE;
-  --semantic-amber: #D97706;
-  --semantic-amber-bg: #FEF3C7;
-  --semantic-rose: #C92A2A;
-  --semantic-rose-bg: #FFE3E3;
+  /* Verified Scientific Semantics */
+  --semantic-emerald: #6BA37E;
+  --semantic-emerald-bg: rgba(107, 163, 126, 0.14);
+  --semantic-amber: #D9A74A;
+  --semantic-amber-bg: rgba(217, 167, 74, 0.14);
+  --semantic-rose: #D9655B;
+  --semantic-rose-bg: rgba(217, 101, 91, 0.14);
 
-  --canvas-bg: #F8F9FA;
-  --canvas-edge: rgba(59, 92, 204, 0.14);
-  --canvas-grid: rgba(0, 0, 0, 0.04);
+  --canvas-bg: #141210;
+  --canvas-edge: rgba(201, 125, 74, 0.22);
+  --canvas-grid: rgba(225, 210, 190, 0.04);
 
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-serif: "Source Serif 4", Georgia, Cambria, serif;
-  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: 'Chivo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
 
+  --radius-xs: 2px;
   --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 3px 10px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 12px rgba(232, 162, 92, 0.25);
 }
 
-[data-theme="dark"] {
-  /* Dark Theme (Deep Technical Slate Substrate) */
-  --bg-app: #12151A;
-  --bg-sidebar: #0E1014;
-  --bg-card: #1A1F29;
-  --bg-card-subtle: #141820;
-  --bg-surface-elevated: #222836;
-  --bg-hover: rgba(255, 255, 255, 0.04);
-  --bg-active: rgba(94, 124, 226, 0.12);
+[data-theme="light"] {
+  /* Secondary: Light Mode (Archival Lab Notebook Paper) */
+  --bg-app: #F6F2EB;
+  --bg-sidebar: #EDE7DD;
+  --bg-card: #FFFFFF;
+  --bg-card-subtle: #F0EAE0;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-surface-sunken: #E8E1D5;
+  --bg-hover: rgba(166, 86, 36, 0.05);
+  --bg-active: rgba(166, 86, 36, 0.12);
 
-  --text-primary: #F1F3F7;
-  --text-secondary: #C1C7D0;
-  --text-muted: #7E8B9F;
-  --text-dim: #4B5565;
+  --text-primary: #1E1A17;
+  --text-secondary: #5A5247;
+  --text-muted: #7E7366;
+  --text-dim: #A89E92;
 
-  --border-subtle: #252B38;
-  --border-default: #2E3545;
-  --border-emphasis: #424D63;
+  --border-subtle: #E2DAD0;
+  --border-default: #D5CBC0;
+  --border-emphasis: #B8ACA0;
+  --border-hairline: rgba(70, 55, 40, 0.1);
 
-  --accent: #5E7CE2;
-  --accent-subtle: rgba(94, 124, 226, 0.12);
-  --accent-text: #8FA6FA;
+  /* Terracotta Ink Accent */
+  --accent: #A65624;
+  --accent-glow: #C96E32;
+  --accent-subtle: rgba(166, 86, 36, 0.12);
+  --accent-text: #8F4518;
 
-  --semantic-emerald: #38D9A9;
-  --semantic-emerald-bg: rgba(56, 217, 169, 0.12);
-  --semantic-amber: #F59E0B;
-  --semantic-amber-bg: rgba(245, 158, 11, 0.12);
-  --semantic-rose: #FA5252;
-  --semantic-rose-bg: rgba(250, 82, 82, 0.12);
+  /* Verified Scientific Semantics */
+  --semantic-emerald: #2E6A48;
+  --semantic-emerald-bg: rgba(46, 106, 72, 0.12);
+  --semantic-amber: #9B6817;
+  --semantic-amber-bg: rgba(155, 104, 23, 0.12);
+  --semantic-rose: #B83A30;
+  --semantic-rose-bg: rgba(184, 58, 48, 0.12);
 
-  --canvas-bg: #12151A;
-  --canvas-edge: rgba(94, 124, 226, 0.18);
-  --canvas-grid: rgba(255, 255, 255, 0.035);
+  --canvas-bg: #F3EEE5;
+  --canvas-edge: rgba(166, 86, 36, 0.2);
+  --canvas-grid: rgba(70, 55, 40, 0.045);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(60, 50, 40, 0.08);
+  --shadow-md: 0 2px 8px rgba(60, 50, 40, 0.1);
+  --shadow-glow: 0 0 10px rgba(166, 86, 36, 0.18);
 }
 
 /* Base Reset */
@@ -99,8 +114,9 @@ html, body {
   background-color: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13.5px;
+  line-height: 1.48;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -112,18 +128,20 @@ html, body {
   overflow: hidden;
 }
 
-/* Typography Utilities */
+/* Tabular Figures for Real Instrument Readouts */
 .tabular-nums {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .text-xs { font-size: 11px; }
-.text-sm { font-size: 12.5px; }
-.text-base { font-size: 14px; }
-.text-lg { font-size: 16px; }
+.text-sm { font-size: 12px; }
+.text-base { font-size: 13.5px; }
+.text-lg { font-size: 15px; }
 .text-xl { font-size: 18px; }
 
+.font-normal { font-weight: 400; }
 .font-medium { font-weight: 500; }
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
@@ -132,24 +150,29 @@ html, body {
 .text-secondary { color: var(--text-secondary); }
 .text-muted { color: var(--text-muted); }
 .text-accent { color: var(--accent); }
+.text-accent-glow { color: var(--accent-glow); }
 .text-emerald { color: var(--semantic-emerald); }
 .text-amber { color: var(--semantic-amber); }
 .text-rose { color: var(--semantic-rose); }
 
-/* Buttons & Inputs */
+/* Instrument-Style Buttons */
 button {
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   border: none;
   background: none;
-  transition: all 0.15s ease;
+  transition: all 0.14s ease-out;
 }
 
 button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+button:active {
+  transform: translateY(0.5px);
 }
 
 /* Hairline borders */
@@ -158,50 +181,54 @@ button:focus-visible {
 .border-r-subtle { border-right: 1px solid var(--border-subtle); }
 .border-l-subtle { border-left: 1px solid var(--border-subtle); }
 
-/* Badges & Tags */
+/* Instrument Badges & Telemetry Pills */
 .badge-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-default);
   background: var(--bg-card-subtle);
   color: var(--text-secondary);
 }
 
 .badge-pill.accent {
   background: var(--accent-subtle);
-  color: var(--accent-text);
-  border-color: rgba(94, 124, 226, 0.25);
+  color: var(--accent-glow);
+  border-color: rgba(201, 125, 74, 0.35);
 }
 
 .badge-pill.emerald {
   background: var(--semantic-emerald-bg);
   color: var(--semantic-emerald);
-  border-color: rgba(43, 138, 62, 0.25);
+  border-color: rgba(107, 163, 126, 0.35);
 }
 
 .badge-pill.amber {
   background: var(--semantic-amber-bg);
   color: var(--semantic-amber);
-  border-color: rgba(217, 119, 6, 0.25);
+  border-color: rgba(217, 167, 74, 0.35);
 }
 
 .badge-pill.illustrative {
-  background: var(--bg-card-subtle);
+  background: var(--bg-surface-sunken);
   color: var(--text-muted);
-  border-color: var(--border-subtle);
+  border: 1px solid var(--border-emphasis);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-/* Scrollbar styling */
+/* Precision Instrument Hairline Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -210,7 +237,7 @@ button:focus-visible {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border-default);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

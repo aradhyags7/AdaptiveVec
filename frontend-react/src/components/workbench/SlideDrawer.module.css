@@ -1,53 +1,56 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  background: rgba(10, 9, 8, 0.55);
+  backdrop-filter: blur(1.5px);
   z-index: 45;
-}
-
-.backdropOpen {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .drawer {
   position: fixed;
   top: 0;
   right: 0;
-  bottom: 26px; /* Sits cleanly above the 26px bottom status strip */
-  width: 420px;
-  max-width: 90vw;
+  bottom: 26px; /* Sits flush above the 26px bottom status strip */
+  width: 440px;
+  max-width: 92vw;
   background: var(--bg-card);
-  border-left: 1px solid var(--border-default);
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+  border-left: 1px solid var(--border-emphasis);
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   z-index: 50;
-  transform: translateX(100%);
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.drawerOpen {
-  transform: translateX(0);
+  overflow: hidden;
 }
 
 .drawerHeader {
   height: 44px;
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-card);
+  background: var(--bg-card-subtle);
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.instrumentDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
 }
 
 .drawerTitle {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
@@ -56,23 +59,26 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--text-muted);
   font-size: 11px;
+  border: 1px solid transparent;
 }
 
 .closeBtn:hover {
   background: var(--bg-hover);
+  border-color: var(--border-default);
   color: var(--text-primary);
 }
 
 .kbd {
   font-family: var(--font-mono);
   font-size: 9.5px;
-  padding: 1px 4px;
+  padding: 1px 5px;
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
-  border-radius: 3px;
+  border-radius: 2px;
+  color: var(--text-muted);
 }
 
 .drawerBody {
@@ -81,7 +87,7 @@
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .drawerSection {
@@ -91,39 +97,41 @@
 }
 
 .sectionNotice {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: var(--text-secondary);
   line-height: 1.5;
   padding: 10px 12px;
-  background: var(--bg-app);
-  border-radius: var(--radius-sm);
+  background: var(--bg-card-subtle);
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
 }
 
 .exportButtonGroup {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
 .exportBtn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border-default);
-  background: var(--bg-app);
+  background: var(--bg-card-subtle);
   color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.15s ease;
+  font-size: 11.5px;
+  font-weight: 600;
+  transition: all 0.12s ease;
 }
 
 .exportBtn:hover {
   background: var(--bg-hover);
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-glow);
 }
 
 .snippetBlock {
@@ -133,10 +141,11 @@
 }
 
 .snippetTitle {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: var(--font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
@@ -147,7 +156,7 @@
   padding: 12px;
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   overflow-x: auto;
   color: var(--text-secondary);
 }
@@ -159,8 +168,8 @@
 }
 
 .nodeTitle {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -171,7 +180,7 @@
   padding: 12px;
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
 }
 
 .propRow {
@@ -183,17 +192,66 @@
 
 .propKey {
   color: var(--text-muted);
+  font-size: 11.5px;
 }
 
 .subNote {
-  font-size: 11.5px;
-  color: var(--text-dim);
-  font-style: italic;
-  line-height: 1.4;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  padding: 8px 10px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
 }
 
-.placeholderText {
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
+/* Param Slider Dials in Drawer */
+.paramGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.paramRow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+}
+
+.paramHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+}
+
+.paramLabel {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.paramVal {
+  font-family: var(--font-mono);
+  color: var(--accent-glow);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.instrumentScale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.rangeInput {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
