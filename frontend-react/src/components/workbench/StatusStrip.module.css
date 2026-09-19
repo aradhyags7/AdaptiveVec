@@ -1,0 +1,49 @@
+.statusStrip {
+  height: 26px;
+  min-height: 26px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+  z-index: 30;
+}
+
+.stripLeft, .stripCenter, .stripRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.dotOnline {
+  background: var(--semantic-emerald);
+}
+
+.dotOffline {
+  background: var(--semantic-amber);
+}
+
+.sep {
+  color: var(--border-emphasis);
+  opacity: 0.6;
+}
+
+.targetLabel {
+  color: var(--text-dim);
+}

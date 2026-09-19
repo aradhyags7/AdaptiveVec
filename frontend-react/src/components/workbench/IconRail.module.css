@@ -1,0 +1,85 @@
+.rail {
+  width: 48px;
+  min-width: 48px;
+  height: 100%;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  z-index: 40;
+  user-select: none;
+}
+
+.brandMark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  cursor: default;
+}
+
+.zapIcon {
+  stroke-width: 2.6;
+}
+
+.toolGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  align-items: center;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.bottomGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  align-items: center;
+}
+
+.railBtn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: all 0.12s ease;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.railBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.railBtnActive {
+  background: var(--bg-active);
+  color: var(--accent);
+  border-color: rgba(94, 124, 226, 0.2);
+}
+
+.activeIndicator {
+  position: absolute;
+  left: -6px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}

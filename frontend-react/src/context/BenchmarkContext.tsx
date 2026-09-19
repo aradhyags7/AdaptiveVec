@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { BenchmarkResult, ViewType, ThemeMode, HardwareSpec } from '../types/benchmark';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { BenchmarkResult, CanvasType, DrawerType, ThemeMode, HardwareSpec } from '../types/benchmark';
 import { REAL_TESTBED_HARDWARE } from '../types/benchmark';
 import benchmarkDataRaw from '../data/benchmark_results.json';
 
@@ -11,8 +11,12 @@ interface BenchmarkContextType {
   step6Sq8: BenchmarkResult | undefined;
   baselineHnsw: BenchmarkResult | undefined;
   step4Hubness: BenchmarkResult | undefined;
-  activeView: ViewType;
-  setActiveView: (view: ViewType) => void;
+  activeCanvas: CanvasType;
+  setActiveCanvas: (canvas: CanvasType) => void;
+  activeDrawer: DrawerType;
+  setActiveDrawer: (drawer: DrawerType) => void;
+  toggleDrawer: (drawer: NonNullable<DrawerType>) => void;
+  closeDrawer: () => void;
   theme: ThemeMode;
   toggleTheme: () => void;
   audioEnabled: boolean;
@@ -25,7 +29,8 @@ const BenchmarkContext = createContext<BenchmarkContextType | undefined>(undefin
 
 export const BenchmarkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [results] = useState<BenchmarkResult[]>(benchmarkDataRaw.benchmark_results);
-  const [activeView, setActiveView] = useState<ViewType>('overview');
+  const [activeCanvas, setActiveCanvas] = useState<CanvasType>('benchmarks');
+  const [activeDrawer, setActiveDrawer] = useState<DrawerType>(null);
   
   // Theme state with localStorage & system preference detection
   const [theme, setTheme] = useState<ThemeMode>(() => {
@@ -42,6 +47,17 @@ export const BenchmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('adaptivevec_theme', theme);
   }, [theme]);
+
+  // Global keyboard shortcuts (e.g. Esc to close drawer)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveDrawer(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Ping server status
   useEffect(() => {
@@ -70,6 +86,14 @@ export const BenchmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  const toggleDrawer = useCallback((drawer: NonNullable<DrawerType>) => {
+    setActiveDrawer(prev => (prev === drawer ? null : drawer));
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setActiveDrawer(null);
+  }, []);
+
   // Pre-filter dataset subsets
   const siftResults = results.filter(r => r.dataset === 'SIFT-100K subset');
   const syntheticResults = results.filter(r => r.dataset === 'Synthetic-Multi-Cluster');
@@ -89,8 +113,12 @@ export const BenchmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         step6Sq8,
         baselineHnsw,
         step4Hubness,
-        activeView,
-        setActiveView,
+        activeCanvas,
+        setActiveCanvas,
+        activeDrawer,
+        setActiveDrawer,
+        toggleDrawer,
+        closeDrawer,
         theme,
         toggleTheme,
         audioEnabled,

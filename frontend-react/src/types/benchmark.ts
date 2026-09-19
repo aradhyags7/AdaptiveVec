@@ -20,18 +20,8 @@ export interface BenchmarkDataFile {
   benchmark_results: BenchmarkResult[];
 }
 
-export type ViewType =
-  | 'overview'
-  | 'datasets'
-  | 'index-builder'
-  | 'graph-explorer'
-  | 'query-lab'
-  | 'benchmarks'
-  | 'experiments'
-  | 'node-analysis'
-  | 'system-metrics'
-  | 'settings';
-
+export type CanvasType = 'benchmarks' | 'manifold' | 'query' | 'datasets';
+export type DrawerType = 'inspector' | 'data-export' | 'index-builder' | 'settings' | null;
 export type ThemeMode = 'light' | 'dark';
 
 export interface HardwareSpec {

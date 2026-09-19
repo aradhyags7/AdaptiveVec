@@ -1,0 +1,526 @@
+.canvasContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.workspaceBar {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  z-index: 10;
+}
+
+.barLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.barRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.barSep {
+  color: var(--border-emphasis);
+  font-size: 11px;
+}
+
+.wireframeTag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--semantic-amber);
+  background: var(--semantic-amber-bg);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+.segmentedGroup {
+  display: flex;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.segBtn {
+  padding: 3px 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  border-radius: 3px;
+  transition: all 0.12s ease;
+}
+
+.segBtn:hover {
+  color: var(--text-primary);
+}
+
+.segBtnActive {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.barActionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.barActionBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.kbd {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  padding: 1px 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  color: var(--text-muted);
+}
+
+/* Stage Layouts */
+.stageGrid2 {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.stageFull {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas-bg);
+}
+
+.panePrimary {
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+}
+
+.paneSecondary {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+  overflow-y: auto;
+}
+
+.paneHeader {
+  height: 40px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.paneTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Wireframe Plot Areas */
+.wireframePlot {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-app);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plotCrosshairX {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  bottom: 40px;
+  height: 1px;
+  background: var(--border-emphasis);
+}
+
+.plotCrosshairY {
+  position: absolute;
+  left: 40px;
+  top: 30px;
+  bottom: 30px;
+  width: 1px;
+  background: var(--border-emphasis);
+}
+
+.plotPoint {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translate(-50%, 50%);
+}
+
+.pointDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-card);
+}
+
+.pointDotFeatured {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 8px rgba(94, 124, 226, 0.6);
+}
+
+.pointLabel {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  background: var(--bg-card);
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  opacity: 0.35;
+  pointer-events: none;
+  user-select: none;
+}
+
+.subWatermark {
+  font-size: 10px;
+  font-weight: normal;
+  letter-spacing: normal;
+}
+
+/* Regime Matrix List in Secondary Pane */
+.regimeMatrixList {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.regimeBlock {
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.blockFeatured {
+  border: 1.5px solid var(--accent);
+}
+
+.blockRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.blockBadge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.blockNumberRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.blockHeroNum {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.blockHeroUnit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.blockSub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* 2D Manifold Stage */
+.coordinateStage {
+  flex: 1;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+
+.gridOverlay {
+  position: absolute;
+  inset: 0;
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, var(--canvas-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--canvas-grid) 1px, transparent 1px);
+}
+
+.mockCluster1 {
+  position: absolute;
+  top: 35%;
+  left: 28%;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mockCluster2 {
+  position: absolute;
+  top: 40%;
+  left: 65%;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 1px dashed var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clusterCore {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.mockSelectedNode {
+  position: absolute;
+  top: 46%;
+  left: 52%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.nodePoint {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-card);
+  z-index: 2;
+}
+
+.pulseRing {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: pulse 2s infinite ease-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.nodeLabel {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  background: var(--bg-card);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-emphasis);
+  box-shadow: var(--shadow-sm);
+}
+
+.rulerX {
+  position: absolute;
+  bottom: 12px;
+  left: 24px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+.rulerY {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+}
+
+/* Query Traversal Stage */
+.queryStage {
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.trajectoryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.trajectoryTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.trajectoryPathMock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.entryHop {
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-default);
+}
+
+.midHop {
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.exitHop {
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--semantic-emerald-bg);
+  color: var(--semantic-emerald);
+  border: 1px solid rgba(43, 138, 62, 0.3);
+  font-weight: 600;
+}
+
+.hopArrow {
+  color: var(--text-dim);
+}
+
+/* Corpus Quadrant Layout */
+.corpusCard {
+  padding: 20px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.corpusCardUnrun {
+  background: var(--bg-app);
+}
+
+.corpusHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.corpusTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.corpusBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.corpusRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.k {
+  color: var(--text-muted);
+}
+
+.unrunNotice {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--semantic-amber-bg);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  font-size: 11px;
+  color: var(--semantic-amber);
+  line-height: 1.45;
+}
