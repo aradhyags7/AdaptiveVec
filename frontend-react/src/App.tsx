@@ -9,6 +9,8 @@ import { QueryCanvas } from './canvases/QueryCanvas';
 import { DatasetCanvas } from './canvases/DatasetCanvas';
 import styles from './App.module.css';
 
+import { AnimatePresence, motion } from 'framer-motion';
+
 const WorkbenchStage: React.FC = () => {
   const { activeCanvas } = useBenchmark();
 
@@ -34,9 +36,20 @@ const WorkbenchStage: React.FC = () => {
         {/* Left 48px Tool Rail */}
         <IconRail />
 
-        {/* Full-Screen Main Canvas Area */}
+        {/* Full-Screen Main Canvas Area with Physical Cross-Fade */}
         <main className={styles.canvasArea} role="region" aria-label="Active Workbench Canvas">
-          {renderActiveCanvas()}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeCanvas}
+              initial={{ opacity: 0, scale: 0.994 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.996 }}
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              style={{ width: '100%', height: '100%' }}
+            >
+              {renderActiveCanvas()}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         {/* Slide-In Inspector Drawer (From Right Edge) */}

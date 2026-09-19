@@ -124,6 +124,158 @@
   overflow: hidden;
 }
 
+/* 2D Manifold Stage & Observatory */
+.manifoldContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+
+.manifoldHeaderStrip {
+  height: 32px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.manifoldStage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+.manifoldRulerX {
+  position: absolute;
+  top: 0;
+  left: 36px;
+  right: 0;
+  height: 20px;
+  border-bottom: 1px solid var(--border-hairline);
+  background: rgba(18, 16, 14, 0.4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  user-select: none;
+  z-index: 5;
+}
+
+.manifoldRulerY {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  bottom: 0;
+  width: 36px;
+  border-right: 1px solid var(--border-hairline);
+  background: rgba(18, 16, 14, 0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  user-select: none;
+  z-index: 5;
+}
+
+.manifoldSvgArea {
+  position: absolute;
+  top: 20px;
+  left: 36px;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, var(--canvas-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--canvas-grid) 1px, transparent 1px);
+}
+
+.manifoldSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.graphEdge {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.graphEdgeHighlight {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  opacity: 0.9;
+}
+
+.manifoldNode {
+  cursor: pointer;
+  transition: transform 0.12s ease-out;
+}
+
+.manifoldNode:hover {
+  transform: scale(1.3);
+}
+
+.nodeSelectedRing {
+  fill: none;
+  stroke: var(--accent-glow);
+  stroke-width: 2;
+  stroke-dasharray: 2 2;
+}
+
+.manifoldFooterHud {
+  height: 48px;
+  padding: 0 16px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.manifoldHudGroup {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.hudChip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.hudChipLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.hudChipValue {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .paneSecondary {
   display: flex;
   flex-direction: column;
@@ -564,3 +716,266 @@
   border: 1.5px solid var(--accent);
   box-shadow: var(--shadow-glow);
 }
+
+/* Query Traversal Stage & Beam Search Observatory */
+.queryStageWrapper {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.35fr 0.95fr;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.queryLeftPane {
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas-bg);
+  overflow-y: auto;
+}
+
+.queryRightPane {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  overflow-y: auto;
+}
+
+.queryTrajectoryControls {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.playbackGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playbackBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.12s ease;
+}
+
+.playbackBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent-glow);
+}
+
+.playbackBtnActive {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent-glow);
+}
+
+.hopStepIndicator {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+}
+
+.hopSequenceDisplay {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hopTrack {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.hopBadge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 8px;
+  min-width: 58px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.hopBadge:hover {
+  border-color: var(--border-emphasis);
+}
+
+.hopBadgeActive {
+  border-color: var(--accent);
+  background: rgba(201, 125, 74, 0.12);
+  color: var(--accent-glow);
+  box-shadow: 0 0 8px rgba(201, 125, 74, 0.2);
+}
+
+.hopBadgeStagnant {
+  border-color: var(--semantic-emerald);
+  background: var(--semantic-emerald-bg);
+  color: var(--semantic-emerald);
+}
+
+.hopArrowSep {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.convergenceGraphArea {
+  padding: 16px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.convergenceSvg {
+  width: 100%;
+  height: 180px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+}
+
+/* Candidate Queue Table in Right Pane */
+.candidateBufferList {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.candidateRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.candidateRank {
+  color: var(--text-muted);
+  width: 28px;
+}
+
+.candidateId {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.candidateDist {
+  color: var(--accent-glow);
+}
+
+/* Dataset Matrix 4-Quadrant Stage */
+.datasetMatrixStage {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  overflow: auto;
+  background: var(--bg-app);
+}
+
+.datasetQuad {
+  padding: 24px;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-card);
+  transition: all 0.12s ease;
+}
+
+.datasetQuadActive {
+  background: var(--bg-card);
+  border-left: 3px solid var(--accent);
+}
+
+.datasetQuadUnrun {
+  background: var(--bg-card-subtle);
+}
+
+.datasetQuadHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.datasetQuadTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.datasetSpecGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  font-size: 11.5px;
+}
+
+.datasetSpecItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.specKey {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.specVal {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.unrunScientificCallout {
+  padding: 12px 14px;
+  border-radius: var(--radius-xs);
+  background: rgba(217, 167, 74, 0.08);
+  border: 1px solid rgba(217, 167, 74, 0.3);
+  font-size: 11.5px;
+  color: var(--semantic-amber);
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
