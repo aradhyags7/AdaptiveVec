@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
       nodes: [],
       edges: [],
       rawNodes: [],
-      flowEnabled: true,
+      flowEnabled: false,
       flowParticles: [],
       adjacency: []
     },
@@ -758,16 +758,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
     const t = typeof now === "number" ? now : performance.now();
 
-    // 1. Physically paint canvas background with current theme color
-    overviewCtx.fillStyle = isDark ? "#0F1115" : "#FAFAF9";
+    // 1. Physically paint canvas background with dynamic theme colors from computed styles
+    const computed = getComputedStyle(document.documentElement);
+    const canvasBg = computed.getPropertyValue('--canvas-bg').trim() || (isDark ? "#12151A" : "#F8F9FA");
+    overviewCtx.fillStyle = canvasBg;
     overviewCtx.fillRect(0, 0, w, h);
 
     overviewCtx.save();
     overviewCtx.translate(state.overview.panX, state.overview.panY);
     overviewCtx.scale(state.overview.zoom, state.overview.zoom);
 
-    // 2. Subtle Grid Lines (Theme Adaptive with harmonic pulse)
-    const gridAlpha = isDark ? 0.045 + 0.015 * Math.sin(t * 0.001) : 0.045;
+    // 2. Subtle Grid Lines (Theme Adaptive)
+    const gridAlpha = isDark ? 0.045 : 0.04;
     overviewCtx.strokeStyle = isDark ? `rgba(255, 255, 255, ${gridAlpha})` : `rgba(0, 0, 0, ${gridAlpha})`;
     overviewCtx.lineWidth = 1;
     const gridSize = 40 * (window.devicePixelRatio || 1);
@@ -789,17 +791,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const nodes = state.overview.nodes;
     const edges = state.overview.edges;
 
-    // Precalculate dynamic coordinates for all nodes at timestamp t
+    // Precalculate static/dynamic coordinates for all nodes
     const dynPos = nodes.map(n => getNodePos(n, t));
     const pixelPos = dynPos.map(p => ({ x: pad + p.x * plotW, y: pad + p.y * plotH }));
 
     // 3. Draw Graph Edges (Batched into standard & highway paths for zero CPU overhead)
-    const shimmer = Math.sin(t * 0.0018);
-
     // Standard edges
     overviewCtx.strokeStyle = isDark
-      ? `rgba(91, 127, 230, ${0.16 + shimmer * 0.05})`
-      : `rgba(54, 84, 166, ${0.12 + shimmer * 0.04})`;
+      ? "rgba(94, 124, 226, 0.16)"
+      : "rgba(59, 92, 204, 0.13)";
     overviewCtx.lineWidth = 0.8;
     overviewCtx.beginPath();
     for (let i = 0; i < edges.length; i++) {
@@ -817,8 +817,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Highway edges
     overviewCtx.strokeStyle = isDark
-      ? `rgba(56, 189, 248, ${0.30 + shimmer * 0.08})`
-      : `rgba(8, 145, 178, ${0.24 + shimmer * 0.06})`;
+      ? "rgba(104, 139, 240, 0.30)"
+      : "rgba(59, 92, 204, 0.26)";
     overviewCtx.lineWidth = 1.2;
     overviewCtx.beginPath();
     for (let i = 0; i < edges.length; i++) {
@@ -1311,203 +1311,6 @@ document.addEventListener("DOMContentLoaded", () => {
       playHapticBeep(650, 0.04);
       renderOverviewCanvas();
       showToast("Reset 2D manifold view port", "info");
-    });
-  }
-
-  // ==========================================================================
-  // HYPERPARAMETER TUNING & INTERACTIVE DOCK ENGINE
-  // ==========================================================================
-  const hyperparams = {
-    alphaLid: 0.45,
-    betaDensity: 0.35,
-    efSearch: 64,
-    stagnationTau: 12
-  };
-
-  function recomputeHyperparameters(alpha, beta, ef, tau) {
-    hyperparams.alphaLid = alpha;
-    hyperparams.betaDensity = beta;
-    hyperparams.efSearch = ef;
-    hyperparams.stagnationTau = tau;
-
-    const nodes = state.overview.nodes;
-    if (!nodes || nodes.length === 0) return;
-
-    let totalM = 0;
-    const mCounts = { 8: 0, 12: 0, 16: 0, 20: 0, 24: 0 };
-
-    nodes.forEach(n => {
-      const lidNorm = ((n.baseLid || n.lid) - 12.4) / 12.4;
-      const densNorm = ((n.baseDensity || n.density) - 0.084) / 0.084;
-      let rawM = 16 + alpha * lidNorm * 8 - beta * densNorm * 8;
-      let newM = Math.max(8, Math.min(24, Math.round(rawM)));
-      n.m = newM;
-      totalM += newM;
-
-      if (newM <= 10) mCounts[8]++;
-      else if (newM <= 14) mCounts[12]++;
-      else if (newM <= 18) mCounts[16]++;
-      else if (newM <= 22) mCounts[20]++;
-      else mCounts[24]++;
-    });
-
-    const meanM = totalM / nodes.length;
-    let variance = 0;
-    nodes.forEach(n => {
-      variance += Math.pow(n.m - meanM, 2);
-    });
-    const stdM = Math.sqrt(variance / nodes.length);
-
-    // Baseline edges for SIFT-100K at M=16 is 2,710,240
-    const baselineEdges = 2710240;
-    const estimatedEdges = Math.round((meanM / 16.0) * baselineEdges);
-    const edgeSavingsPct = (((baselineEdges - estimatedEdges) / baselineEdges) * 100);
-
-    // QPS Model: Calibrated to 7,075.3 QPS (+50.3%) at canonical defaults (ef=64, tau=12, meanM=14.8)
-    const nominalEffort = (64 * 1.0) + (12 * 2.2) + (14.8 * 3.5);
-    const currentEffort = (ef * 1.0) + (tau * 2.2) + (meanM * 3.5);
-    const effortRatio = nominalEffort / Math.max(20, currentEffort);
-    const simQps = Math.round(7075.3 * effortRatio * 10) / 10;
-    const qpsDeltaPct = (((simQps - 4708.1) / 4708.1) * 100);
-
-    // Recall Model: Calibrated to 0.9745 at canonical Step 5
-    const efFactor = 1 - Math.exp(-ef / 38);
-    const tauFactor = 1 - Math.exp(-tau / 7);
-    const mFactor = Math.min(1.02, 0.92 + (meanM / 16) * 0.08);
-    let simRecall = 0.992 * efFactor * tauFactor * mFactor;
-    simRecall = Math.max(0.85, Math.min(0.995, simRecall));
-
-    // Latency P95 (ms)
-    const simLatency = Math.max(0.65, Math.round((10000 / simQps) * 100) / 100);
-
-    // Update Telemetry Strip in Control Dock
-    const elMeanM = document.getElementById("dock-sim-mean-m");
-    const elEdges = document.getElementById("dock-sim-edges-delta");
-    const elQps = document.getElementById("dock-sim-qps");
-    const elRecall = document.getElementById("dock-sim-recall");
-
-    if (elMeanM) elMeanM.innerHTML = `${meanM.toFixed(1)} <span class="text-xs text-muted">(vs 16.0)</span>`;
-    if (elEdges) elEdges.innerHTML = `${estimatedEdges.toLocaleString()} (${edgeSavingsPct >= 0 ? '-' : '+'}${Math.abs(edgeSavingsPct).toFixed(1)}%)`;
-    if (elQps) elQps.innerHTML = `${simQps.toLocaleString()} QPS (${qpsDeltaPct >= 0 ? '+' : ''}${qpsDeltaPct.toFixed(1)}%)`;
-    if (elRecall) elRecall.innerHTML = `${simRecall.toFixed(4)} (${simRecall >= 0.97 ? 'Parity band' : 'Low beam band'})`;
-
-    // Update Regime A Featured Card
-    const elHeroQps = document.getElementById("regime-a-hero-qps");
-    const elHeroDelta = document.getElementById("regime-a-hero-delta");
-    const elRegimeRecall = document.getElementById("regime-a-recall");
-    const elRegimeEdges = document.getElementById("regime-a-edges");
-    const elRegimeLat = document.getElementById("regime-a-lat");
-
-    if (elHeroQps) elHeroQps.textContent = simQps.toLocaleString();
-    if (elHeroDelta) elHeroDelta.textContent = `${qpsDeltaPct >= 0 ? '+' : ''}${qpsDeltaPct.toFixed(1)}%`;
-    if (elRegimeRecall) elRegimeRecall.innerHTML = `${simRecall.toFixed(4)} <span class="text-xs text-muted">(${simRecall >= 0.97 ? 'Parity cf. 0.9856' : 'Sub-parity'})</span>`;
-    if (elRegimeEdges) {
-      elRegimeEdges.innerHTML = `${estimatedEdges.toLocaleString()} <span class="text-xs text-emerald">(${edgeSavingsPct >= 0 ? '-' : '+'}${Math.abs(edgeSavingsPct).toFixed(1)}%)</span>`;
-    }
-    if (elRegimeLat) {
-      const latDelta = (((simLatency - 1.89) / 1.89) * 100).toFixed(1);
-      elRegimeLat.innerHTML = `${simLatency.toFixed(2)} ms <span class="text-xs text-emerald">(${latDelta}%)</span>`;
-    }
-
-    // Update Diagnostics Card: Adaptive M stats and bar widths
-    const elDiagStd = document.getElementById("diag-m-std");
-    const elDiagMean = document.getElementById("diag-m-mean");
-    if (elDiagStd) elDiagStd.textContent = `Std Dev: ${stdM.toFixed(1)}`;
-    if (elDiagMean) elDiagMean.textContent = `Mean M: ${meanM.toFixed(1)}`;
-
-    const elMBars = document.getElementById("m-allocation-bars");
-    if (elMBars) {
-      const total = nodes.length;
-      const p8 = Math.round((mCounts[8] / total) * 100);
-      const p12 = Math.round((mCounts[12] / total) * 100);
-      const p16 = Math.round((mCounts[16] / total) * 100);
-      const p20 = Math.round((mCounts[20] / total) * 100);
-      const p24 = Math.max(0, 100 - (p8 + p12 + p16 + p20));
-
-      elMBars.innerHTML = `
-        <div class="m-bar-row">
-          <span class="m-label">M=8</span>
-          <div class="m-track"><div class="m-fill" style="width: ${p8}%;"></div></div>
-          <span class="m-pct">${p8}%</span>
-        </div>
-        <div class="m-bar-row">
-          <span class="m-label">M=12</span>
-          <div class="m-track"><div class="m-fill" style="width: ${p12}%;"></div></div>
-          <span class="m-pct">${p12}%</span>
-        </div>
-        <div class="m-bar-row">
-          <span class="m-label">M=16</span>
-          <div class="m-track"><div class="m-fill" style="width: ${p16}%;"></div></div>
-          <span class="m-pct">${p16}%</span>
-        </div>
-        <div class="m-bar-row">
-          <span class="m-label">M=20</span>
-          <div class="m-track"><div class="m-fill" style="width: ${p20}%;"></div></div>
-          <span class="m-pct">${p20}%</span>
-        </div>
-        <div class="m-bar-row">
-          <span class="m-label">M=24</span>
-          <div class="m-track"><div class="m-fill" style="width: ${p24}%;"></div></div>
-          <span class="m-pct">${p24}%</span>
-        </div>
-      `;
-    }
-
-    // Update callout capacity if an inspected node is selected
-    const selNode = nodes.find(n => n.id === state.overview.selectedNode);
-    if (selNode) {
-      const mEl = document.getElementById("callout-m");
-      if (mEl) mEl.innerHTML = `<span class="dot-em"></span> ${selNode.m} / 24`;
-    }
-
-    // Repaint canvas
-    renderOverviewCanvas();
-  }
-
-  // Bind Control Dock Sliders & Reset Button
-  const sliderAlpha = document.getElementById("slider-alpha-lid");
-  const sliderBeta = document.getElementById("slider-beta-density");
-  const sliderEf = document.getElementById("slider-ef-search");
-  const sliderTau = document.getElementById("slider-stagnation-tau");
-
-  const valAlpha = document.getElementById("val-alpha-lid");
-  const valBeta = document.getElementById("val-beta-density");
-  const valEf = document.getElementById("val-ef-search");
-  const valTau = document.getElementById("val-stagnation-tau");
-
-  const btnResetDock = document.getElementById("btn-reset-dock-params");
-
-  function onDockSliderChange() {
-    if (!sliderAlpha || !sliderBeta || !sliderEf || !sliderTau) return;
-    const alpha = parseFloat(sliderAlpha.value);
-    const beta = parseFloat(sliderBeta.value);
-    const ef = parseInt(sliderEf.value, 10);
-    const tau = parseInt(sliderTau.value, 10);
-
-    if (valAlpha) valAlpha.textContent = alpha.toFixed(2);
-    if (valBeta) valBeta.textContent = beta.toFixed(2);
-    if (valEf) valEf.textContent = ef;
-    if (valTau) valTau.textContent = tau;
-
-    recomputeHyperparameters(alpha, beta, ef, tau);
-  }
-
-  [sliderAlpha, sliderBeta, sliderEf, sliderTau].forEach(sl => {
-    if (sl) {
-      sl.addEventListener("input", onDockSliderChange);
-      sl.addEventListener("change", onDockSliderChange);
-    }
-  });
-
-  if (btnResetDock) {
-    btnResetDock.addEventListener("click", () => {
-      if (sliderAlpha) sliderAlpha.value = 0.45;
-      if (sliderBeta) sliderBeta.value = 0.35;
-      if (sliderEf) sliderEf.value = 64;
-      if (sliderTau) sliderTau.value = 12;
-      onDockSliderChange();
-      playHapticBeep(880, 0.04);
-      showToast("Reset hyperparameters to canonical Step 5 defaults", "info");
     });
   }
 
@@ -2897,7 +2700,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => {
         btnRunAblations.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run All Ablations`;
         playHapticBeep(1200, 0.07);
-        showToast("All 6 ablation configurations evaluated: Recall parity maintained (Recall@10=0.9856)", "success");
+        showToast("All 6 ablation configurations evaluated: Recall parity maintained (Step 4 Recall@10=0.9856)", "success");
       }, 600);
     });
   }

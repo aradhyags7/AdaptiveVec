@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- Chart.js for scientific charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="styles.css?v=2.1.0">
+  <link rel="stylesheet" href="styles.css?v=20260919.1">
 </head>
 <body class="stitch-theme">
   <!-- Full Screen App Shell -->
@@ -27,11 +27,11 @@
           </div>
           <span class="brand-title">AdaptiveVec</span>
         </div>
-        <div class="research-tag">EXPERIMENTAL RESEARCH V0.4.2-ALPHA</div>
+        <div class="research-tag">Experimental research v0.4.2-alpha</div>
       </div>
 
       <nav class="sidebar-nav">
-        <div class="nav-section-title">RESEARCH INDEX</div>
+        <div class="nav-section-title">Research index</div>
         
         <button class="nav-item active" data-view="view-overview" id="nav-overview">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
@@ -87,15 +87,15 @@
       <!-- Sidebar Bottom System Hardware Telemetry -->
       <div class="sidebar-footer">
         <div class="telemetry-line">
-          <span class="tele-k">COMMIT</span>
+          <span class="tele-k">Commit</span>
           <span class="tele-v mono">git:8f4c21b</span>
         </div>
         <div class="telemetry-line">
-          <span class="tele-k">ISA TARGET</span>
+          <span class="tele-k">Instruction set</span>
           <span class="tele-v mono">AVX2 / FMA / FP32</span>
         </div>
         <div class="telemetry-line">
-          <span class="tele-k">MEM RESIDENT</span>
+          <span class="tele-k">Resident RAM</span>
           <span class="tele-v mono">1.82 GB / 16.0 GB</span>
         </div>
         <div class="telemetry-bar">
@@ -120,7 +120,7 @@
           <!-- Index Ready Status Pill -->
           <div class="topbar-chip ready-chip">
             <span class="ready-dot"></span>
-            <span class="chip-text">SIFT-100K CANONICAL CORPUS (ACTIVE)</span>
+            <span class="chip-text">SIFT-100K active corpus</span>
           </div>
 
           <!-- Execution Substrate Pill -->
@@ -174,13 +174,13 @@
           <!-- Editorial Research Header -->
           <div class="editorial-header">
             <div class="editorial-pretitle">
-              <span class="editorial-pill">SYSTEMS RESEARCH</span>
-              <span class="editorial-meta-dot">&bull;</span>
-              <span>ABLATION PROTOCOL (STEPS 1–6)</span>
-              <span class="editorial-meta-dot">&bull;</span>
-              <span>SIFT-100K CANONICAL (128-D FP32)</span>
-              <span class="editorial-meta-dot">&bull;</span>
-              <span>INTEL CORE 5 210H (12T AVX2)</span>
+              <span class="editorial-pill">Systems research</span>
+              <span class="editorial-breadcrumb-sep">/</span>
+              <span>Ablation protocol (Steps 1–6)</span>
+              <span class="editorial-breadcrumb-sep">/</span>
+              <span>SIFT-100K (128-D FP32)</span>
+              <span class="editorial-breadcrumb-sep">/</span>
+              <span>Intel Core 5 210H (AVX2/FMA)</span>
             </div>
             <h2 class="editorial-title">AdaptiveVec: Density- and Dimension-Aware Proximity Graph Index</h2>
             
@@ -207,133 +207,16 @@
             </div>
           </div>
 
-          <!-- Interactive Research Control Dock -->
-          <div class="stitch-card interactive-dock" id="interactive-control-dock">
-            <div class="dock-header">
-              <div class="dock-title-group">
-                <span class="dock-badge">INTERACTIVE SIMULATOR &amp; LIVE CONTROLS</span>
-                <h3 class="dock-title">Dynamic Hyperparameter Tuning &amp; Manifold Topology Sweep</h3>
-                <p class="dock-desc">Adjust hyperparameters to observe real-time recalculation of degree allocations M(x), simulated edge savings, search speedup, and manifold canvas repainting.</p>
-              </div>
-              <div class="dock-actions">
-                <button class="btn-stitch btn-stitch-secondary" id="btn-reset-dock-params" title="Reset to Canonical Step 5 Defaults">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                  Reset Baseline
-                </button>
-              </div>
-            </div>
-
-            <div class="dock-controls-grid">
-              <!-- Slider 1: alpha LID -->
-              <div class="dock-control-col">
-                <div class="dock-control-label">
-                  <span class="param-name">&alpha; (LID Degree Weight)</span>
-                  <span class="param-val mono" id="val-alpha-lid">0.45</span>
-                </div>
-                <input type="range" class="stitch-range" id="slider-alpha-lid" min="0.00" max="1.00" step="0.05" value="0.45">
-                <div class="dock-control-hint">Expands node degree in high-intrinsic dimension regions</div>
-              </div>
-
-              <!-- Slider 2: beta Density -->
-              <div class="dock-control-col">
-                <div class="dock-control-label">
-                  <span class="param-name">&beta; (Density Pruning Weight)</span>
-                  <span class="param-val mono" id="val-beta-density">0.35</span>
-                </div>
-                <input type="range" class="stitch-range" id="slider-beta-density" min="0.00" max="1.00" step="0.05" value="0.35">
-                <div class="dock-control-hint">Compresses redundant edges in dense vector clusters</div>
-              </div>
-
-              <!-- Slider 3: efSearch -->
-              <div class="dock-control-col">
-                <div class="dock-control-label">
-                  <span class="param-name">Dynamic efSearch</span>
-                  <span class="param-val mono" id="val-ef-search">64</span>
-                </div>
-                <input type="range" class="stitch-range" id="slider-ef-search" min="16" max="256" step="8" value="64">
-                <div class="dock-control-hint">Exploration beam size during candidate beam search</div>
-              </div>
-
-              <!-- Slider 4: Stagnation Window (tau) -->
-              <div class="dock-control-col">
-                <div class="dock-control-label">
-                  <span class="param-name">Stagnation Window (&tau;)</span>
-                  <span class="param-val mono" id="val-stagnation-tau">12</span>
-                </div>
-                <input type="range" class="stitch-range" id="slider-stagnation-tau" min="4" max="32" step="2" value="12">
-                <div class="dock-control-hint">Consecutive non-improving steps before early exit</div>
-              </div>
-            </div>
-
-            <!-- Realtime Telemetry Strip -->
-            <div class="dock-telemetry-strip">
-              <div class="telemetry-item">
-                <span class="k">Calculated Mean M:</span>
-                <span class="v mono" id="dock-sim-mean-m">14.8 <span class="text-xs text-muted">(vs 16.0)</span></span>
-              </div>
-              <div class="telemetry-item">
-                <span class="k">Estimated Total Edges:</span>
-                <span class="v mono text-emerald" id="dock-sim-edges-delta">2,509,138 (-7.4%)</span>
-              </div>
-              <div class="telemetry-item">
-                <span class="k">Predicted Throughput:</span>
-                <span class="v mono text-cyan" id="dock-sim-qps">7,075.3 QPS (+50.3%)</span>
-              </div>
-              <div class="telemetry-item">
-                <span class="k">Projected Recall@10:</span>
-                <span class="v mono" id="dock-sim-recall">0.9745 (Parity band)</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Live Benchmark & Calibration Runner HUD -->
-          <div class="stitch-card runner-hud hidden" id="live-runner-hud">
-            <div class="runner-header">
-              <div class="runner-status-pulse">
-                <span class="pulse-dot"></span>
-                <span class="runner-status-text" id="runner-status-label">BENCHMARK SUITE EXECUTING: STREAMING BATCH 1/10 (QUERIES 1-100)</span>
-              </div>
-              <button class="text-btn text-muted" id="btn-close-runner-hud">&times; Close HUD</button>
-            </div>
-            
-            <div class="runner-progress-track">
-              <div class="runner-progress-bar" id="runner-progress-fill" style="width: 0%;"></div>
-            </div>
-
-            <div class="runner-stats-grid">
-              <div class="stat-col">
-                <span class="stat-k">QUERIES EVALUATED</span>
-                <span class="stat-v mono" id="runner-ticker-queries">0 / 10,000</span>
-              </div>
-              <div class="stat-col">
-                <span class="stat-k">LIVE RECALL@10</span>
-                <span class="stat-v mono text-cyan" id="runner-ticker-recall">0.0000</span>
-              </div>
-              <div class="stat-col">
-                <span class="stat-k">MEASURED QPS</span>
-                <span class="stat-v mono text-emerald" id="runner-ticker-qps">0.0</span>
-              </div>
-              <div class="stat-col">
-                <span class="stat-k">AVG LATENCY</span>
-                <span class="stat-v mono" id="runner-ticker-latency">0.00 ms</span>
-              </div>
-              <div class="stat-col">
-                <span class="stat-k">DISTANCE EVALS</span>
-                <span class="stat-v mono" id="runner-ticker-evals">0</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Operating Regimes Summary (Comparative Matrix) -->
+          <!-- Operating Regimes Summary (Comparative Pareto Matrix) -->
           <div class="regimes-grid-3">
             <!-- Regime A: High-Throughput (Step 5 Ada-ef) -->
             <div class="regime-card featured">
               <div class="regime-header">
                 <div class="regime-title-wrap">
-                  <span class="regime-badge highlight">REGIME A &bull; STEP 5</span>
-                  <span class="text-xs text-muted">HIGH-THROUGHPUT</span>
+                  <span class="regime-badge highlight">Regime A (Step 5 Ada-ef)</span>
+                  <span class="text-xs text-muted">High-throughput frontier</span>
                 </div>
-                <span class="regime-badge highlight">FP32 PAYLOAD</span>
+                <span class="regime-badge highlight">FP32 payload</span>
               </div>
               <div class="regime-hero-number">
                 <span id="regime-a-hero-qps">7,075.3</span> <span class="text-xs text-muted">QPS</span>
@@ -345,7 +228,7 @@
               <div class="regime-metrics-grid">
                 <div class="regime-metric-item">
                   <span class="regime-metric-k">Recall@10</span>
-                  <span class="regime-metric-v text-cyan" id="regime-a-recall">0.9745 <span class="text-xs text-muted">(Parity cf. 0.9856)</span></span>
+                  <span class="regime-metric-v text-cyan" id="regime-a-recall">0.9745 <span class="text-xs text-muted">(Parity cf. 0.9856 at Step 4)</span></span>
                 </div>
                 <div class="regime-metric-item">
                   <span class="regime-metric-k">Graph Edges</span>
@@ -366,10 +249,10 @@
             <div class="regime-card">
               <div class="regime-header">
                 <div class="regime-title-wrap">
-                  <span class="regime-badge highlight">REGIME B &bull; STEP 6</span>
-                  <span class="text-xs text-muted">MEMORY-COMPACT</span>
+                  <span class="regime-badge highlight">Regime B (Step 6 SQ8)</span>
+                  <span class="text-xs text-muted">Memory-compact frontier</span>
                 </div>
-                <span class="regime-badge">INT8 ASYM SQ8</span>
+                <span class="regime-badge">INT8 Asym SQ8</span>
               </div>
               <div class="regime-hero-number">
                 22.5 <span class="text-xs text-muted">MB RAM</span>
@@ -402,10 +285,10 @@
             <div class="regime-card">
               <div class="regime-header">
                 <div class="regime-title-wrap">
-                  <span class="regime-badge control">CONTROL</span>
-                  <span class="text-xs text-muted">STANDARD HNSW</span>
+                  <span class="regime-badge control">Control baseline</span>
+                  <span class="text-xs text-muted">Standard HNSW (Step 0/1)</span>
                 </div>
-                <span class="regime-badge control">UNMODIFIED</span>
+                <span class="regime-badge control">Unmodified baseline</span>
               </div>
               <div class="regime-hero-number">
                 4,708.1 <span class="text-xs text-muted">QPS</span>
@@ -444,13 +327,10 @@
                 <div class="title-with-pill">
                   <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><circle cx="5" cy="18" r="2"/><line x1="12" y1="9" x2="12" y2="3"/><line x1="14" y1="14" x2="18" y2="17"/><line x1="10" y1="14" x2="6" y2="17"/><line x1="14" y1="10" x2="18" y2="7"/><line x1="10" y1="10" x2="6" y2="7"/></svg>
                   <h4>Adaptive Graph Profile</h4>
-                  <span class="badge-pill-cyan">PROJECTED TOPO</span>
+                  <span class="badge-pill-cyan">Projected topology</span>
                 </div>
 
                 <div class="card-controls-right">
-                  <button class="flow-pill-btn active" id="btn-toggle-flow" title="Toggle flowing stream particles and manifold drift">
-                    <span class="flow-dot"></span> FLOW: STREAMING
-                  </button>
                   <div class="pill-segmented" id="seg-projection">
                     <button class="pill-btn active" data-proj="umap">UMAP</button>
                     <button class="pill-btn" data-proj="pca">PCA</button>
@@ -464,14 +344,14 @@
               </div>
 
               <div class="card-desc-strip">
-                <span>2D projection for visualization (not high-dimensional metric space) &bull; UMAP metric: cosine</span>
+                <span>2D manifold projection for visualization (not high-dimensional metric space) &bull; Metric: Cosine</span>
               </div>
 
               <div class="card-legend-strip">
-                <span>EDGES: <strong class="text-white">Visible (k=4 sample)</strong></span>
-                <span>NODE SIZE: <strong class="text-white">M_capacity (8..24)</strong></span>
-                <span>SAMPLED: <strong class="text-white">2,400 / 100,000 NODES</strong></span>
-                <span class="click-hint-badge">CLICK NODE OR CANVAS TO SIMULATE BEAM SEARCH TRAVERSAL</span>
+                <span>Edges: <strong class="text-primary">Visible (k=4 sample)</strong></span>
+                <span>Node size: <strong class="text-primary">Capacity M (8..24)</strong></span>
+                <span>Sampled: <strong class="text-primary">2,400 / 100,000 nodes</strong></span>
+                <span class="click-hint-badge">Click node to inspect local properties</span>
                 <button class="text-btn text-cyan" id="btn-reset-overview-view">⟲ Reset View</button>
               </div>
 
@@ -480,13 +360,13 @@
                 <canvas id="overview-graph-canvas" width="760" height="420"></canvas>
 
                 <!-- Coordinate Axis Label -->
-                <div class="axis-label-top-left">+Y [DIM 2: MANIFOLD SPREAD]</div>
+                <div class="axis-label-top-left">+Y [Dimension 2: Manifold spread]</div>
 
-                <!-- Inspected Node Callout Card (Matches Screenshot 1) -->
+                <!-- Inspected Node Callout Card -->
                 <div class="inspected-node-callout" id="overview-node-callout">
                   <div class="callout-header">
                     <span class="callout-title" id="callout-node-id">Node #48,219</span>
-                    <span class="callout-tag" id="callout-tag">MANIFOLD CREST</span>
+                    <span class="callout-tag" id="callout-tag">Manifold crest</span>
                   </div>
                   <div class="callout-body">
                     <div class="callout-row">
@@ -506,15 +386,15 @@
                     </div>
                     <div class="callout-row">
                       <span class="k">efConstruction:</span>
-                      <span class="v mono text-white">192</span>
+                      <span class="v mono">192</span>
                     </div>
                     <div class="callout-row">
                       <span class="k">Current In-degree:</span>
-                      <span class="v mono text-white" id="callout-score">34 edges</span>
+                      <span class="v mono" id="callout-score">34 edges</span>
                     </div>
                     <div class="callout-footer mt-2">
-                      <span class="mono text-muted text-xs">COORDS: [0.724, 0.469]</span>
-                      <button class="btn-inspect-subgraph" id="btn-jump-subgraph">Inspect Subgraph &rarr;</button>
+                      <span class="mono text-muted text-xs">Coords: [0.724, 0.469]</span>
+                      <button class="btn-inspect-subgraph" id="btn-jump-subgraph">Inspect Subgraph</button>
                     </div>
                   </div>
                 </div>
@@ -532,19 +412,19 @@
                   <svg class="card-icon-svg text-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
                   <h4>Local Structural Diagnostics</h4>
                 </div>
-                <span class="badge-pill-dark">N=100K EVAL</span>
+                <span class="badge-pill-dark">N=100K evaluation</span>
               </div>
 
               <!-- Diagnostic 1: LID Histogram -->
               <div class="diag-section mt-3">
                 <div class="diag-header-row">
-                  <span class="diag-title">1. LOCAL INTRINSIC DIM (LID)</span>
+                  <span class="diag-title">1. Local intrinsic dimensionality (LID)</span>
                   <span class="diag-mean mono text-cyan" id="diag-lid-mean">Mean: 12.4</span>
                 </div>
                 <div class="diag-sub-row text-xs text-muted">
-                  <span id="diag-lid-min">MIN: 4.1</span>
+                  <span id="diag-lid-min">Min: 4.1</span>
                   <span id="diag-lid-p95">P95: 27.8</span>
-                  <span id="diag-lid-max">MAX: 34.2</span>
+                  <span id="diag-lid-max">Max: 34.2</span>
                 </div>
                 <!-- Dynamic Bar Histogram -->
                 <div class="lid-bars-wrapper mt-2" id="lid-bars-container">
@@ -566,13 +446,13 @@
               <!-- Diagnostic 2: Local Density Curve -->
               <div class="diag-section mt-4">
                 <div class="diag-header-row">
-                  <span class="diag-title">2. LOCAL DENSITY (K-NN DIST)</span>
+                  <span class="diag-title">2. Local density (k-NN distance)</span>
                   <span class="diag-mean mono text-cyan" id="diag-density-mean">Mean: 0.084</span>
                 </div>
                 <div class="diag-sub-row text-xs text-muted">
-                  <span>MIN: 0.012</span>
+                  <span>Min: 0.012</span>
                   <span>P95: 0.173</span>
-                  <span>SKEW: +1.48</span>
+                  <span>Skew: +1.48</span>
                 </div>
                 <div class="density-curve-canvas-wrapper mt-2">
                   <canvas id="density-curve-canvas" width="340" height="55"></canvas>
@@ -582,12 +462,12 @@
               <!-- Diagnostic 3: Adaptive M Allocation -->
               <div class="diag-section mt-4">
                 <div class="diag-header-row">
-                  <span class="diag-title">3. ADAPTIVE M ALLOCATION</span>
+                  <span class="diag-title">3. Adaptive degree allocation M(x)</span>
                   <span class="diag-mean mono text-cyan" id="diag-m-std">Std Dev: 3.4</span>
                 </div>
                 <div class="diag-sub-row text-xs text-muted">
                   <span>Min: 8</span>
-                  <span class="text-white" id="diag-m-mean">Mean M: 15.7</span>
+                  <span class="text-primary" id="diag-m-mean">Mean M: 15.7</span>
                   <span>Max: 24</span>
                 </div>
                 <div class="m-allocation-bars mt-2" id="m-allocation-bars">
@@ -622,17 +502,17 @@
               <!-- Diagnostic 4: Hubness & Degree Bounds -->
               <div class="diag-section mt-4">
                 <div class="diag-header-row">
-                  <span class="diag-title">4. HUBNESS &amp; DEGREE BOUNDS</span>
+                  <span class="diag-title">4. Hubness regulation &amp; in-degree bounds</span>
                   <span class="diag-mean mono text-cyan">Hubness: 1.14</span>
                 </div>
                 <div class="hubness-stats-grid mt-2">
                   <div class="hub-stat-item">
                     <span class="k">In-degree Mean:</span>
-                    <span class="v mono text-white">31.4</span>
+                    <span class="v mono text-primary">31.4</span>
                   </div>
                   <div class="hub-stat-item">
                     <span class="k">P95 In-degree:</span>
-                    <span class="v mono text-white">47</span>
+                    <span class="v mono text-primary">47</span>
                   </div>
                   <div class="hub-stat-item">
                     <span class="k">Max In-degree:</span>
@@ -1763,7 +1643,7 @@
               </div>
               <div class="kpi-title-big text-cyan">Step 5 (Ada-ef Stagnation Exit)</div>
               <div class="kpi-footer-row text-xs text-muted">
-                <span>Recall@10: 0.9856 (Parity)</span>
+                <span>Recall@10: 0.9745 (Step 4 Parity: 0.9856)</span>
                 <span class="mono text-emerald">+54.5% QPS (7,272.8)</span>
               </div>
             </div>
@@ -1865,7 +1745,7 @@
                       <td class="text-cyan mono"><b>+ Ada-ef Early Exit (p=6)</b></td>
                       <td class="mono text-emerald"><b>2,509,138 (-7.4%)</b></td>
                       <td class="mono text-emerald"><b>33.5 s (-28.1%)</b></td>
-                      <td class="mono text-white">0.9745 (0.9856)</td>
+                      <td class="mono text-white">0.9745 (Step 4: 0.9856)</td>
                       <td class="mono text-cyan"><b>7,075.3 (+50.3%)</b></td>
                       <td><span class="badge-tag-emerald">Stagnation Exit</span></td>
                     </tr>
@@ -2408,7 +2288,7 @@
   <div id="stitch-toast-container"></div>
 
   <!-- Main JavaScript Engine -->
-  <script src="app.js?v=2.1.0"></script>
+  <script src="app.js?v=20260919.1"></script>
 </body>
 </html>
 
