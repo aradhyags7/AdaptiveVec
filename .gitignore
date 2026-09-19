@@ -50,3 +50,8 @@ data/
 # Scratch files
 scratch/
 
+# Node dependencies & builds
+node_modules/
+dist/
+
+

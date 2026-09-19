@@ -1,0 +1,167 @@
+.canvasCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.segmentedGroup {
+  display: flex;
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.segBtn {
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-radius: 3px;
+  transition: all 0.12s ease;
+}
+
+.segBtn:hover {
+  color: var(--text-primary);
+}
+
+.segBtnActive {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.cardSubtext {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.legendStrip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 6px 10px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.clickHint {
+  margin-left: auto;
+  color: var(--accent-text);
+  font-weight: 500;
+}
+
+.canvasContainer {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--canvas-bg);
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  display: block;
+}
+
+.nodeCallout {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 220px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-md);
+  user-select: none;
+  pointer-events: none;
+}
+
+.calloutHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+}
+
+.calloutNodeId {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calloutTag {
+  font-size: 9.5px;
+  color: var(--accent-text);
+  background: var(--accent-subtle);
+  padding: 1px 5px;
+  border-radius: 8px;
+}
+
+.calloutBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calloutRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.k {
+  color: var(--text-muted);
+}
+
+.v {
+  font-weight: 500;
+}
+
+.calloutCoords {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}

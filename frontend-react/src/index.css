@@ -1,0 +1,218 @@
+/* ==========================================================================
+   AdaptiveVec: Academic Systems Interface Design Tokens & Reset
+   ========================================================================== */
+
+:root {
+  /* Light Theme (Warm Near-White Academic Paper) */
+  --bg-app: #F8F9FA;
+  --bg-sidebar: #F1F3F5;
+  --bg-card: #FFFFFF;
+  --bg-card-subtle: #F8F9FA;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(59, 92, 204, 0.08);
+
+  --text-primary: #181C24;
+  --text-secondary: #495057;
+  --text-muted: #6C757D;
+  --text-dim: #ADB5BD;
+
+  --border-subtle: #E9ECEF;
+  --border-default: #DEE2E6;
+  --border-emphasis: #CED4DA;
+
+  --accent: #3B5CCC;
+  --accent-subtle: #EDF2FF;
+  --accent-text: #2B45A3;
+
+  --semantic-emerald: #2B8A3E;
+  --semantic-emerald-bg: #EBFBEE;
+  --semantic-amber: #D97706;
+  --semantic-amber-bg: #FEF3C7;
+  --semantic-rose: #C92A2A;
+  --semantic-rose-bg: #FFE3E3;
+
+  --canvas-bg: #F8F9FA;
+  --canvas-edge: rgba(59, 92, 204, 0.14);
+  --canvas-grid: rgba(0, 0, 0, 0.04);
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, Cambria, serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] {
+  /* Dark Theme (Deep Technical Slate Substrate) */
+  --bg-app: #12151A;
+  --bg-sidebar: #0E1014;
+  --bg-card: #1A1F29;
+  --bg-card-subtle: #141820;
+  --bg-surface-elevated: #222836;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(94, 124, 226, 0.12);
+
+  --text-primary: #F1F3F7;
+  --text-secondary: #C1C7D0;
+  --text-muted: #7E8B9F;
+  --text-dim: #4B5565;
+
+  --border-subtle: #252B38;
+  --border-default: #2E3545;
+  --border-emphasis: #424D63;
+
+  --accent: #5E7CE2;
+  --accent-subtle: rgba(94, 124, 226, 0.12);
+  --accent-text: #8FA6FA;
+
+  --semantic-emerald: #38D9A9;
+  --semantic-emerald-bg: rgba(56, 217, 169, 0.12);
+  --semantic-amber: #F59E0B;
+  --semantic-amber-bg: rgba(245, 158, 11, 0.12);
+  --semantic-rose: #FA5252;
+  --semantic-rose-bg: rgba(250, 82, 82, 0.12);
+
+  --canvas-bg: #12151A;
+  --canvas-edge: rgba(94, 124, 226, 0.18);
+  --canvas-grid: rgba(255, 255, 255, 0.035);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Typography Utilities */
+.tabular-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 12.5px; }
+.text-base { font-size: 14px; }
+.text-lg { font-size: 16px; }
+.text-xl { font-size: 18px; }
+
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.text-accent { color: var(--accent); }
+.text-emerald { color: var(--semantic-emerald); }
+.text-amber { color: var(--semantic-amber); }
+.text-rose { color: var(--semantic-rose); }
+
+/* Buttons & Inputs */
+button {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all 0.15s ease;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Hairline borders */
+.border-b-subtle { border-bottom: 1px solid var(--border-subtle); }
+.border-t-subtle { border-top: 1px solid var(--border-subtle); }
+.border-r-subtle { border-right: 1px solid var(--border-subtle); }
+.border-l-subtle { border-left: 1px solid var(--border-subtle); }
+
+/* Badges & Tags */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card-subtle);
+  color: var(--text-secondary);
+}
+
+.badge-pill.accent {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  border-color: rgba(94, 124, 226, 0.25);
+}
+
+.badge-pill.emerald {
+  background: var(--semantic-emerald-bg);
+  color: var(--semantic-emerald);
+  border-color: rgba(43, 138, 62, 0.25);
+}
+
+.badge-pill.amber {
+  background: var(--semantic-amber-bg);
+  color: var(--semantic-amber);
+  border-color: rgba(217, 119, 6, 0.25);
+}
+
+.badge-pill.illustrative {
+  background: var(--bg-card-subtle);
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-emphasis);
+}
