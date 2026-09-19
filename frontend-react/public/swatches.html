@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdaptiveVec — Scientific Instrument Color & Typography Specimen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Chivo', -apple-system, sans-serif;
+      background: #0D0C0B;
+      color: #EAE4DC;
+      padding: 36px 48px;
+      line-height: 1.5;
+    }
+    .header-block {
+      border-bottom: 1px solid #332D26;
+      padding-bottom: 20px;
+      margin-bottom: 32px;
+    }
+    .instrument-pill {
+      display: inline-block;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      background: rgba(201, 125, 74, 0.16);
+      color: #E8A25C;
+      border: 1px solid rgba(201, 125, 74, 0.35);
+      border-radius: 3px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #EAE4DC;
+      letter-spacing: -0.015em;
+    }
+    .subtitle {
+      font-size: 13.5px;
+      color: #A69C8E;
+      margin-top: 4px;
+    }
+    .split-modes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      margin-bottom: 40px;
+    }
+    .mode-card {
+      border-radius: 6px;
+      padding: 24px;
+      border: 1px solid;
+    }
+    .mode-dark {
+      background: #171513;
+      border-color: #332D26;
+      color: #EAE4DC;
+    }
+    .mode-light {
+      background: #F6F2EB;
+      border-color: #DDD5C7;
+      color: #1E1A17;
+    }
+    .mode-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid;
+      padding-bottom: 10px;
+      margin-bottom: 18px;
+    }
+    .mode-dark .mode-title-row { border-color: #332D26; }
+    .mode-light .mode-title-row { border-color: #E0D8CB; }
+    .mode-heading {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .mode-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .swatch-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 10px;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+    .mode-dark .swatch-item {
+      background: #211E1A;
+      border-color: #332D26;
+    }
+    .mode-light .swatch-item {
+      background: #FFFFFF;
+      border-color: #E0D8CB;
+    }
+    .color-chip {
+      width: 32px;
+      height: 32px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.15);
+      flex-shrink: 0;
+    }
+    .swatch-meta {
+      display: flex;
+      flex-direction: column;
+    }
+    .swatch-name {
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .swatch-hex {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      opacity: 0.75;
+    }
+    .preview-cluster {
+      padding: 16px;
+      border-radius: 4px;
+      border: 1px solid;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mode-dark .preview-cluster {
+      background: #211E1A;
+      border-color: #332D26;
+    }
+    .mode-light .preview-cluster {
+      background: #FFFFFF;
+      border-color: #E0D8CB;
+    }
+    .preview-kpi-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .preview-kpi-label {
+      font-size: 11.5px;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .preview-kpi-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .preview-delta-sage {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+    .mode-dark .preview-delta-sage { color: #6BA37E; }
+    .mode-light .preview-delta-sage { color: #2E6A48; }
+
+    .mode-dark .amber-text { color: #E8A25C; }
+    .mode-light .amber-text { color: #B65F28; }
+
+    /* Type Section */
+    .type-section {
+      background: #171513;
+      border: 1px solid #332D26;
+      border-radius: 6px;
+      padding: 24px;
+    }
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 16px;
+    }
+    .type-box {
+      background: #211E1A;
+      border: 1px solid #332D26;
+      border-radius: 4px;
+      padding: 18px;
+    }
+    .type-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      color: #E8A25C;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .type-specimen-large {
+      font-size: 18px;
+      font-weight: 600;
+      color: #EAE4DC;
+      margin-bottom: 8px;
+    }
+    .type-specimen-reading {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: #A69C8E;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-block">
+    <div class="instrument-pill">Instrument Specimen Palette v1.0</div>
+    <h1>AdaptiveVec Scientific Instrument Identity</h1>
+    <p class="subtitle">Warm-charcoal chassis substrate, glowing vacuum filament / VU meter amber, and precision avionics typography.</p>
+  </div>
+
+  <div class="split-modes">
+    <!-- DARK MODE -->
+    <div class="mode-card mode-dark">
+      <div class="mode-title-row">
+        <span class="mode-heading">Dark Mode (Primary Chassis)</span>
+        <span class="mode-tag">Warm-Charcoal Register</span>
+      </div>
+
+      <div class="swatch-grid">
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #171513;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Chassis Substrate</span>
+            <span class="swatch-hex">#171513</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #211E1A;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Panel Surface</span>
+            <span class="swatch-hex">#211E1A</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #C97D4A;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Filament Amber (Base)</span>
+            <span class="swatch-hex">#C97D4A</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #E8A25C;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Active Glow Amber</span>
+            <span class="swatch-hex">#E8A25C</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #6BA37E;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Sage Green (Verified)</span>
+            <span class="swatch-hex">#6BA37E</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #332D26;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Structural Hairline</span>
+            <span class="swatch-hex">#332D26</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Instrument Card Preview -->
+      <div class="preview-cluster">
+        <div class="preview-kpi-row">
+          <span class="preview-kpi-label">Regime A &bull; Step 5 Ada-ef</span>
+          <span class="preview-delta-sage">+50.3% Throughput</span>
+        </div>
+        <div class="preview-kpi-row">
+          <span class="preview-kpi-val amber-text">7,075.3 <span style="font-size: 12px; color: #A69C8E;">QPS</span></span>
+          <span style="font-family: 'IBM Plex Mono'; font-size: 11.5px; color: #A69C8E;">0.9745 Recall@10 (Step 4: 0.9856)</span>
+        </div>
+        <div style="font-size: 11px; color: #A69C8E; border-top: 1px solid #332D26; padding-top: 6px;">
+          Dynamic efSearch with adaptive stagnation termination (p=6, &epsilon;=10⁻⁴)
+        </div>
+      </div>
+    </div>
+
+    <!-- LIGHT MODE -->
+    <div class="mode-card mode-light">
+      <div class="mode-title-row">
+        <span class="mode-heading">Light Mode (Archival Lab Notebook)</span>
+        <span class="mode-tag">Aged Warm Paper</span>
+      </div>
+
+      <div class="swatch-grid">
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #F6F2EB;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Paper Substrate</span>
+            <span class="swatch-hex">#F6F2EB</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #FFFFFF;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Plate Surface</span>
+            <span class="swatch-hex">#FFFFFF</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #A65624;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Terracotta Ink</span>
+            <span class="swatch-hex">#A65624</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #C96E32;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Active Live Ink</span>
+            <span class="swatch-hex">#C96E32</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #2E6A48;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Deep Sage (Verified)</span>
+            <span class="swatch-hex">#2E6A48</span>
+          </div>
+        </div>
+
+        <div class="swatch-item">
+          <div class="color-chip" style="background: #DDD5C7;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Sepia Hairline</span>
+            <span class="swatch-hex">#DDD5C7</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Instrument Card Preview -->
+      <div class="preview-cluster">
+        <div class="preview-kpi-row">
+          <span class="preview-kpi-label">Regime A &bull; Step 5 Ada-ef</span>
+          <span class="preview-delta-sage">+50.3% Throughput</span>
+        </div>
+        <div class="preview-kpi-row">
+          <span class="preview-kpi-val amber-text">7,075.3 <span style="font-size: 12px; color: #5A5247;">QPS</span></span>
+          <span style="font-family: 'IBM Plex Mono'; font-size: 11.5px; color: #5A5247;">0.9745 Recall@10 (Step 4: 0.9856)</span>
+        </div>
+        <div style="font-size: 11px; color: #5A5247; border-top: 1px solid #E0D8CB; padding-top: 6px;">
+          Dynamic efSearch with adaptive stagnation termination (p=6, &epsilon;=10⁻⁴)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPOGRAPHY PROPOSAL -->
+  <div class="type-section">
+    <div class="mode-heading" style="margin-bottom: 4px;">Typography System: Chivo + IBM Plex Mono</div>
+    <p class="subtitle">Purpose-built pairing matching scientific instrumentation, avionics dials, and engineered digital readouts.</p>
+
+    <div class="type-grid">
+      <div class="type-box">
+        <span class="type-badge">Primary Interface & Chrome: Chivo</span>
+        <div class="type-specimen-large">AdaptiveVec Density-Aware Proximity Graph</div>
+        <div style="font-size: 12.5px; color: #A69C8E; line-height: 1.5;">
+          An engineered grotesque designed for high-legibility dials, meters, and avionics telemetry. Clean geometry with distinctive mechanical character that avoids generic SaaS neutrality.
+        </div>
+      </div>
+
+      <div class="type-box">
+        <span class="type-badge">Measurement Readouts: IBM Plex Mono</span>
+        <div class="type-specimen-large" style="font-family: 'IBM Plex Mono'; color: #E8A25C;">
+          7,075.3 QPS &bull; 0.9745 R@10 &bull; 22.5MB
+        </div>
+        <div class="type-specimen-reading">
+          SIFT-100K (128-D FP32) | Intel Core 5 210H (AVX2/FMA)<br>
+          Edges: 2,509,138 (-7.4%) | Latency P95: 1.42 ms<br>
+          Zero slashes, squared geometric terminals, strict tabular figures.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
