@@ -283,10 +283,8 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Paragraph(author_text, author_style))
 
     # =========================================================================
-    # ABSTRACT BOX
-    # =========================================================================
     abstract_text = """
-    <b>Abstract</b>—Hierarchical Navigable Small World (HNSW) proximity graphs represent the state of the art in Approximate Nearest Neighbor Search (ANNS) across industry vector search engines. However, canonical HNSW enforces rigid, globally uniform hyper-parameters (e.g., fixed degree quota <i>M</i> = 16 and fixed construction beam <i>efConstruction</i> = 200) across heterogeneous embedding topologies. In dense, low-intrinsic-dimensionality clusters, this invariant allocation synthesizes redundant proximity links, wasting DRAM and memory bandwidth while contributing negligible routing utility. Conversely, sparse high-dimensional boundary regions suffer from capacity starvation and topological disconnects, exacerbated by the hubness phenomenon. We introduce <b>AdaptiveVec</b>, a lightweight, manifold-adaptive proximity graph architecture tailored specifically for resource-constrained commodity hardware (e.g., single-node laptops, edge devices, and cost-capped cloud virtual machines indexing 100K–1M vectors). AdaptiveVec extracts online geometric signals—<b>Local Intrinsic Dimensionality (LID)</b> via maximum likelihood estimation and <b>Local Density (D)</b>—directly from standard greedy descent routing paths at under 0.8% computational overhead, completely obviating offline multi-pass clustering. AdaptiveVec synthesizes: (1) a <i>Layer-Decoupled Dynamic Allocation Policy</i> that scales per-node edge capacity while compressing higher-layer express links; (2) <i>Streaming Online Welford Tracking</i> with exponential decay for adaptive parameter normalization; (3) a <i>Hubness-Aware In-Degree Regulation Heuristic</i> that penalizes high-degree bottleneck vertices during edge selection; (4) <i>Ada-ef Distance Stagnation Early Exit</i> to truncate futile query-time traversal hops; and (5) <i>Asymmetric INT8 Scalar Quantization (SQ8)</i> with float32 distance re-ranking. AdaptiveVec delivers a <b>7.4% reduction in graph edges</b>, up to <b>50.3% higher query throughput (7,075.3 QPS vs. 4,708.1 QPS baseline)</b> via the Ada-ef stagnation early-exit mechanism, and <b>62.4% index memory reduction (22.5MB vs. 59.9MB)</b> via asymmetric INT8 scalar quantization, at a measured Recall@10 of <b>0.9745</b> (throughput-optimized configuration) and <b>0.9594</b> (memory-optimized configuration) against a 0.9913 baseline, evaluated on a canonical SIFT-100K subset (Texmex IRISA) on commodity hardware (Intel Core 5 210H, 8 cores/12 threads, AVX2/FMA, 16GB RAM).
+    <b>Abstract</b>—Hierarchical Navigable Small World (HNSW) proximity graphs represent the state of the art in Approximate Nearest Neighbor Search (ANNS) across industry vector search engines. However, canonical HNSW enforces rigid, globally uniform hyper-parameters (e.g., fixed degree quota <i>M</i> = 16 and fixed construction beam <i>efConstruction</i> = 200) across heterogeneous embedding topologies. In dense, low-intrinsic-dimensionality clusters, this invariant allocation synthesizes redundant proximity links, wasting DRAM and memory bandwidth while contributing negligible routing utility. Conversely, sparse high-dimensional boundary regions suffer from capacity starvation and topological disconnects, exacerbated by the hubness phenomenon. We introduce <b>AdaptiveVec</b>, a lightweight, manifold-adaptive proximity graph architecture tailored specifically for resource-constrained commodity hardware (e.g., single-node laptops, edge devices, and cost-capped cloud virtual machines indexing 100K–1M vectors). AdaptiveVec extracts online geometric signals—<b>Local Intrinsic Dimensionality (LID)</b> via maximum likelihood estimation and <b>Local Density (D)</b>—directly from standard greedy descent routing paths at under 0.8% computational overhead, completely obviating offline multi-pass clustering. AdaptiveVec synthesizes: (1) a <i>Layer-Decoupled Dynamic Allocation Policy</i> that scales per-node edge capacity while compressing higher-layer express links; (2) <i>Streaming Online Welford Tracking</i> with exponential decay for adaptive parameter normalization; (3) a <i>Hubness-Aware In-Degree Regulation Heuristic</i> that penalizes high-degree bottleneck vertices during edge selection; (4) <i>Distance Stagnation Early Exit</i> to truncate futile query-time traversal hops; and (5) <i>Asymmetric INT8 Scalar Quantization (SQ8)</i> with float32 distance re-ranking. AdaptiveVec delivers a <b>7.4% reduction in graph edges</b>, up to <b>50.3% higher query throughput (7,075.3 QPS vs. 4,708.1 QPS baseline)</b> via the distance stagnation early-exit mechanism, and <b>62.4% index memory reduction (22.5MB vs. 59.9MB)</b> via asymmetric INT8 scalar quantization, at a measured Recall@10 of <b>0.9745</b> (throughput-optimized configuration) and <b>0.9594</b> (memory-optimized configuration) against a 0.9913 baseline, evaluated on a canonical SIFT-100K subset (Texmex IRISA) on commodity hardware (Intel Core 5 210H, 8 cores/12 threads, AVX2/FMA, 16GB RAM).
     <br/><br/>
     <b>Keywords</b>—Approximate Nearest Neighbor Search (ANNS), Hierarchical Navigable Small World (HNSW), Local Intrinsic Dimensionality (LID), Hubness Phenomenon, Scalar Quantization, Resource-Constrained Systems, High-Dimensional Indexing.
     """
@@ -304,46 +302,37 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Spacer(1, 14))
 
     # =========================================================================
-    # SECTION 1: INTRODUCTION
+    # SECTION 1: INTRODUCTION & MOTIVATION
     # =========================================================================
-    story.append(Paragraph("1. Introduction & Theoretical Motivation", h1_style))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("1. Introduction & Motivation", h1_style))
     story.append(HRFlowable(width="100%", thickness=0.8, color=primary_color, spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "Dense vector embeddings generated by modern deep foundation models—ranging from large language model transformer representations to visual vision transformer tokens—constitute the backbone of semantic search, recommendation engines, and Retrieval-Augmented Generation (RAG) pipelines. In these operational frameworks, high-throughput Approximate Nearest Neighbor Search (ANNS) over million-scale vector datasets is a non-negotiable operational prerequisite. Among available indexing methodologies (inverted file lists, tree-based partitions, product quantization), <b>Hierarchical Navigable Small World (HNSW)</b> graphs [Malkov & Yashunin, 2020] currently represent the gold standard in production systems, achieving logarithmic traversal complexity <i>O</i>(log <i>N</i>) and empirical recall exceeding 98%.",
+        "Dense vector representations generated by deep neural encoders underpin modern information retrieval, semantic search, recommendation engines, and Retrieval-Augmented Generation (RAG) architectures. In these operational pipelines, high-throughput Approximate Nearest Neighbor Search (ANNS) over million-scale vector collections is an essential operational primitive. Among diverse indexing paradigms, <b>Hierarchical Navigable Small World (HNSW)</b> graphs [Malkov & Yashunin, 2020] represent the industry standard (powering FAISS, Milvus, Qdrant, and pgvector), achieving empirical logarithmic search complexity <i>O</i>(log <i>N</i>) and recall exceeding 98%.",
         body_style
     ))
 
     story.append(Paragraph(
-        "Despite its ubiquitous adoption in industry frameworks (e.g., FAISS, Milvus, Qdrant, pgvector), canonical HNSW suffers from a foundational architectural limitation: <b>static, globally uniform parameterization</b>. Canonical implementations configure a single edge budget quota <i>M</i> (e.g., <i>M</i> = 16) and a single construction search beam <i>efConstruction</i> (e.g., <i>efC</i> = 200) applied identically to every node in the dataset, irrespective of its local geometric environment.",
+        "<b>The Uniformity Pathology:</b> Canonical HNSW graphs enforce a rigid, globally uniform parameterization. Implementations configure a static edge budget quota <i>M</i> (e.g., <i>M</i> = 16) and a static construction exploration factor <i>efConstruction</i> (e.g., <i>efC</i> = 200) applied identically across every indexed vector. However, real-world embedding manifolds are profoundly non-homogeneous. Vectors concentrate in non-linear sub-manifolds characterized by localized variations in <b>Local Intrinsic Dimensionality (LID)</b> and <b>Local Density (D)</b>:",
         body_style
     ))
+
+    story.append(Paragraph("• <b>Redundant Edge Bloat:</b> In dense, low-LID subspaces, vectors reside on lower-dimensional hyperplanes. Enforcing 16 bidirectional links synthesizes redundant parallel paths between co-linear neighbors, squandering memory and bus bandwidth with zero recall utility.", bullet_style))
+    story.append(Paragraph("• <b>Topological Starvation & Hubness:</b> In sparse high-dimensional regions, uniform quotas cause capacity starvation. Under the <i>Hubness Phenomenon</i> [Radovanović et al., 2010], central nodes accumulate an exorbitant number of routing paths, generating edge-thrashing and query traffic bottlenecks.", bullet_style))
+    story.append(Paragraph("• <b>The Commodity Hardware Barrier:</b> Enterprise ANNS literature focuses predominantly on multi-socket servers with 128GB–512GB of RAM. In contrast, thousands of edge deployments operate under strict memory and compute budgets (100K–1M vectors on single-node commodity laptops or cost-capped cloud virtual machines).", bullet_style))
 
     story.append(Paragraph(
-        "Real-world representation spaces, however, are profoundly non-homogeneous. Vectors do not populate Euclidean space ℝ<sup><i>D</i></sup> uniformly; rather, they concentrate along intricate, non-linear sub-manifolds characterized by localized variations in <b>Local Intrinsic Dimensionality (LID)</b> and <b>Local Density (D)</b>. In dense, low-LID subspaces (e.g., concentrated semantic clusters), vectors are densely packed and lie on low-dimensional hyperplanes. In these regions, maintaining 16 or 32 bidirectional edges generates severe structural redundancy: multiple parallel edges connect essentially co-linear neighbors, squandering memory bandwidth and cache lines while conferring zero routing advantage. Conversely, in sparse boundary zones and high-dimensional outlier regions, a fixed edge quota starves nodes of necessary traversal highways, resulting in graph partitioning and localized routing traps.",
+        "To reconcile this fundamental tension, we introduce <b>AdaptiveVec</b>, an adaptive proximity graph architecture that modulates topological resources based on online manifold geometry.",
         body_style
     ))
 
-    story.append(Paragraph(
-        "Furthermore, proximity graphs in high ambient dimensions are inherently susceptible to the <b>Hubness Phenomenon</b> [Radovanović et al., 2010], wherein a small fraction of central nodes become the nearest neighbors of an disproportionately large number of points. In standard HNSW, these hub vertices accumulate enormous in-degree counts (frequently exceeding 5× the baseline <i>M</i>), creating routing bottlenecks that degrade long-tail query latencies (P95 and P99 SLAs).",
-        body_style
-    ))
-
-    story.append(Paragraph(
-        "<b>The Commodity Hardware Barrier:</b> While enterprise vector search literature often evaluates architectures on multi-socket servers with 128GB–512GB of RAM and dozens of CPU cores, the practical reality for thousands of edge computing deployments, autonomous systems, local developer environments, and cost-sensitive cloud micro-instances is strictly resource-constrained. Deploying million-scale vector retrieval on a commodity laptop or a 4-vCPU/8GB cloud VM requires an index that treats memory capacity, edge count, and memory bus bandwidth as primary optimization objectives.",
-        body_style
-    ))
-
-    story.append(Paragraph(
-        "To overcome these limitations, we introduce <b>AdaptiveVec</b>, a comprehensive proximity graph indexing system designed from first principles to dynamically calibrate its topological budget based on online manifold geometry. Our contributions are summarized as follows:",
-        body_style
-    ))
-
+    story.append(Paragraph("<b>Primary Architectural Contributions:</b>", body_style))
     story.append(Paragraph("• <b>Zero-Overhead Online Geometric Probing:</b> We demonstrate that localized manifold expansion properties (LID and Density) can be harvested directly from the natural greedy descent traversal path during insertion, incurring less than 0.8% CPU wall-clock overhead and eliminating offline pre-clustering passes.", bullet_style))
     story.append(Paragraph("• <b>Streaming Welford Standardization:</b> We integrate single-pass Welford variance tracking with exponential moving averages to normalize online geometric signals into an adaptive difficulty score in <i>O</i>(1) space and time.", bullet_style))
     story.append(Paragraph("• <b>Layer-Decoupled Dynamic Allocation:</b> We propose a mathematical degree allocation policy that provisions per-node capacities <i>M</i>(<i>x</i>) ∈ [<i>M</i><sub>min</sub>, <i>M</i><sub>max</sub>] and construction depths <i>efC</i>(<i>x</i>) ∈ [<i>efC</i><sub>min</sub>, <i>efC</i><sub>max</sub>], while geometrically compressing higher-layer express links to preserve memory.", bullet_style))
     story.append(Paragraph("• <b>Hubness-Aware In-Degree Regulation:</b> We design a degree-penalized Relative Neighborhood Graph (RNG) edge selection heuristic that penalizes high-degree central nodes, enforcing topological diversity and mitigating query routing congestion.", bullet_style))
-    story.append(Paragraph("• <b>Ada-ef Distance Stagnation Early Exit:</b> We introduce an online search termination rule that tracks candidate distance convergence rates to truncate unpromising search hops, reducing query distance evaluations by up to 44.9%.", bullet_style))
+    story.append(Paragraph("• <b>Distance Stagnation Early Exit:</b> We introduce an online search termination rule that tracks candidate distance convergence rates to truncate unpromising search hops, reducing query distance evaluations by up to 30.1% (and up to 44.9% under aggressive patience).", bullet_style))
     story.append(Paragraph("• <b>Comprehensive Empirical Validation:</b> We provide full open-source Python and native C++ AVX2 implementations, validating our design across standard benchmark datasets with rigorous recall-throughput Pareto frontier analyses.", bullet_style))
 
     # =========================================================================
@@ -364,7 +353,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "<b>Adaptive & Dimension-Aware Indexing:</b> Recent literature has begun exploring manifold awareness. Elliott & Clark [2024] proposed ordering HNSW insertions by descending LID to improve upper-layer highway coverage; however, their technique requires an expensive full-dataset pre-computation sweep prior to index construction, making it impractical for streaming ingestion. The concurrent work <i>Ada-ef</i> [2026] focuses strictly on dynamic search-beam sizing during query time, leaving index topology untouched. In contrast, AdaptiveVec dynamically modulates both the graph topology (degree allocation, edge pruning) and the search traversal within a unified, streaming, online framework.",
+        "<b>Adaptive & Dimension-Aware Indexing:</b> Recent literature has begun exploring manifold awareness and dynamic traversal heuristics. Elliott & Clark [9] proposed ordering HNSW insertions by descending LID to improve upper-layer highway coverage; however, their technique requires an expensive full-dataset pre-computation sweep prior to index construction, making it impractical for streaming ingestion. Comprehensive surveys and benchmarks [10], [11] evaluate query-time dynamic search-beam adaptations (such as query-adaptive <i>efSearch</i> tuning), but these approaches operate exclusively during query traversal and leave the underlying graph topology completely uncompressed. In contrast, AdaptiveVec unifies online manifold signal harvesting during index construction (degree allocation, layer compression, hubness regularization) with intra-query distance stagnation early exit during search traversal within a single, end-to-end framework.",
         body_style
     ))
 
@@ -399,10 +388,10 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("Expensive offline phase", table_cell_style),
         ],
         [
-            Paragraph("Ada-ef", table_cell_bold),
-            Paragraph("SIGMOD (2026)", table_cell_left),
+            Paragraph("Dynamic Beam Tuning", table_cell_bold),
+            Paragraph("Wang et al. [10] / Li et al. [11]", table_cell_left),
             Paragraph("Static index, dynamic query beam", table_cell_left),
-            Paragraph("Query-time variance", table_cell_style),
+            Paragraph("Query-time traversal heuristics", table_cell_style),
             Paragraph("Zero index compression", table_cell_style),
         ],
         [
@@ -410,7 +399,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("Shinde (This Work, 2026)", table_cell_left),
             Paragraph("Dynamic per-node M, efC & RNG", table_cell_left),
             Paragraph("Online zero-cost probing", table_cell_style),
-            Paragraph("Commodity optimized (-42% edges)", table_cell_style),
+            Paragraph("Commodity optimized (-7.4% edges, +50% QPS)", table_cell_style),
         ],
     ]
 
@@ -578,7 +567,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
         body_style
     ))
 
-    story.append(Paragraph("4.5 Ada-ef Distance Stagnation Early Exit", h2_style))
+    story.append(Paragraph("4.5 Distance Stagnation Early Exit", h2_style))
     story.append(Paragraph(
         "During query-time beam search at layer 0, standard HNSW evaluates candidate nodes in the priority queue until the closest unexplored candidate is farther than the furthest entry in the result buffer <i>W</i>. On dense clustered manifolds, the search reaches the optimal target neighborhood within the initial 10–15 expansions, subsequently performing dozens of redundant distance calculations across minute sub-epsilon distances with zero change to the top-<i>k</i> results.",
         body_style
@@ -717,10 +706,10 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("1,121.2<br/><i>(Control)</i>", table_cell_style),
         ],
         [
-            Paragraph("<b>Regime A: Step 5 Ada-ef</b><br/>(Throughput-Optimized)", table_cell_left),
+            Paragraph("<b>Regime A: Step 5 Stagnation Exit</b><br/>(Throughput-Optimized)", table_cell_left),
             Paragraph("2,509,138<br/><b>-7.4%</b>", table_cell_style),
             Paragraph("33.5 s<br/><b>-28.1%</b>", table_cell_style),
-            Paragraph("59.2 MB<br/><b>-1.2%</b>", table_cell_style),
+            Paragraph("59.2 MB<br/><i>(Parity)</i>", table_cell_style),
             Paragraph("0.9745<br/><i>(-1.7%)</i>", table_cell_style),
             Paragraph("<b>7,075.3 QPS</b><br/><b>+50.3%</b>", table_cell_bold),
             Paragraph("783.5<br/><b>-30.1%</b>", table_cell_style),
@@ -759,7 +748,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "• <b>Regime A (Throughput Maxima • Step 5 Ada-ef):</b> By coupling dynamic per-node edge allocation with Layer-Decoupled scaling and the Ada-ef stagnation early-exit heuristic, AdaptiveVec boosts query throughput by <b>+50.3% (7,075.3 vs. 4,708.1 QPS)</b> and reduces distance evaluations by <b>30.1% (783.5 vs. 1,121.2 evals/query)</b>. Graph construction wall-clock time drops by <b>-28.1% (33.5s vs. 46.6s)</b> with <b>7.4% fewer total graph edges</b>, incurring a modest, controlled recall trade-off of 0.9745 vs. 0.9913 baseline (a 1.68% delta). Across repeated trials with varying seeds, throughput and recall exhibit high stability (Recall@10 = 0.9758 ± 0.0019, QPS = 7,272.8 ± 170.1).",
+        "• <b>Regime A (Throughput Maxima • Step 5 Stagnation Exit):</b> By coupling dynamic per-node edge allocation with Layer-Decoupled scaling and the distance stagnation early-exit heuristic, AdaptiveVec boosts query throughput by <b>+50.3% (7,075.3 vs. 4,708.1 QPS)</b> and reduces distance evaluations by <b>30.1% (783.5 vs. 1,121.2 evals/query)</b>. Graph construction wall-clock time drops by <b>-28.1% (33.5s vs. 46.6s)</b> with <b>7.4% fewer total graph edges</b>, while maintaining memory parity with the baseline index (59.2 MB vs. 59.9 MB) and incurring a controlled recall trade-off of 0.9745 vs. 0.9913 baseline (a 1.68% delta). Across repeated trials with varying seeds, throughput and recall exhibit high stability (Recall@10 = 0.9758 ± 0.0019, QPS = 7,272.8 ± 170.1).",
         body_style
     ))
 
@@ -837,7 +826,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("979.5", table_cell_style),
         ],
         [
-            Paragraph("5. + Ada-ef Stagnation Exit (Regime A)", table_cell_left),
+            Paragraph("5. + Stagnation Early Exit (Regime A)", table_cell_left),
             Paragraph("2,509,138 (-7.4%)", table_cell_style),
             Paragraph("33.5 s (-28.1%)", table_cell_style),
             Paragraph("59.2 MB", table_cell_style),
@@ -901,7 +890,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("1,297.2", table_cell_style),
         ],
         [
-            Paragraph("5. + Ada-ef Stagnation Exit", table_cell_left),
+            Paragraph("5. + Stagnation Early Exit", table_cell_left),
             Paragraph("1,263,970 (-1.6%)", table_cell_style),
             Paragraph("14.3 s (-50.5%)", table_cell_style),
             Paragraph("17.4 MB", table_cell_style),

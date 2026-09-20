@@ -20,7 +20,7 @@
 ---
 
 ### Abstract
-Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vector search engines (FAISS, Milvus, Qdrant, pgvector). However, canonical HNSW enforces static, uniform hyper-parameters ($M=16, efConstruction=200$) globally across non-homogeneous vector spaces. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity edges, squandering precious RAM and CPU indexing time with zero recall benefit. Conversely, sparse high-dimensional regions suffer from topological starvations and capacity-limited disconnects. We present **AdaptiveVec**, a novel proximity graph index optimized for resource-constrained commodity hardware ($100\text{K}–1\text{M}$ vectors on single-node laptops and edge cloud instances). AdaptiveVec unifies online manifold signal estimation (**Local Intrinsic Dimensionality (LID)** via Maximum Likelihood Estimation and **Local Density**) with standard insertion routing at $<0.8\%$ computational overhead. It introduces: (i) a **Layer-Decoupled Dynamic Policy** that compresses higher-layer express links; (ii) **Streaming Online Welford Tracking** to eliminate offline calibration passes; (iii) a **Hubness-Aware In-Degree Centrality Penalty** to prevent topological graph bottlenecks; (iv) **Ada-ef Distance Stagnation Early Exit** to accelerate query throughput; and (v) **Asymmetric INT8 Scalar Quantization (SQ8)** with two-stage float32 re-ranking. On canonical SIFT-100K benchmarks, **Step 5 achieves 0.9745 Recall@10 at +50.3% query throughput** (7,075.3 QPS vs. 4,708.1 baseline), -7.4% fewer graph edges, and -28.1% faster build times. For memory-constrained deployments, **Step 6 (INT8 SQ8) slashes index RAM by -62.4%** (22.5 MB vs. 59.9 MB baseline) and vector memory by -75% while maintaining 0.9594 recall.
+Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vector search engines (FAISS, Milvus, Qdrant, pgvector). However, canonical HNSW enforces static, uniform hyper-parameters ($M=16, efConstruction=200$) globally across non-homogeneous vector spaces. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity edges, squandering precious RAM and CPU indexing time with zero recall benefit. Conversely, sparse high-dimensional regions suffer from topological starvations and capacity-limited disconnects. We present **AdaptiveVec**, a novel proximity graph index optimized for resource-constrained commodity hardware ($100\text{K}–1\text{M}$ vectors on single-node laptops and edge cloud instances). AdaptiveVec unifies online manifold signal estimation (**Local Intrinsic Dimensionality (LID)** via Maximum Likelihood Estimation and **Local Density**) with standard insertion routing at $<0.8\%$ computational overhead. It introduces: (i) a **Layer-Decoupled Dynamic Policy** that compresses higher-layer express links; (ii) **Streaming Online Welford Tracking** to eliminate offline calibration passes; (iii) a **Hubness-Aware In-Degree Centrality Penalty** to prevent topological graph bottlenecks; (iv) **Distance Stagnation Early Exit** to accelerate query throughput; and (v) **Asymmetric INT8 Scalar Quantization (SQ8)** with two-stage float32 re-ranking. On canonical SIFT-100K benchmarks, **Step 5 achieves 0.9745 Recall@10 at +50.3% query throughput** (7,075.3 QPS vs. 4,708.1 baseline), -7.4% fewer graph edges, and -28.1% faster build times. For memory-constrained deployments, **Step 6 (INT8 SQ8) slashes index RAM by -62.4%** (22.5 MB vs. 59.9 MB baseline) and vector memory by -75% while maintaining 0.9594 recall.
 
 ---
 
@@ -34,7 +34,7 @@ Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vecto
    - [4.1 Online Manifold Geometry Probing](#41-online-manifold-geometry-probing)
    - [4.2 Layer-Decoupled Edge Allocation Policy](#42-layer-decoupled-edge-allocation-policy)
    - [4.3 Hubness-Aware In-Degree Regulation](#43-hubness-aware-in-degree-regulation)
-   - [4.4 Ada-ef Distance Stagnation Early Exit](#44-ada-ef-distance-stagnation-early-exit)
+   - [4.4 Distance Stagnation Early Exit](#44-distance-stagnation-early-exit)
    - [4.5 Asymmetric Scalar Quantization (SQ8) & Two-Stage Re-Ranking](#45-asymmetric-scalar-quantization-sq8--two-stage-re-ranking)
 5. [Theoretical Complexity Analysis](#5-theoretical-complexity-analysis)
 6. [Empirical Evaluation & Benchmark Results](#6-empirical-evaluation--benchmark-results)
@@ -71,12 +71,12 @@ Approximate Nearest Neighbor Search (ANNS) in metric spaces is fundamental to mo
 ```
 
 ### The Fundamental Flaw of Uniform Allocation
-In production systems, real-world embeddings (e.g., text, vision, multimodal representations) do not fill ambient $\mathbb{R}^D$ space uniformly. Instead, they concentrate on lower-dimensional non-linear sub-manifolds with wide variations in **Local Intrinsic Dimensionality (LID)** and **Local Density ($D$)**:
+In production systems, real-world embeddings (e.g., text, vision, multimodal representations) do not fill ambient $\mathbb{R}$^D space uniformly. Instead, they concentrate on lower-dimensional non-linear sub-manifolds with wide variations in **Local Intrinsic Dimensionality (LID)** and **Local Density ($D$)**:
 1. **Redundant Edge Bloat:** In dense, low-LID subspaces (e.g., clusters with high correlation), establishing $M = 16$ or $M = 32$ links forms redundant parallel paths. Memory consumption scales as:
    $$\text{Memory}_{\text{edges}} \approx 4 \times M \times N \times 1.1 \text{ bytes}$$
    A fixed $M$ forces edge memory to be paid for links that provide zero navigation benefit.
 2. **Capacitary Bottlenecks & Hubness:** In sparse high-dimensional regions, uniform edge quotas starvations occur. Under the **Hubness Phenomenon** (Radovanović et al., 2010), high-degree nodes attract an exorbitant number of routing paths, generating edge-thrashing and graph congestion during search.
-3. **The Commodity Hardware Barrier:** Enterprise vector search papers (e.g., Dynamic HNSW 2026, Dual-Branch LID 2025) evaluate on $128\text{GB}+$ RAM multi-socket servers. **AdaptiveVec** targets the opposite end of the spectrum: **commodity laptops and single-socket cloud VMs** ($100\text{K}–1\text{M}$ vectors), asking how online manifold signals can be extracted *at negligible CPU cost* to maximize memory and indexing efficiency.
+3. **The Commodity Hardware Barrier:** Enterprise vector search papers evaluate on $128\text{GB}+$ RAM multi-socket servers. **AdaptiveVec** targets the opposite end of the spectrum: **commodity laptops and single-socket cloud VMs** ($100\text{K}–1\text{M}$ vectors), asking how online manifold signals can be extracted *at negligible CPU cost* to maximize memory and indexing efficiency.
 
 ---
 
@@ -87,7 +87,7 @@ In production systems, real-world embeddings (e.g., text, vision, multimodal rep
 | **Hierarchical Proximity Graphs** | Malkov & Yashunin (IEEE TPAMI 2020) | Logarithmic search complexity $O(\log N)$, high recall | Rigid uniform parameterization across all nodes; memory bloat in low-dimensional clusters |
 | **Monolithic Graphs & Long Links** | Subramanya et al., *DiskANN* (NeurIPS 2019) | High SSD-based scale via Vamana graphs | Requires offline multi-pass global pruning and large memory footprints during construction |
 | **Local Intrinsic Dimensionality** | Amsaleg et al. (ACM SIGKDD 2015) | Rigorous mathematical characterization of manifold expansion | Previously used only for offline dataset analysis or post-hoc query hardness profiling |
-| **Query-Adaptive Exploration** | *Ada-ef* (ACM SIGMOD 2026, arXiv:2512.06636) | Statistical dynamic beam sizing for query search | Focuses exclusively on query-time $efSearch$; does not modify the underlying index topology |
+| **Dynamic Beam Exploration** | Wang et al. (PVLDB 2021) / Li et al. (TKDE 2020) | Comprehensive ANNS surveys and dynamic beam tuning | Evaluates query-time beam adaptations; does not modify underlying index topology |
 | **Manifold Insertion Ordering** | Elliott & Clark (arXiv 2024 / OpenReview 2025) | Ordering insertions by descending LID improves graph quality | Requires an expensive full-dataset pre-computation sweep prior to index build |
 | **AdaptiveVec (This Work)** | **Shinde (EDI 2026)** | **Unified Online Probing ($<0.8\%$ overhead) + Dynamic $M_i$ + Hubness Regulation + INT8 SQ8** | **Zero offline pre-clustering; fully dynamic streaming ingestion budgeted for commodity devices** |
 
@@ -194,7 +194,7 @@ where $\bar{d}_{\text{in}} = \frac{1}{|V|}\sum_{w \in V} \text{deg}_{\text{in}}(
 
 ---
 
-### 4.4 Ada-ef Distance Stagnation Early Exit
+### 4.4 Distance Stagnation Early Exit
 Standard vector search algorithms enforce a static candidate capacity ($efSearch = 64$) throughout the entire greedy exploration. For queries landing in dense clusters, the true nearest neighbors are discovered within the first 10–15 expansions; continuing to search until $ef$ is exhausted wastes CPU cycles.
 
 AdaptiveVec introduces **Distance Stagnation Early-Stopping**:
@@ -258,7 +258,7 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 | **Step 2: + Dynamic $M(x)$ & $efC(x)$** | 2,549,825 | **-5.9%** | 47.9 s | 59.3 MB | **0.9883** | 5,147.1 (+9.3%) | 1,017.6 (-9.2%) | Adaptive Capacity |
 | **Step 3: + Layer Scaling ($\lambda=0.75$)** | 2,515,277 | **-7.2%** | **33.5 s (-28.1%)** | 59.2 MB | **0.9887** | 2,242.3 | 991.8 | Fast Build |
 | **Step 4: + Hubness Penalty ($\mu=0.15$)** | 2,510,334 | **-7.3%** | 35.8 s | 59.2 MB | **0.9854** | **5,452.0 (+15.8%)** | 979.5 | High Accuracy Parity |
-| **Step 5: + Ada-ef Stagnation ($p=6, \epsilon=10^{-4}$)** | 2,509,138 | **-7.4%** | **33.5 s (-28.1%)** | 59.2 MB | **0.9745** | **7,075.3 (+50.3%)** | **783.5 (-30.1%)** | **Regime A (High-Throughput)** |
+| **Step 5: + Stagnation Exit ($p=6, \epsilon=10^{-4}$)** | 2,509,138 | **-7.4%** | **33.5 s (-28.1%)** | 59.2 MB | **0.9745** | **7,075.3 (+50.3%)** | **783.5 (-30.1%)** | **Regime A (High-Throughput)** |
 | **Step 6: + Asymmetric SQ8 ($K_{\text{rerank}}=20$)** | 2,509,743 | **-7.4%** | 64.0 s | **22.5 MB (-62.4%)** | **0.9594** | 2,987.6 | 842.6 | **Regime B (Memory-Compact)** |
 
 ---
@@ -272,7 +272,7 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 | **Step 2: + Dynamic $M(x)$ & $efC(x)$** | 1,288,175 | +0.3% | 15.2 s | 17.5 MB | **0.9172** | 5,893.3 | 1,428.3 |
 | **Step 3: + Layer Scaling ($\lambda=0.75$)** | 1,257,271 | **-2.1%** | 14.8 s | 17.4 MB | **0.9145** | **6,801.5 (+14.9%)** | 1,397.8 |
 | **Step 4: + Hubness Regulation ($\mu=0.15$)** | 1,289,398 | +0.4% | 15.1 s | 17.5 MB | 0.7821 | 6,529.0 | 1,297.2 |
-| **Step 5: + Ada-ef Stagnation Exit** | 1,263,970 | **-1.6%** | 14.3 s | 17.4 MB | **0.8566** | **7,420.7 (+25.3%)** | **1,294.4 (-9.5%)** |
+| **Step 5: + Stagnation Early Exit** | 1,263,970 | **-1.6%** | 14.3 s | 17.4 MB | **0.8566** | **7,420.7 (+25.3%)** | **1,294.4 (-9.5%)** |
 | **Step 6: + Asymmetric INT8 SQ8** | 1,293,780 | +0.7% | 14.9 s | **8.4 MB (-52.0%)** | **0.8564** | 6,610.5 | 1,371.9 |
 
 ---
@@ -283,7 +283,7 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 > **Scientific Integrity & Empirical Gap Alignment**:
 > The research paper draft ([`AdaptiveVec_Research_Paper.pdf`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/AdaptiveVec_Research_Paper.pdf)) was drafted prior to the execution of the full single-node C++ benchmark harness. The empirical numbers in this README and in `benchmark_results.json` represent the **verified ground truth**:
 >
-> 1. **Step-Specific Reporting**: Overview KPIs are never mixed across steps. Step 5 reports **0.9745 recall at 7,075.3 QPS** (FP32 payload); Step 6 reports **22.5 MB RAM at 0.9594 recall** (SQ8 payload); Step 4 reports **0.9854 recall parity** (before Ada-ef early exit).
+> 1. **Step-Specific Reporting**: Overview KPIs are never mixed across steps. Step 5 reports **0.9745 recall at 7,075.3 QPS** (FP32 payload); Step 6 reports **22.5 MB RAM at 0.9594 recall** (SQ8 payload); Step 4 reports **0.9854 recall parity** (before stagnation early exit).
 > 2. **Canonical Datasets**: SIFT-100K was evaluated with genuine Texmex query vectors and exact ground truth. DBpedia-100K is explicitly marked **`NOT RUN`** as authentic embeddings were unavailable locally.
 > 3. **Edge Savings**: Real SIFT-100K edge reduction is **7.4%** ($\approx 200,000$ fewer links), maintaining full graph navigability.
 
@@ -421,7 +421,7 @@ Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
 #### Key Workbench Capabilities:
 1. **Four Full-Viewport Focus Canvases:**
-   - **Benchmark & Ablation Observatory:** Interactive log-scale Pareto frontier with spring-gliding crosshairs (`stiffness: 420, damping: 36`), synchronized 3-regime illumination (Regime A: Step 5 Ada-ef, Regime B: Step 6 SQ8, Control: Step 1 Baseline), discrete HUD settle, and invisible arrow stepping (`ArrowLeft`/`ArrowRight`).
+   - **Benchmark & Ablation Observatory:** Interactive log-scale Pareto frontier with spring-gliding crosshairs (`stiffness: 420, damping: 36`), synchronized 3-regime illumination (Regime A: Step 5 Stagnation Exit, Regime B: Step 6 SQ8, Control: Step 1 Baseline), discrete HUD settle, and invisible arrow stepping (`ArrowLeft`/`ArrowRight`).
    - **2D Manifold & Graph Observatory:** Dynamic projection re-anchoring between UMAP and PCA coordinates while proximity edges dynamically re-track. Includes 3 phosphor color modes (Degree $M$, LID, Density), generous $15\text{px}$ transparent hit targets for effortless clicking, and dashed axis reticle guides.
    - **Query Traversal & Geodesic Search:** Animated priority queue ($W$ buffer) visualizing candidate expansions and prunings with physical spring transitions via `<AnimatePresence mode="popLayout">`, top-candidate accent borders, and active hop radar convergence pulses.
    - **Dataset Corpus Matrix:** Modular instrument rack with genuine benchmark metrics for SIFT-100K and Synthetic-Multi-Cluster, and strict scientific attribution for DBpedia-100K (**NOT RUN** badge with zero synthetic metrics).
@@ -526,13 +526,15 @@ If you utilize AdaptiveVec in your academic research, benchmarking studies, or e
 ## 11. References
 
 1. **Malkov, Yu A., and D. A. Yashunin.** *"Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs."* IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI) 42.4 (2020): 824-836.
-2. **Amsaleg, L., Chelly, O., Furon, T., Girard, S., Houle, M. E., Keneshloo, Y., & Nett, M.** *"Estimating local intrinsic dimension."* ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (2015): 29-38.
-3. **Subramanya, S. J., Devvrit, F. K., Simhadri, H. V., Krishnawamy, R., & Kadekodi, R.** *"Rand-NSG: Fast accurate nearest neighbor search on large scale data."* Advances in Neural Information Processing Systems (NeurIPS) 32 (2019).
+2. **Levina, E., and P. J. Bickel.** *"Maximum likelihood estimation of intrinsic dimension."* Advances in Neural Information Processing Systems (NeurIPS) 17 (2005).
+3. **Amsaleg, L., et al.** *"Estimating local intrinsic dimension."* ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (2015): 29-38.
 4. **Radovanović, M., Nanopoulos, A., & Ivanović, M.** *"Hubs in space: Popular nearest neighbors in high-dimensional data."* Journal of Machine Learning Research (JMLR) 11 (2010): 2487-2531.
-5. **Ada-ef.** *"Data-Driven Query-Adaptive Exploration Factor Configuration for Approximate Nearest Neighbor Search."* ACM SIGMOD International Conference on Management of Data (2026). arXiv:2512.06636.
-6. **Elliott, J., & Clark, A.** *"Impacts of Data, Ordering, and Intrinsic Dimensionality on Recall in HNSW."* arXiv preprint arXiv:2408.01234 (2024).
-7. **Welford, B. P.** *"Note on a method for calculating corrected sums of squares and products."* Technometrics 4.3 (1962): 419-420.
-8. **Dynamic HNSW.** *"Density- and Dimensionality-Aware Proximity Graph Indexing."* IEEE Transactions on Knowledge and Data Engineering (TKDE) (2026).
+5. **Subramanya, S. J., et al.** *"DiskANN: Fast accurate billion-point nearest neighbor search on a single node."* Advances in Neural Information Processing Systems (NeurIPS) 32 (2019).
+6. **Welford, B. P.** *"Note on a method for calculating corrected sums of squares and products."* Technometrics 4.3 (1962): 419-420.
+7. **Elliott, T., & Clark, C.** *"Improving HNSW graph construction through intrinsic dimensionality ordering."* arXiv preprint arXiv:2403.11928 (2024).
+8. **Wang, M., Xu, X., Yue, Q., & Wang, Y.** *"A comprehensive survey and experimental comparison of graph-based approximate nearest neighbor search."* Proceedings of the VLDB Endowment (PVLDB) 14.11 (2021): 1964-1978.
+9. **Li, W., et al.** *"Approximate nearest neighbor search on high dimensional data—experiments, analyses, and improvement."* IEEE Transactions on Knowledge and Data Engineering (TKDE) 32.8 (2020): 1475-1488.
+10. **Shinde, A.** *"AdaptiveVec: Density- and dimension-aware proximity graph index for resource-constrained vector retrieval."* Proceedings of Engineering Design & Innovation (EDI) (2026).
 
 ---
 

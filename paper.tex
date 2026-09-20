@@ -33,7 +33,7 @@ aradhyashinde2330@gmail.com}
 \maketitle
 
 \begin{abstract}
-Hierarchical Navigable Small World (HNSW) proximity graphs underpin modern approximate nearest neighbor search (ANNS) in production vector databases. However, canonical HNSW enforces rigid, globally uniform hyper-parameters ($M=16, efConstruction=200$) across heterogeneous high-dimensional manifolds. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity links, squandering memory and memory bus bandwidth with zero recall utility. Conversely, sparse high-dimensional boundary regions suffer from capacity starvation and topological disconnects, exacerbated by the hubness phenomenon. We introduce \textbf{AdaptiveVec}, a lightweight, manifold-adaptive proximity graph architecture tailored for resource-constrained commodity hardware ($100\text{K}$--$1\text{M}$ vectors on single-node laptops and edge instances). AdaptiveVec extracts online geometric signals---\textbf{Local Intrinsic Dimensionality (LID)} via maximum likelihood estimation and \textbf{Local Density ($D$)}---directly from standard greedy routing descent paths at under $0.8\%$ computational overhead, completely eliminating offline pre-clustering passes. It introduces: (1) a \textit{Layer-Decoupled Dynamic Allocation Policy} that scales per-node degree while compressing higher-layer express links; (2) \textit{Streaming Online Welford Tracking} with exponential decay; (3) a \textit{Hubness-Aware In-Degree Regulation Heuristic} that penalizes high-degree bottleneck vertices; (4) \textit{Ada-ef Distance Stagnation Early Exit} to truncate futile search hops; and (5) \textit{Asymmetric INT8 Scalar Quantization (SQ8)} with float32 distance re-ranking. AdaptiveVec delivers a \textbf{7.4\% reduction in graph edges}, up to \textbf{50.3\% higher query throughput (7,075.3 QPS vs. 4,708.1 QPS baseline)} via the Ada-ef stagnation early-exit mechanism, and \textbf{62.4\% index memory reduction (22.5MB vs. 59.9MB)} via asymmetric INT8 scalar quantization, at a measured Recall@10 of \textbf{0.9745} (throughput-optimized configuration) and \textbf{0.9594} (memory-optimized configuration) against a 0.9913 baseline, evaluated on a canonical SIFT-100K subset (Texmex IRISA) on commodity hardware (Intel Core 5 210H, 8 cores/12 threads, AVX2/FMA, 16GB RAM).
+Hierarchical Navigable Small World (HNSW) proximity graphs underpin modern approximate nearest neighbor search (ANNS) in production vector databases. However, canonical HNSW enforces rigid, globally uniform hyper-parameters ($M=16, efConstruction=200$) across heterogeneous high-dimensional manifolds. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity links, squandering memory and memory bus bandwidth with zero recall utility. Conversely, sparse high-dimensional boundary regions suffer from capacity starvation and topological disconnects, exacerbated by the hubness phenomenon. We introduce \textbf{AdaptiveVec}, a lightweight, manifold-adaptive proximity graph architecture tailored for resource-constrained commodity hardware ($100\text{K}$--$1\text{M}$ vectors on single-node laptops and edge instances). AdaptiveVec extracts online geometric signals---\textbf{Local Intrinsic Dimensionality (LID)} via maximum likelihood estimation and \textbf{Local Density ($D$)}---directly from standard greedy routing descent paths at under $0.8\%$ computational overhead, completely eliminating offline pre-clustering passes. It introduces: (1) a \textit{Layer-Decoupled Dynamic Allocation Policy} that scales per-node degree while compressing higher-layer express links; (2) \textit{Streaming Online Welford Tracking} with exponential decay; (3) a \textit{Hubness-Aware In-Degree Regulation Heuristic} that penalizes high-degree bottleneck vertices; (4) \textit{Distance Stagnation Early Exit} to truncate futile search hops; and (5) \textit{Asymmetric INT8 Scalar Quantization (SQ8)} with float32 distance re-ranking. AdaptiveVec delivers a \textbf{7.4\% reduction in graph edges}, up to \textbf{50.3\% higher query throughput (7,075.3 QPS vs. 4,708.1 QPS baseline)} via the distance stagnation early-exit mechanism, and \textbf{62.4\% index memory reduction (22.5MB vs. 59.9MB)} via asymmetric INT8 scalar quantization, at a measured Recall@10 of \textbf{0.9745} (throughput-optimized configuration) and \textbf{0.9594} (memory-optimized configuration) against a 0.9913 baseline, evaluated on a canonical SIFT-100K subset (Texmex IRISA) on commodity hardware (Intel Core 5 210H, 8 cores/12 threads, AVX2/FMA, 16GB RAM).
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -109,7 +109,7 @@ d_{\text{eff}}(u, v) = d(u, v) \cdot \left[ 1 + \mu \cdot \left( \frac{\text{deg
 \end{equation}
 where $\mu = 0.15$. This penalizes over-connected hubs and redirects links to topologically diverse alternatives.
 
-\subsection{Ada-ef Distance Stagnation Early Exit}
+\subsection{Distance Stagnation Early Exit}
 During query-time beam search at layer 0, standard HNSW evaluates candidate nodes until the priority queue is exhausted. AdaptiveVec tracks the minimum discovered candidate distance $d_{\text{best}}$. If absolute improvement $\Delta = d_{\text{best}}^{(\text{old})} - d_{\text{best}}^{(\text{new})}$ satisfies $\Delta < \epsilon$ ($\epsilon = 10^{-4}$) for $p = 6$ consecutive hops, search terminates immediately. This introduces a controlled trade-off: an intentional 1.68\% recall delta ($0.9913 \to 0.9745$) eliminates 30.1\% of distance evaluations ($1,121.2 \to 783.5$ evals/query) and boosts throughput from 4,708.1 to 7,075.3 QPS (+50.3\%).
 
 \textit{Remark on Implementation Correctness (Min-Heap Monotonicity Bug):} In early prototyping, $d_{\text{best}}$ was evaluated against individual popped candidate distances from the traversal priority queue. Because popped elements from a min-heap are non-decreasing, evaluating consecutive differences across popped elements caused false-positive stagnation triggers prematurely during early exploratory jumps, devastating recall. The resolution enforced tracking the strictly non-increasing global best distance across the entire visited candidate set ($d_{\text{best}} \leftarrow \min(d_{\text{best}}, d_{\text{new}})$).
@@ -145,7 +145,7 @@ Evaluations were conducted on a single-node host: Intel Core 5 210H (8 cores / 1
 \textbf{Configuration} & \textbf{Edges} & \textbf{Build (s)} & \textbf{RAM} & \textbf{Recall@10} & \textbf{QPS} & \textbf{Evals/q} \\
 \midrule
 Baseline HNSW & 2,709,125 & 46.6 & 59.9 MB & \textbf{0.9913} & 4,708.1 & 1,121.2 \\
-Regime A (Step 5) & 2,509,138 & \textbf{33.5} & 59.2 MB & 0.9745 & \textbf{7,075.3} & \textbf{783.5} \\
+Regime A (Step 5) & 2,509,138 & \textbf{33.5} & 59.2 MB (Parity) & 0.9745 & \textbf{7,075.3} & \textbf{783.5} \\
 Regime B (Step 6 SQ8) & 2,509,743 & 64.0 & \textbf{22.5 MB} & 0.9594 & 2,987.6 & 842.6 \\
 \bottomrule
 \end{tabular}
@@ -163,7 +163,7 @@ Regime B (Step 6 SQ8) & 2,509,743 & 64.0 & \textbf{22.5 MB} & 0.9594 & 2,987.6 &
 2. + Dynamic $M(x)$ & 2,549,825 & 47.9 & 59.3MB & 0.9883 & 5,147.1 \\
 3. + Layer Scaling & 2,515,277 & 33.5 & 59.2MB & 0.9887 & 2,242.3 \\
 4. + Hubness Reg. & 2,510,334 & 35.8 & 59.2MB & 0.9854 & 5,452.0 \\
-5. + Ada-ef Exit & 2,509,138 & 33.5 & 59.2MB & 0.9745 & \textbf{7,075.3} \\
+5. + Stagnation Exit & 2,509,138 & 33.5 & 59.2MB & 0.9745 & \textbf{7,075.3} \\
 6. + Asym. SQ8 & 2,509,743 & 64.0 & \textbf{22.5MB} & 0.9594 & 2,987.6 \\
 \midrule
 \multicolumn{6}{l}{\textbf{Part B: Synthetic-Multi-Cluster ($N=50\text{K}, D=64, Q=1\text{K}$)}} \\
@@ -171,7 +171,7 @@ Regime B (Step 6 SQ8) & 2,509,743 & 64.0 & \textbf{22.5 MB} & 0.9594 & 2,987.6 &
 2. + Dynamic $M(x)$ & 1,288,175 & 15.2 & 17.5MB & 0.9172 & 5,893.3 \\
 3. + Layer Scaling & 1,257,271 & 14.8 & 17.4MB & 0.9145 & 6,801.5 \\
 4. + Hubness Reg. & 1,289,398 & 15.1 & 17.5MB & 0.7821 & 6,529.0 \\
-5. + Ada-ef Exit & 1,263,970 & 14.3 & 17.4MB & 0.8566 & \textbf{7,420.7} \\
+5. + Stagnation Exit & 1,263,970 & 14.3 & 17.4MB & 0.8566 & \textbf{7,420.7} \\
 6. + Asym. SQ8 & 1,293,780 & 14.9 & \textbf{8.4MB} & 0.8564 & 6,610.5 \\
 \bottomrule
 \end{tabular}
