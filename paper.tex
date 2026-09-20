@@ -126,6 +126,8 @@ Under clustered, low-LID subspaces where $\mathbb{E}[S(x)] < 0$, empirical expec
 
 \textbf{Proposition 2 (Insertion Complexity Bounds).} With $k_{\text{probe}} \le 25 \ll efC_{\text{base}}$, the signal probing term is $\mathcal{O}(k_{\text{probe}} \cdot D + k_{\text{probe}} \log k_{\text{probe}})$, strictly dominated by layer construction search. Discounted construction budgets in low-LID clusters accelerate total indexing time by 28.1\% (33.5s vs. 46.6s baseline).
 
+\textbf{Empirical Observation 1 (In-Degree Variance \& Hubness Mitigation).} Under canonical Relative Neighborhood Graph (RNG) edge selection, the in-degree distribution exhibits a heavy-tailed profile. Under AdaptiveVec's degree-penalized effective distance $d_{\text{eff}}(u, v)$, candidate selection probability decays inversely with $\text{deg}_{\text{in}}(v)$. Empirically across evaluated benchmarks, this prevents runaway hub accumulation (capping practical maximum in-degree near $\sim 2 \cdot M_{\text{max}}$) and reduces measured in-degree variance: $\text{Var}_{\text{AdaptiveVec}}(\text{deg}_{\text{in}}) \le 0.45 \cdot \text{Var}_{\text{HNSW}}(\text{deg}_{\text{in}})$.
+
 \section{Empirical Evaluation}
 
 \subsection{Experimental Setup}
@@ -191,7 +193,7 @@ A foundational hypothesis of AdaptiveVec is that the online manifold difficulty 
 \end{enumerate}
 
 \subsection{Parameter Sensitivity \& Robustness Sweeps}
-To establish robustness against hyper-parameter selection, we executed parameter sweeps across three critical knobs: hubness penalty weight $\mu$, stagnation patience $p$, and policy sensitivity $\gamma$ (Table~\ref{tab:sweeps}).
+To establish robustness against hyper-parameter selection, we executed parameter sweeps across three critical knobs: hubness penalty weight $\mu$, stagnation patience $p$, and policy sensitivity $\gamma$ (Table~\ref{tab:sweeps}). For the hubness penalty on Synthetic-Multi-Cluster, reachability remains $\ge 99.95\%$ across all $\mu \in [0.00, 0.30]$, indicating that severe graph disconnectivity was not the primary cause of degradation; $\mu \le 0.05$ produced the best observed recall/throughput behavior on this topology. For stagnation early exit, $p=6$ represents a strong recall--efficiency trade-off (reducing distance evaluations by 30.1\% with a 1.1\% recall delta), while $p=8$ yields nearly identical throughput at higher recall (0.9742). For policy sensitivity, increasing $\gamma$ from 0.20 to 1.00 achieves monotonic edge pruning ($-6.0\%$) with negligible recall sensitivity ($<0.9\%$ variation across a $5\times$ range).
 
 \begin{table}[htbp]
 \caption{Parameter Sensitivity Sweeps across Hubness ($\mu$), Patience ($p$), and Sensitivity ($\gamma$)}
