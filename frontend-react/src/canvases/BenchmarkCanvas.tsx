@@ -22,19 +22,19 @@ const BENCHMARK_POINTS: PlotPoint[] = [
   {
     id: 'step-6',
     stepName: '6. + Asymmetric INT8 SQ8',
-    shortName: 'Step 6 (SQ8)',
+    shortName: 'Step 6: SQ8 (-62.4% RAM)',
     qps: 2987.6,
     recall: 0.9594,
     edges: 2509743,
     memoryMb: 22.54,
     evals: 1042.0,
-    attribution: 'Scalar INT8 quantized distance re-ranking',
+    attribution: 'Scalar INT8 quantized distance re-ranking (Regime B)',
     deltaText: '-62.4% RAM (22.5 MB)',
   },
   {
     id: 'step-3',
     stepName: '3. + Layer-Decoupled Scaling',
-    shortName: 'Step 3 (Decoupled)',
+    shortName: 'Step 3: Decoupled',
     qps: 2242.3,
     recall: 0.9887,
     edges: 2515277,
@@ -46,7 +46,7 @@ const BENCHMARK_POINTS: PlotPoint[] = [
   {
     id: 'step-1',
     stepName: '1. Baseline HNSW (Fixed M=16)',
-    shortName: 'Step 1 (Baseline)',
+    shortName: 'Step 1: Baseline (4,708 QPS)',
     qps: 4708.1,
     recall: 0.9913,
     edges: 2709125,
@@ -58,7 +58,7 @@ const BENCHMARK_POINTS: PlotPoint[] = [
   {
     id: 'step-2',
     stepName: '2. + Dynamic M(x) & efC(x)',
-    shortName: 'Step 2 (Adaptive)',
+    shortName: 'Step 2: Adaptive M(x)',
     qps: 5147.1,
     recall: 0.9883,
     edges: 2549825,
@@ -70,32 +70,32 @@ const BENCHMARK_POINTS: PlotPoint[] = [
   {
     id: 'step-4',
     stepName: '4. + Hubness Regulation (mu=0.15)',
-    shortName: 'Step 4 (+Hubness)',
+    shortName: 'Step 4: +Hubness (0.9856 parity)',
     qps: 5452.0,
     recall: 0.9854,
     edges: 2510334,
     memoryMb: 59.17,
     evals: 979.5,
-    attribution: 'Penalize over-selected central hub nodes',
+    attribution: 'Penalize over-selected central hub nodes (Multi-trial parity 0.9856)',
     deltaText: '0.9856 multi-trial parity',
   },
   {
     id: 'step-5',
     stepName: '5. + Ada-ef Stagnation Exit',
-    shortName: 'Step 5 (Ada-ef)',
+    shortName: 'Step 5: Ada-ef (7,075 QPS • +50.3%)',
     qps: 7075.3,
     recall: 0.9745,
     edges: 2509138,
     memoryMb: 59.16,
     evals: 783.5,
     isFeatured: true,
-    attribution: 'Dynamic efSearch with adaptive stagnation termination (p=6, ε=10⁻⁴)',
+    attribution: 'Dynamic efSearch with adaptive stagnation termination (p=6, ε=10⁻⁴, Regime A)',
     deltaText: '+50.3% QPS (Featured)',
   },
 ];
 
 export const BenchmarkCanvas: React.FC = () => {
-  const { toggleDrawer, hardware, results } = useBenchmark();
+  const { toggleDrawer, hardware, results: _results, siftResults, syntheticResults } = useBenchmark();
   const [activeTab, setActiveTab] = useState<'pareto' | 'ablation' | 'regimes'>('pareto');
   const [selectedPoint, setSelectedPoint] = useState<PlotPoint>(BENCHMARK_POINTS[5]); // Default: Step 5
 
@@ -182,10 +182,15 @@ export const BenchmarkCanvas: React.FC = () => {
             <div className={styles.paneHeader}>
               <div className={styles.paneTitle}>
                 <div className={styles.instrumentDot} />
-                <span>Empirical Pareto Frontier • Recall vs. Throughput</span>
+                <span>Empirical Pareto Frontier • SIFT-100K Canonical Corpus</span>
               </div>
-              <div className="badge-pill">
-                <span>Evaluated: {hardware.model}</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div className="badge-pill cyan">
+                  <span>N=100,000 • D=128 • Q=10,000</span>
+                </div>
+                <div className="badge-pill">
+                  <span>Evaluated: {hardware.model}</span>
+                </div>
               </div>
             </div>
 
@@ -591,7 +596,7 @@ export const BenchmarkCanvas: React.FC = () => {
         </div>
       )}
 
-      {/* 6-Step Ablation Matrix View */}
+      {/* 6-Step Ablation Matrix View with Explicit Dataset Separators */}
       {activeTab === 'ablation' && (
         <div className={styles.ablationTableContainer}>
           <table className={styles.ablationTable}>
@@ -607,13 +612,22 @@ export const BenchmarkCanvas: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {results.map((r) => {
+              {/* Dataset Section 1: SIFT-100K Subset */}
+              <tr className={styles.datasetSeparatorRow}>
+                <td colSpan={7}>
+                  <div className={styles.datasetSeparatorContent}>
+                    <span className={styles.datasetSeparatorTitle}>CANONICAL BENCHMARK • SIFT-100K SUBSET</span>
+                    <span className={styles.datasetSeparatorMeta}>Texmex IRISA • N=100,000 • D=128 • L2 Euclidean (Q=10,000 test queries)</span>
+                  </div>
+                </td>
+              </tr>
+              {siftResults.map((r) => {
                 const isStep5 = r.configuration.includes('5. + Ada-ef');
                 const isStep6 = r.configuration.includes('6. + Asymmetric');
 
                 return (
                   <tr
-                    key={r.configuration}
+                    key={`sift-${r.configuration}`}
                     className={isStep5 ? styles.tableRowHighlight : ''}
                   >
                     <td>
@@ -621,6 +635,53 @@ export const BenchmarkCanvas: React.FC = () => {
                         <span>{r.configuration}</span>
                         {isStep5 && <span className="badge-pill emerald">Featured (+50.3%)</span>}
                         {isStep6 && <span className="badge-pill accent">SQ8 (-62.4% RAM)</span>}
+                      </div>
+                    </td>
+                    <td className="tabular-nums font-semibold">
+                      {r.recall_at_10.toFixed(4)}
+                    </td>
+                    <td className="tabular-nums font-semibold">
+                      {r.qps.toLocaleString()}
+                    </td>
+                    <td className="tabular-nums">
+                      {r.build_speedup_pct > 0 ? `+${r.build_speedup_pct}%` : `${r.build_speedup_pct}%`}
+                    </td>
+                    <td className="tabular-nums">
+                      {r.total_edges.toLocaleString()}
+                    </td>
+                    <td className="tabular-nums">
+                      {r.memory_mb.toFixed(2)} MB
+                    </td>
+                    <td className="tabular-nums">
+                      {r.distance_evaluations_per_query.toFixed(1)}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* Dataset Section 2: Synthetic-Multi-Cluster */}
+              <tr className={styles.datasetSeparatorRow}>
+                <td colSpan={7}>
+                  <div className={styles.datasetSeparatorContent}>
+                    <span className={styles.datasetSeparatorTitle}>SECONDARY BENCHMARK • SYNTHETIC MULTI-CLUSTER</span>
+                    <span className={styles.datasetSeparatorMeta}>8 Heterogeneous Gaussian Clusters • N=50,000 • D=64 • L2 Space (Q=1,000 test queries)</span>
+                  </div>
+                </td>
+              </tr>
+              {syntheticResults.map((r) => {
+                const isStep5 = r.configuration.includes('5. + Ada-ef');
+                const isStep6 = r.configuration.includes('6. + Asymmetric');
+
+                return (
+                  <tr
+                    key={`synth-${r.configuration}`}
+                    className={isStep5 ? styles.tableRowHighlight : ''}
+                  >
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{r.configuration}</span>
+                        {isStep5 && <span className="badge-pill emerald">Ada-ef Exit</span>}
+                        {isStep6 && <span className="badge-pill accent">SQ8 Scaled</span>}
                       </div>
                     </td>
                     <td className="tabular-nums font-semibold">

@@ -691,6 +691,40 @@
   font-weight: 600;
 }
 
+/* Dataset Section Separator Rows */
+.datasetSeparatorRow {
+  background: var(--bg-card-subtle);
+  border-top: 1.5px solid var(--border-emphasis);
+  border-bottom: 1.5px solid var(--border-subtle);
+}
+
+.datasetSeparatorRow td {
+  padding: 8px 12px !important;
+  text-align: left !important;
+  background: var(--bg-card-subtle);
+}
+
+.datasetSeparatorContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.datasetSeparatorTitle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.datasetSeparatorMeta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
 /* 3-Regime Wide Matrix Layout */
 .regimeWideGrid {
   flex: 1;
