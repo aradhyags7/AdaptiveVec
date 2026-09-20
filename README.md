@@ -47,8 +47,9 @@ Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vecto
    - [8.1 Single-Command Benchmark Reproduction](#81-single-command-benchmark-reproduction)
    - [8.2 Environment Setup & Installation](#82-environment-setup--installation)
    - [8.3 Automated Test Suite](#83-automated-test-suite)
-   - [8.4 Interactive Research Laboratory & Simulator](#84-interactive-research-laboratory--simulator)
-   - [8.5 Manual C++ Compilation](#85-manual-c-compilation)
+   - [8.4 Interactive Research Workbench (React + Vite)](#84-interactive-research-workbench-react--vite)
+   - [8.5 FastAPI REST Server & Legacy Simulator](#85-fastapi-rest-server--legacy-simulator)
+   - [8.6 Manual C++ Compilation](#86-manual-c-compilation)
 9. [REST API Formal Specification](#9-rest-api-formal-specification)
 10. [Academic Citation (BibTeX)](#10-academic-citation-bibtex)
 11. [References](#11-references)
@@ -282,7 +283,7 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 > **Scientific Integrity & Empirical Gap Alignment**:
 > The research paper draft ([`AdaptiveVec_Research_Paper.pdf`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/AdaptiveVec_Research_Paper.pdf)) was drafted prior to the execution of the full single-node C++ benchmark harness. The empirical numbers in this README and in `benchmark_results.json` represent the **verified ground truth**:
 >
-> 1. **Step-Specific Reporting**: Overview KPIs are never mixed across steps. Step 5 reports **0.9745 recall at 7,075.3 QPS** (FP32 payload); Step 6 reports **22.5 MB RAM at 0.9594 recall** (SQ8 payload); Step 4 reports **0.9856 recall parity** (before Ada-ef early exit).
+> 1. **Step-Specific Reporting**: Overview KPIs are never mixed across steps. Step 5 reports **0.9745 recall at 7,075.3 QPS** (FP32 payload); Step 6 reports **22.5 MB RAM at 0.9594 recall** (SQ8 payload); Step 4 reports **0.9854 recall parity** (before Ada-ef early exit).
 > 2. **Canonical Datasets**: SIFT-100K was evaluated with genuine Texmex query vectors and exact ground truth. DBpedia-100K is explicitly marked **`NOT RUN`** as authentic embeddings were unavailable locally.
 > 3. **Edge Savings**: Real SIFT-100K edge reduction is **7.4%** ($\approx 200,000$ fewer links), maintaining full graph navigability.
 
@@ -310,7 +311,15 @@ AdaptiveVec/
 │   ├── dataset_loader.hpp       # Fast binary .fvecs / .ivecs parser
 │   ├── benchmark_main.cpp       # 6-Step ablation & macro benchmark runner
 │   └── benchmark_runner.exe     # Compiled native benchmark runner executable
-├── frontend/                    # Interactive Research Laboratory Studio
+├── frontend-react/              # Single-Focus Research Workbench (React 19 + Vite + Framer Motion)
+│   ├── src/
+│   │   ├── canvases/            # 4 Viewport Observatories (Benchmark, Manifold, Query, Dataset)
+│   │   ├── components/workbench/# Tool rail, slide-in drawers (Policy Inspector, Raw Data, Settings)
+│   │   ├── context/             # Global BenchmarkContext & keyboard shortcuts (1-4, Esc)
+│   │   └── types/               # TypeScript interfaces & ground-truth benchmark types
+│   ├── package.json             # React, Vite, Framer Motion, Lucide icons
+│   └── vite.config.ts           # Vite bundler configuration
+├── frontend/                    # Legacy HTML5/Vanilla JS Reference Studio
 │   ├── index.html               # 9-view responsive research dashboard with control dock & HUD
 │   ├── styles.css               # Clean Linear/Vercel design system with dark/light themes
 │   └── app.js                   # Reactive math engine, canvas beam visualizer, and streaming runner
@@ -373,9 +382,64 @@ pytest -v
 
 ---
 
-### 8.4 Interactive Research Laboratory & Simulator
+### 8.4 Interactive Research Workbench (React + Vite)
 
-AdaptiveVec includes a full-featured web-based **Interactive Research Laboratory** engineered with Vanilla CSS and reactive JavaScript:
+The primary interface for AdaptiveVec is the **Single-Focus Research Workbench** (`frontend-react/`), engineered with **React 19, Vite, TypeScript, and Framer Motion**. Designed with the restrained aesthetic of a precision scientific instrument (oscilloscopes, laboratory spectrum analyzers, audio DAWs) rather than generic SaaS dashboards, the workbench gives researchers full visual and interactive control:
+
+```bash
+# Navigate to frontend-react directory
+cd frontend-react
+
+# Install dependencies
+npm install
+
+# Start Vite development server
+npm run dev
+```
+Open **[http://localhost:5173](http://localhost:5173)** in your browser.
+
+```
+┌───┬───────────────────────────────────────────────────────────────────────────────────────┐
+│ R │  [CANVAS 1: BENCHMARK & ABLATION OBSERVATORY]                         [REGIME FOCUS]  │
+│ A │  • Pareto Frontier (Log QPS vs Recall@10)                            ┌──────────────┐ │
+│ I │  • Spring-Gliding Reticle Crosshairs (Steps 1–6)                     │ Regime A     │ │
+│ L │  • Real Discrete Telemetry HUD (Edges, RAM, QPS, Evals/q)            │ +50.3% QPS   │ │
+├───┤                                                                      ├──────────────┤ │
+│ 1 │  [CANVAS 2: 2D MANIFOLD & GRAPH OBSERVATORY]                         │ Regime B     │ │
+│ 2 │  • Smooth UMAP ↔ PCA Re-anchoring with Edge Coordinate Tracking      │ -62.4% RAM   │ │
+│ 3 │  • Phosphor Recalibration (Degree M, Local Intrinsic Dim, Density)   └──────────────┘ │
+│ 4 │  • Forgiving 15px Transparent Hit Targets & Axis Reticle Guides                       │
+├───┤                                                                                       │
+│ D │  [CANVAS 3: QUERY TRAVERSAL & GEODESIC SEARCH]                                        │
+│ R │  • Animated Priority Queue (W Buffer) Candidate Drops & Contractions                  │
+│ A │  • Active Hop Radar Pulse on Geodesic Distance Convergence Plot                       │
+│ W │                                                                                       │
+│ E │  [CANVAS 4: DATASET CORPUS MATRIX]                                                    │
+│ R │  • Modular Hardware Rack Mount (SIFT-100K, Synthetic, GloVe-100, DBpedia NOT RUN)     │
+└───┴───────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Key Workbench Capabilities:
+1. **Four Full-Viewport Focus Canvases:**
+   - **Benchmark & Ablation Observatory:** Interactive log-scale Pareto frontier with spring-gliding crosshairs (`stiffness: 420, damping: 36`), synchronized 3-regime illumination (Regime A: Step 5 Ada-ef, Regime B: Step 6 SQ8, Control: Step 1 Baseline), discrete HUD settle, and invisible arrow stepping (`ArrowLeft`/`ArrowRight`).
+   - **2D Manifold & Graph Observatory:** Dynamic projection re-anchoring between UMAP and PCA coordinates while proximity edges dynamically re-track. Includes 3 phosphor color modes (Degree $M$, LID, Density), generous $15\text{px}$ transparent hit targets for effortless clicking, and dashed axis reticle guides.
+   - **Query Traversal & Geodesic Search:** Animated priority queue ($W$ buffer) visualizing candidate expansions and prunings with physical spring transitions via `<AnimatePresence mode="popLayout">`, top-candidate accent borders, and active hop radar convergence pulses.
+   - **Dataset Corpus Matrix:** Modular instrument rack with genuine benchmark metrics for SIFT-100K and Synthetic-Multi-Cluster, and strict scientific attribution for DBpedia-100K (**NOT RUN** badge with zero synthetic metrics).
+2. **Slide-In Utility Drawers:**
+   - **Index Policy Inspector (`Cmd/Ctrl+I` or Tool Rail):** Inspect hyperparameter configurations ($M_{\text{base}}, efC_{\text{base}}, \alpha_{\text{LID}}, \beta_{\text{density}}$) with transparent provenance notes regarding native C++ compilation.
+   - **Raw Data & Exports (`Cmd/Ctrl+D`):** Instant single-click exports of `benchmark_results.json` and `benchmark_results.csv` with raw metric inspection.
+   - **Workbench Settings:** System hardware telemetry verification (`Intel Core 5 210H, 8 cores/12 threads, AVX2/FMA, 16GB RAM`), dark/light theme switching, and sensory options.
+3. **Keyboard Shortcuts & Accessibility:**
+   - Keys **`1`**, **`2`**, **`3`**, **`4`**: Switch instantly between the 4 focus canvases.
+   - Key **`Escape`**: Closes any active slide-in drawer.
+   - Keys **`ArrowLeft` / `ArrowRight`**: Step forward and backward through Pareto frontier ablation checkpoints.
+   - **Full Reduced Motion Compliance:** Seamless integration with system `prefers-reduced-motion` via Framer Motion's `useReducedMotion()`, instantly falling back to zero-duration transitions.
+
+---
+
+### 8.5 FastAPI REST Server & Legacy Simulator
+
+AdaptiveVec also includes a lightweight legacy web interface and typed REST API backend engineered with FastAPI and Vanilla JS:
 
 ```bash
 # Launch FastAPI backend & research studio on port 8000
@@ -414,7 +478,7 @@ Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser.
 
 ---
 
-### 8.5 Manual C++ Compilation
+### 8.6 Manual C++ Compilation
 To compile the standalone benchmark harness with full AVX2/FMA vector optimizations manually:
 ```bash
 cd cpp
