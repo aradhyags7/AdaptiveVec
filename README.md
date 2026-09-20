@@ -293,8 +293,8 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 #### Parameter Sweeps Summary
 | Parameter | Tested Range | Optimal Value | Key Finding |
 | :--- | :---: | :---: | :--- |
-| **Hubness Weight ($\mu$)** | $[0.00, 0.30]$ | $\mu \le 0.05$ (or $\mu=0$ on synthetic) | Reachability remains $\ge 99.95\%$ across all $\mu$; higher $\mu$ penalizes necessary cross-cluster bridge nodes on isolated clusters with uniform LID. |
-| **Stagnation Patience ($p$)** | $[3, 10]$ & no exit | $p = 6$ | Smooth Pareto frontier: $p=6$ cuts distance evals by 30.1% ($819 \to 683$) with only 1.1% recall loss. |
+| **Hubness Weight ($\mu$)** | $[0.00, 0.30]$ | $\mu \le 0.05$ (or $\mu=0$ on synthetic) | Reachability remains $\ge 99.95\%$; $\mu \le 0.05$ produced the best observed recall/throughput behavior on the evaluated Synthetic-Multi-Cluster topology. |
+| **Stagnation Patience ($p$)** | $[3, 10]$ & no exit | $p = 6$ | Smooth Pareto frontier: $p=6$ represents a strong recall–efficiency trade-off (30.1% eval reduction with only 1.1% recall delta), while $p=8$ yields nearly identical throughput at higher recall (0.9742). |
 | **Policy Sensitivity ($\gamma$)** | $[0.20, 1.00]$ | $\gamma = 0.40$ | Monotonic edge reduction (2.62M down to 2.46M, $-6.0\%$) with high recall stability ($0.9831 \to 0.9744$, $<0.9\%$ delta across $5\times$ variation). |
 
 ---
@@ -315,7 +315,7 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 
 The following limitations constrain the generalizability of our results:
 
-1. **Hubness Regulation on Synthetic Data:** On Synthetic-Multi-Cluster, adding hubness regulation ($\mu=0.15$) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping $\mu \in [0.00, 0.30]$ confirms that graph reachability remains between 99.95% and 100.00% across all settings, decisively ruling out topological graph disconnectivity. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The $\mu$ parameter requires per-dataset calibration; on datasets lacking genuine hubness pathology, $\mu \le 0.05$ or $\mu = 0$ is recommended.
+1. **Hubness Regulation on Synthetic Data:** On Synthetic-Multi-Cluster, adding hubness regulation ($\mu=0.15$) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping $\mu \in [0.00, 0.30]$ confirms that graph reachability remains between 99.95% and 100.00% across all settings, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The $\mu$ parameter requires per-dataset calibration; on the evaluated Synthetic-Multi-Cluster topology, $\mu \le 0.05$ produced the best observed recall/throughput behavior, with $\mu \le 0.05$ or $\mu = 0$ recommended when evaluating clusters lacking empirical hubness pathology.
 
 2. **Evaluation Scope:** All results are evaluated on two corpora: SIFT-100K ($N=100\text{K}, D=128$) and Synthetic-Multi-Cluster ($N=50\text{K}, D=64$). Generalization to production-scale corpora ($N \ge 1\text{M}$), higher ambient dimensions ($D \ge 768$, e.g., transformer embeddings), and cosine metric spaces remains to be validated.
 

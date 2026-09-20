@@ -670,7 +670,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "<b>Lemma 1 (In-Degree Variance & Hubness Mitigation).</b> Under canonical RNG edge selection, the in-degree distribution exhibits a heavy-tailed power-law distribution with high variance Var(deg<sub>in</sub>). Under AdaptiveVec's degree-penalized effective distance <i>d</i><sub>eff</sub>(<i>u</i>, <i>v</i>), candidate selection probability decays inversely with <i>deg</i><sub>in</sub>(<i>v</i>). Consequently, the maximum in-degree is capped at <i>deg</i><sub>in</sub><sup>max</sup> ≤ 2 · <i>M</i><sub>max</sub>, and the in-degree variance satisfies Var<sub>AdaptiveVec</sub>(deg<sub>in</sub>) ≤ 0.45 · Var<sub>HNSW</sub>(deg<sub>in</sub>).",
+        "<b>Empirical Observation 1 (In-Degree Variance & Hubness Mitigation).</b> Under canonical RNG edge selection, the in-degree distribution exhibits a heavy-tailed power-law distribution with high variance Var(deg<sub>in</sub>). Under AdaptiveVec's degree-penalized effective distance <i>d</i><sub>eff</sub>(<i>u</i>, <i>v</i>), candidate selection probability decays inversely with <i>deg</i><sub>in</sub>(<i>v</i>). Empirically across evaluated benchmarks, this prevents runaway hub accumulation (capping practical maximum in-degree near ~2 · <i>M</i><sub>max</sub>) and reduces measured in-degree variance: Var<sub>AdaptiveVec</sub>(deg<sub>in</sub>) ≤ 0.45 · Var<sub>HNSW</sub>(deg<sub>in</sub>).",
         body_style
     ))
 
@@ -1009,7 +1009,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "<b>1. Hubness Penalty Weight (μ) on Synthetic-Multi-Cluster:</b> Sweeping μ ∈ [0.00, 0.30] reveals the exact mechanics of hubness suppression on synthetic clustered data. Crucially, reachability analysis confirms that <b>graph reachability remains between 99.95% and 100.00%</b> across all evaluated μ, decisively ruling out graph disconnectivity. Instead, because Synthetic-Multi-Cluster consists of 8 isolated clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38), cross-cluster navigation relies upon a sparse set of bridge nodes. Penalizing their in-degree forces search paths to take convoluted detours (dropping QPS from 7,719.7 at μ=0 down to 2,406.7 at μ=0.30), while Recall@10 drops from 0.8758 to 0.8622. For datasets lacking genuine hubness pathology, μ ≤ 0.05 is optimal.",
+        "<b>1. Hubness Penalty Weight (μ) on Synthetic-Multi-Cluster:</b> Sweeping μ ∈ [0.00, 0.30] reveals the exact mechanics of hubness suppression on synthetic clustered data. Crucially, reachability analysis confirms that <b>graph reachability remains between 99.95% and 100.00%</b> across all evaluated μ, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. Instead, because Synthetic-Multi-Cluster consists of 8 isolated clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38), cross-cluster navigation relies upon a sparse set of bridge nodes. Penalizing their in-degree forces search paths to take convoluted detours (dropping QPS from 7,719.7 at μ=0 down to 2,406.7 at μ=0.30), while Recall@10 drops from 0.8758 to 0.8622. On the evaluated Synthetic-Multi-Cluster topology, μ ≤ 0.05 produced the best observed recall/throughput behavior (with μ ≤ 0.05 or μ = 0 recommended when evaluating clusters lacking empirical hubness pathology).",
         body_style
     ))
 
@@ -1029,7 +1029,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("0.8758<br/><b>0.8764</b><br/>0.8697<br/>0.8622<br/>0.8601<br/>0.8624", table_cell_style),
             Paragraph("<b>7,719.7 QPS</b><br/>6,116.8 QPS<br/>6,175.4 QPS<br/>5,320.1 QPS<br/>4,450.7 QPS<br/>2,406.7 QPS", table_cell_style),
             Paragraph("1,258,764<br/>1,242,067<br/>1,226,990<br/>1,192,109<br/>1,190,240<br/>1,196,670", table_cell_style),
-            Paragraph("100% reachability across all μ; higher μ increases detour routing across inter-cluster bridges. μ ≤ 0.05 recommended on isolated clusters.", table_cell_left),
+            Paragraph("Reachability remains ≥ 99.95%; μ ≤ 0.05 produced the best observed recall/throughput behavior on this synthetic topology.", table_cell_left),
         ],
         # Patience Section
         [
@@ -1038,7 +1038,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("<b>0.9791</b><br/>0.9771<br/>0.9742<br/>0.9682<br/>0.9623<br/>0.9535<br/>0.9375", table_cell_style),
             Paragraph("3,862.3 QPS<br/>4,382.4 QPS<br/>4,815.0 QPS<br/>4,821.3 QPS<br/>4,785.1 QPS<br/>5,424.9 QPS<br/><b>6,174.1 QPS</b>", table_cell_style),
             Paragraph("2,486,626<br/>(fixed graph)", table_cell_style),
-            Paragraph("Monotonic Pareto frontier: p=6 achieves optimal inflection point (30% eval reduction with only 1.1% recall delta).", table_cell_left),
+            Paragraph("Monotonic Pareto frontier: p=6 represents a strong recall–efficiency trade-off (30.1% eval reduction with only 1.1% recall delta), while p=8 yields nearly identical throughput with higher recall (0.9742).", table_cell_left),
         ],
         # Policy Sensitivity Section
         [
@@ -1094,7 +1094,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
         body_style
     ))
 
-    story.append(Paragraph("• <b>Hubness Regulation on Synthetic Data:</b> On Synthetic-Multi-Cluster, adding hubness regulation (μ = 0.15) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping μ ∈ [0.00, 0.30] confirms that graph reachability remains between 99.95% and 100.00% across all settings, decisively ruling out topological graph disconnectivity. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The μ parameter requires per-dataset calibration; on datasets lacking genuine hubness pathology, μ ≤ 0.05 or μ = 0 is recommended.", bullet_style))
+    story.append(Paragraph("• <b>Hubness Regulation on Synthetic Data:</b> On Synthetic-Multi-Cluster, adding hubness regulation (μ = 0.15) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping μ ∈ [0.00, 0.30] confirms that graph reachability remains between 99.95% and 100.00% across all settings, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The μ parameter requires per-dataset calibration; μ ≤ 0.05 produced the best observed recall/throughput behavior on the evaluated Synthetic-Multi-Cluster topology, while μ ≤ 0.05 or μ = 0 is recommended when evaluating clusters lacking empirical hubness pathology.", bullet_style))
     story.append(Paragraph("• <b>Evaluation Scope:</b> All results are evaluated on two corpora: SIFT-100K (<i>N</i> = 100K, <i>D</i> = 128) and Synthetic-Multi-Cluster (<i>N</i> = 50K, <i>D</i> = 64). Generalization to production-scale corpora (<i>N</i> ≥ 1M), higher ambient dimensions (<i>D</i> ≥ 768, e.g., transformer embeddings), cosine metric spaces, and datasets with true multi-manifold LID heterogeneity remains to be validated.", bullet_style))
     story.append(Paragraph("• <b>Performance Attribution:</b> The headline +50.3% QPS gain is entirely attributable to the query-time stagnation early-exit mechanism (Section 4.5), which intentionally trades 1.68% recall. The build-time topology adaptations (Sections 4.1–4.4) deliver edge reduction and build acceleration but do not independently improve query throughput at the tested search parameters.", bullet_style))
     story.append(Paragraph("• <b>Single-Machine, Single-Threaded:</b> All benchmarks are single-threaded Python on a single consumer laptop. Multi-threaded C++ performance characteristics may differ.", bullet_style))
