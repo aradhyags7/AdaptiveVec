@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBenchmark } from '../context/BenchmarkContext';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { FileCode, Database, Layers } from 'lucide-react';
 import styles from './CanvasShared.module.css';
 
@@ -98,6 +98,31 @@ export const BenchmarkCanvas: React.FC = () => {
   const { toggleDrawer, hardware, results: _results, siftResults, syntheticResults } = useBenchmark();
   const [activeTab, setActiveTab] = useState<'pareto' | 'ablation' | 'regimes'>('pareto');
   const [selectedPoint, setSelectedPoint] = useState<PlotPoint>(BENCHMARK_POINTS[5]); // Default: Step 5
+  const shouldReduceMotion = useReducedMotion();
+
+  // Keyboard navigation between steps along the Pareto frontier
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (activeTab !== 'pareto') return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedPoint((prev) => {
+          const idx = BENCHMARK_POINTS.findIndex((p) => p.id === prev.id);
+          const nextIdx = (idx + 1) % BENCHMARK_POINTS.length;
+          return BENCHMARK_POINTS[nextIdx];
+        });
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedPoint((prev) => {
+          const idx = BENCHMARK_POINTS.findIndex((p) => p.id === prev.id);
+          const prevIdx = (idx - 1 + BENCHMARK_POINTS.length) % BENCHMARK_POINTS.length;
+          return BENCHMARK_POINTS[prevIdx];
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab]);
 
   // Plot coordinate transformation constants
   const svgWidth = 620;
@@ -310,23 +335,37 @@ export const BenchmarkCanvas: React.FC = () => {
                     transition={{ type: 'spring', stiffness: 220, damping: 28 }}
                   />
 
-                  {/* Active Point Reticle Hairlines */}
+                  {/* Active Point Reticle Hairlines (Smooth Spring Glide) */}
                   {selectedPoint && (
                     <g>
                       {/* Vertical line to X-axis */}
-                      <line
-                        x1={toSvgX(selectedPoint.qps)}
-                        y1={toSvgY(selectedPoint.recall)}
-                        x2={toSvgX(selectedPoint.qps)}
-                        y2={svgHeight - marginBottom}
+                      <motion.line
+                        animate={{
+                          x1: toSvgX(selectedPoint.qps),
+                          y1: toSvgY(selectedPoint.recall),
+                          x2: toSvgX(selectedPoint.qps),
+                          y2: svgHeight - marginBottom,
+                        }}
+                        transition={
+                          shouldReduceMotion
+                            ? { duration: 0 }
+                            : { type: 'spring', stiffness: 420, damping: 36, mass: 0.7 }
+                        }
                         className={styles.activeReticleLine}
                       />
                       {/* Horizontal line to Y-axis */}
-                      <line
-                        x1={marginLeft}
-                        y1={toSvgY(selectedPoint.recall)}
-                        x2={toSvgX(selectedPoint.qps)}
-                        y2={toSvgY(selectedPoint.recall)}
+                      <motion.line
+                        animate={{
+                          x1: marginLeft,
+                          y1: toSvgY(selectedPoint.recall),
+                          x2: toSvgX(selectedPoint.qps),
+                          y2: toSvgY(selectedPoint.recall),
+                        }}
+                        transition={
+                          shouldReduceMotion
+                            ? { duration: 0 }
+                            : { type: 'spring', stiffness: 420, damping: 36, mass: 0.7 }
+                        }
                         className={styles.activeReticleLine}
                       />
                     </g>
@@ -385,48 +424,84 @@ export const BenchmarkCanvas: React.FC = () => {
                 </svg>
               </div>
 
-              {/* Real-time Telemetry HUD (Selected node readout) */}
+              {/* Real-time Telemetry HUD (Selected node readout with spring settle) */}
               <div className={styles.plotFooterHud}>
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Active Step Reference</span>
-                  <span className={`${styles.hudVal} ${styles.hudValHighlight}`}>
+                  <motion.span
+                    key={selectedPoint.id}
+                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className={`${styles.hudVal} ${styles.hudValHighlight}`}
+                  >
                     {selectedPoint.stepName}
-                  </span>
+                  </motion.span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Throughput (QPS)</span>
-                  <span className="tabular-nums font-semibold">
+                  <motion.span
+                    key={`${selectedPoint.id}-qps`}
+                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className="tabular-nums font-semibold"
+                  >
                     {selectedPoint.qps.toLocaleString()} QPS
-                  </span>
+                  </motion.span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Recall@10</span>
-                  <span className="tabular-nums font-semibold">
+                  <motion.span
+                    key={`${selectedPoint.id}-recall`}
+                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className="tabular-nums font-semibold"
+                  >
                     {selectedPoint.recall.toFixed(4)}
-                  </span>
+                  </motion.span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Graph Edges</span>
-                  <span className="tabular-nums">
+                  <motion.span
+                    key={`${selectedPoint.id}-edges`}
+                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className="tabular-nums"
+                  >
                     {selectedPoint.edges.toLocaleString()}
-                  </span>
+                  </motion.span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Memory RAM</span>
-                  <span className="tabular-nums">
+                  <motion.span
+                    key={`${selectedPoint.id}-ram`}
+                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className="tabular-nums"
+                  >
                     {selectedPoint.memoryMb.toFixed(2)} MB
-                  </span>
+                  </motion.span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Distance Evals</span>
-                  <span className="tabular-nums">
+                  <motion.span
+                    key={`${selectedPoint.id}-evals`}
+                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    className="tabular-nums"
+                  >
                     {selectedPoint.evals.toFixed(1)} / q
-                  </span>
+                  </motion.span>
                 </div>
               </div>
 
@@ -481,7 +556,7 @@ export const BenchmarkCanvas: React.FC = () => {
 
             <div className={styles.regimeMatrixList}>
               {/* Regime A: Throughput Maxima */}
-              <div className={`${styles.regimeBlock} ${styles.blockFeatured}`}>
+              <div className={`${styles.regimeBlock} ${styles.blockFeatured} ${selectedPoint.id === 'step-5' ? styles.blockSynchronizedFocus : ''}`}>
                 <div className={styles.blockRow}>
                   <span className={styles.blockBadge}>Regime A &bull; Step 5 Ada-ef</span>
                   <span className="badge-pill emerald">+50.3% Throughput</span>
@@ -516,7 +591,7 @@ export const BenchmarkCanvas: React.FC = () => {
               </div>
 
               {/* Regime B: Memory Maxima */}
-              <div className={styles.regimeBlock}>
+              <div className={`${styles.regimeBlock} ${selectedPoint.id === 'step-6' ? styles.blockSynchronizedFocus : ''}`}>
                 <div className={styles.blockRow}>
                   <span className={styles.blockBadge}>Regime B &bull; Step 6 SQ8</span>
                   <span className="badge-pill emerald">-62.4% Footprint</span>
@@ -551,7 +626,7 @@ export const BenchmarkCanvas: React.FC = () => {
               </div>
 
               {/* Control Baseline */}
-              <div className={styles.regimeBlock}>
+              <div className={`${styles.regimeBlock} ${selectedPoint.id === 'step-1' ? styles.blockSynchronizedFocus : ''}`}>
                 <div className={styles.blockRow}>
                   <span className={styles.blockBadge}>Control &bull; Step 1 Baseline HNSW</span>
                   <span className="badge-pill">Reference</span>

@@ -1,10 +1,21 @@
 import React from 'react';
 import { useBenchmark } from '../context/BenchmarkContext';
+import { motion, useReducedMotion } from 'framer-motion';
+import type { Transition } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import styles from './CanvasShared.module.css';
 
 export const DatasetCanvas: React.FC = () => {
   const { hardware } = useBenchmark();
+  const shouldReduceMotion = useReducedMotion();
+
+  const getEntranceProps = (idx: number) => ({
+    initial: shouldReduceMotion ? false : { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: (shouldReduceMotion
+      ? { duration: 0 }
+      : { type: 'spring', stiffness: 480, damping: 38, delay: idx * 0.035 }) as Transition
+  });
 
   return (
     <div className={styles.canvasContainer}>
@@ -27,7 +38,10 @@ export const DatasetCanvas: React.FC = () => {
       {/* 4-Quadrant Corpus Matrix */}
       <div className={styles.datasetMatrixStage}>
         {/* Quadrant 1: SIFT-100K (Active Testbed) */}
-        <div className={`${styles.datasetQuad} ${styles.datasetQuadActive}`}>
+        <motion.div
+          {...getEntranceProps(0)}
+          className={`${styles.datasetQuad} ${styles.datasetQuadActive}`}
+        >
           <div className={styles.datasetQuadHeader}>
             <div className="flex items-center gap-2">
               <span className={styles.datasetQuadTitle}>SIFT-100K Benchmark Testbed</span>
@@ -72,10 +86,13 @@ export const DatasetCanvas: React.FC = () => {
           <div className="text-xs text-muted font-mono" style={{ fontSize: '10px' }}>
             Ablation Protocol: Steps 1–6 complete &bull; Hardware: {hardware.model} (AVX2/FMA)
           </div>
-        </div>
+        </motion.div>
 
         {/* Quadrant 2: Synthetic-Multi-Cluster */}
-        <div className={styles.datasetQuad}>
+        <motion.div
+          {...getEntranceProps(1)}
+          className={styles.datasetQuad}
+        >
           <div className={styles.datasetQuadHeader}>
             <span className={styles.datasetQuadTitle}>Synthetic-Multi-Cluster</span>
             <span className="badge-pill emerald">
@@ -118,10 +135,13 @@ export const DatasetCanvas: React.FC = () => {
           <div className="text-xs text-muted font-mono" style={{ fontSize: '10px' }}>
             Validation: Confirms hubness mitigation prevents premature disconnectivity.
           </div>
-        </div>
+        </motion.div>
 
         {/* Quadrant 3: DBpedia-100K (NON-NEGOTIABLE: MUST REMAIN NOT RUN) */}
-        <div className={`${styles.datasetQuad} ${styles.datasetQuadUnrun}`}>
+        <motion.div
+          {...getEntranceProps(2)}
+          className={`${styles.datasetQuad} ${styles.datasetQuadUnrun}`}
+        >
           <div className={styles.datasetQuadHeader}>
             <span className={styles.datasetQuadTitle}>DBpedia-100K (OpenAI text-embedding-3-small)</span>
             <span className="badge-pill amber">
@@ -157,10 +177,13 @@ export const DatasetCanvas: React.FC = () => {
             <strong>SCIENTIFIC INTEGRITY NOTICE:</strong>
             <span>Zero synthetic data. DBpedia-100K has not been evaluated on this hardware testbed. No metrics or projections are displayed.</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Quadrant 4: GloVe-100 */}
-        <div className={`${styles.datasetQuad} ${styles.datasetQuadUnrun}`}>
+        <motion.div
+          {...getEntranceProps(3)}
+          className={`${styles.datasetQuad} ${styles.datasetQuadUnrun}`}
+        >
           <div className={styles.datasetQuadHeader}>
             <span className={styles.datasetQuadTitle}>GloVe-100 (Twitter Word Embeddings)</span>
             <span className="badge-pill">
@@ -195,7 +218,7 @@ export const DatasetCanvas: React.FC = () => {
           <div className="text-xs text-muted font-mono" style={{ fontSize: '10px' }}>
             Queued for extended multi-million vector scalability benchmark sweep.
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

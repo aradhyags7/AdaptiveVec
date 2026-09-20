@@ -1,6 +1,8 @@
 import React from 'react';
 import { useBenchmark } from '../../context/BenchmarkContext';
 import type { CanvasType } from '../../types/benchmark';
+import { motion, useReducedMotion } from 'framer-motion';
+import type { Transition } from 'framer-motion';
 import {
   LineChart,
   Network,
@@ -31,6 +33,11 @@ const tools: ToolItem[] = [
 
 export const IconRail: React.FC = () => {
   const { activeCanvas, setActiveCanvas, toggleDrawer, activeDrawer, theme, toggleTheme } = useBenchmark();
+  const shouldReduceMotion = useReducedMotion();
+
+  const tapTransition: Transition = shouldReduceMotion
+    ? { duration: 0 }
+    : { type: 'spring', stiffness: 500, damping: 30 };
 
   return (
     <nav className={styles.rail} aria-label="Workbench Tool Rail">
@@ -44,8 +51,10 @@ export const IconRail: React.FC = () => {
         {tools.map(tool => {
           const isActive = activeCanvas === tool.id;
           return (
-            <button
+            <motion.button
               key={tool.id}
+              whileTap={shouldReduceMotion ? {} : { scale: 0.94 }}
+              transition={tapTransition}
               className={`${styles.railBtn} ${isActive ? styles.railBtnActive : ''}`}
               onClick={() => setActiveCanvas(tool.id)}
               title={tool.label}
@@ -54,7 +63,7 @@ export const IconRail: React.FC = () => {
             >
               {tool.icon}
               {isActive && <div className={styles.activeIndicator} />}
-            </button>
+            </motion.button>
           );
         })}
       </div>
@@ -64,41 +73,49 @@ export const IconRail: React.FC = () => {
 
       {/* Bottom Drawer & Utility Triggers */}
       <div className={styles.bottomGroup}>
-        <button
+        <motion.button
+          whileTap={shouldReduceMotion ? {} : { scale: 0.94 }}
+          transition={tapTransition}
           className={`${styles.railBtn} ${activeDrawer === 'data-export' ? styles.railBtnActive : ''}`}
           onClick={() => toggleDrawer('data-export')}
           title="Inspect Raw Data & Exports (Cmd+D)"
           aria-label="Raw Data & Exports"
         >
           <FileCode size={17} />
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
+          whileTap={shouldReduceMotion ? {} : { scale: 0.94 }}
+          transition={tapTransition}
           className={`${styles.railBtn} ${activeDrawer === 'index-builder' ? styles.railBtnActive : ''}`}
           onClick={() => toggleDrawer('index-builder')}
           title="Index Builder Policy Action Drawer"
           aria-label="Index Builder Policy Drawer"
         >
           <Hammer size={17} />
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
+          whileTap={shouldReduceMotion ? {} : { scale: 0.94 }}
+          transition={tapTransition}
           className={`${styles.railBtn} ${activeDrawer === 'settings' ? styles.railBtnActive : ''}`}
           onClick={() => toggleDrawer('settings')}
           title="Workbench Settings"
           aria-label="Workbench Settings"
         >
           <Sliders size={17} />
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
+          whileTap={shouldReduceMotion ? {} : { scale: 0.94 }}
+          transition={tapTransition}
           className={styles.railBtn}
           onClick={toggleTheme}
           title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
           aria-label="Toggle Theme"
         >
           {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-        </button>
+        </motion.button>
       </div>
     </nav>
   );

@@ -48,11 +48,22 @@ export const BenchmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     localStorage.setItem('adaptivevec_theme', theme);
   }, [theme]);
 
-  // Global keyboard shortcuts (e.g. Esc to close drawer)
+  // Global keyboard shortcuts (e.g. Esc to close drawer, 1-4 to switch canvases)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
       if (e.key === 'Escape') {
         setActiveDrawer(null);
+      } else if (e.key === '1') {
+        setActiveCanvas('benchmarks');
+      } else if (e.key === '2') {
+        setActiveCanvas('manifold');
+      } else if (e.key === '3') {
+        setActiveCanvas('query');
+      } else if (e.key === '4') {
+        setActiveCanvas('datasets');
       }
     };
     window.addEventListener('keydown', handleKeyDown);

@@ -538,6 +538,13 @@
   background: var(--bg-hover);
 }
 
+.blockSynchronizedFocus {
+  border-color: var(--accent) !important;
+  background: rgba(201, 125, 74, 0.08) !important;
+  box-shadow: 0 0 16px rgba(201, 125, 74, 0.18) !important;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
 .blockFeatured {
   border: 1.5px solid var(--accent);
   background: rgba(201, 125, 74, 0.05);
@@ -911,6 +918,12 @@
   border-radius: var(--radius-xs);
   font-family: var(--font-mono);
   font-size: 11px;
+}
+
+.candidateRowTop {
+  border-color: var(--accent) !important;
+  background: rgba(201, 125, 74, 0.08) !important;
+  box-shadow: 0 0 8px rgba(201, 125, 74, 0.14);
 }
 
 .candidateRank {

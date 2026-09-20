@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Play, Pause, SkipForward, RotateCcw, Activity } from 'lucide-react';
 import styles from './CanvasShared.module.css';
 
@@ -76,6 +77,7 @@ export const QueryCanvas: React.FC = () => {
   const [selectedQueryKey, setSelectedQueryKey] = useState<'q0' | 'q1' | 'q2'>('q0');
   const [currentHopIdx, setCurrentHopIdx] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const shouldReduceMotion = useReducedMotion();
 
   const activeQuery = QUERY_TRACES[selectedQueryKey];
   const activeHop = activeQuery.hops[currentHopIdx] || activeQuery.hops[0];
@@ -244,7 +246,7 @@ export const QueryCanvas: React.FC = () => {
                 }).join(' ')}
               />
 
-              {/* Data points */}
+              {/* Data points with Active Hop Radar Ring */}
               {activeQuery.hops.map((h, i) => {
                 const x = 50 + (i / (activeQuery.hops.length - 1)) * 400;
                 const y = 30 + (1 - (h.distance - 0.08) / 0.8) * 110;
@@ -252,15 +254,29 @@ export const QueryCanvas: React.FC = () => {
                 const isSelected = i === currentHopIdx;
 
                 return (
-                  <circle
-                    key={`pt-${i}`}
-                    cx={x}
-                    cy={clampedY}
-                    r={isSelected ? 5.5 : 3.5}
-                    fill={isSelected ? 'var(--accent-glow)' : 'var(--bg-card)'}
-                    stroke={isSelected ? '#ffffff' : 'var(--accent)'}
-                    strokeWidth={isSelected ? 2 : 1.5}
-                  />
+                  <g key={`pt-${i}`}>
+                    {isSelected && (
+                      <motion.circle
+                        cx={x}
+                        cy={clampedY}
+                        r={11}
+                        fill="none"
+                        stroke="var(--accent)"
+                        strokeWidth={1}
+                        initial={false}
+                        animate={shouldReduceMotion ? {} : { scale: [0.9, 1.25, 0.9], opacity: [0.6, 0.2, 0.6] }}
+                        transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+                      />
+                    )}
+                    <circle
+                      cx={x}
+                      cy={clampedY}
+                      r={isSelected ? 5.5 : 3.5}
+                      fill={isSelected ? 'var(--accent-glow)' : 'var(--bg-card)'}
+                      stroke={isSelected ? '#ffffff' : 'var(--accent)'}
+                      strokeWidth={isSelected ? 2 : 1.5}
+                    />
+                  </g>
                 );
               })}
             </svg>
@@ -284,14 +300,28 @@ export const QueryCanvas: React.FC = () => {
                 Top Nearest Neighbors at Hop {activeHop.hop}:
               </span>
 
-              {activeHop.candidates.map((c, rank) => (
-                <div key={`cand-${c.id}`} className={styles.candidateRow}>
-                  <span className={styles.candidateRank}>#{rank + 1}</span>
-                  <span className={styles.candidateId}>Node #{c.id}</span>
-                  <span className="tabular-nums text-xs text-muted">Distance:</span>
-                  <span className={`${styles.candidateDist} tabular-nums`}>{c.dist.toFixed(5)}</span>
-                </div>
-              ))}
+              <AnimatePresence mode="popLayout">
+                {activeHop.candidates.map((c, rank) => (
+                  <motion.div
+                    key={`cand-${c.id}`}
+                    layout
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={
+                      shouldReduceMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, scale: 0.95, height: 0, marginTop: 0, marginBottom: 0, transition: { duration: 0.12 } }
+                    }
+                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                    className={`${styles.candidateRow} ${rank === 0 ? styles.candidateRowTop : ''}`}
+                  >
+                    <span className={styles.candidateRank}>#{rank + 1}</span>
+                    <span className={styles.candidateId}>Node #{c.id}</span>
+                    <span className="tabular-nums text-xs text-muted">Distance:</span>
+                    <span className={`${styles.candidateDist} tabular-nums`}>{c.dist.toFixed(5)}</span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
 
             {/* Empirical Speedup Readout */}

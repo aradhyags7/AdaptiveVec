@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useBenchmark } from '../context/BenchmarkContext';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Info } from 'lucide-react';
 import styles from './CanvasShared.module.css';
 
@@ -98,6 +99,7 @@ export const ManifoldCanvas: React.FC = () => {
   const [projection, setProjection] = useState<'umap' | 'pca'>('umap');
   const [colorMode, setColorMode] = useState<'degree' | 'lid' | 'density'>('degree');
   const [selectedNodeId, setSelectedNodeId] = useState<number>(48219); // Node #48,219 by default
+  const shouldReduceMotion = useReducedMotion();
 
   const selectedNode = useMemo(() => {
     return GENERATED_NODES.find((n) => n.id === selectedNodeId) || GENERATED_NODES[48];
@@ -269,7 +271,7 @@ export const ManifoldCanvas: React.FC = () => {
                 HIGH-LID RIDGE CLUSTER (M=22-24)
               </text>
 
-              {/* Proximity Graph Edges */}
+              {/* Proximity Graph Edges with Dynamic Endpoint Tracking */}
               {EDGES.map(([srcIdx, dstIdx], edgeIdx) => {
                 const src = GENERATED_NODES[srcIdx];
                 const dst = GENERATED_NODES[dstIdx];
@@ -279,12 +281,10 @@ export const ManifoldCanvas: React.FC = () => {
                 const isHighlight = src.id === selectedNodeId || dst.id === selectedNodeId;
 
                 return (
-                  <line
+                  <motion.line
                     key={`edge-${edgeIdx}`}
-                    x1={p1.x}
-                    y1={p1.y}
-                    x2={p2.x}
-                    y2={p2.y}
+                    animate={{ x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 32 }}
                     className={isHighlight ? styles.graphEdgeHighlight : styles.graphEdge}
                   />
                 );
@@ -293,21 +293,27 @@ export const ManifoldCanvas: React.FC = () => {
               {/* Reticle Guides to Axes for Selected Node */}
               {selectedNode && (
                 <g>
-                  <line
-                    x1={toSvgCoords(selectedNode).x}
-                    y1={0}
-                    x2={toSvgCoords(selectedNode).x}
-                    y2={480}
+                  <motion.line
+                    animate={{
+                      x1: toSvgCoords(selectedNode).x,
+                      y1: 0,
+                      x2: toSvgCoords(selectedNode).x,
+                      y2: 480,
+                    }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 36 }}
                     stroke="var(--accent)"
                     strokeWidth={0.8}
                     strokeDasharray="2 2"
                     opacity={0.5}
                   />
-                  <line
-                    x1={0}
-                    y1={toSvgCoords(selectedNode).y}
-                    x2={800}
-                    y2={toSvgCoords(selectedNode).y}
+                  <motion.line
+                    animate={{
+                      x1: 0,
+                      y1: toSvgCoords(selectedNode).y,
+                      x2: 800,
+                      y2: toSvgCoords(selectedNode).y,
+                    }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 36 }}
                     stroke="var(--accent)"
                     strokeWidth={0.8}
                     strokeDasharray="2 2"
@@ -316,7 +322,7 @@ export const ManifoldCanvas: React.FC = () => {
                 </g>
               )}
 
-              {/* Graph Scatter Nodes */}
+              {/* Graph Scatter Nodes with Generous Hit Area & Phosphor Recalibration */}
               {GENERATED_NODES.map((node) => {
                 const pos = toSvgCoords(node);
                 const isSelected = node.id === selectedNodeId;
@@ -330,22 +336,43 @@ export const ManifoldCanvas: React.FC = () => {
                       toggleDrawer('inspector');
                     }}
                   >
+                    {/* Generous Invisible Hit Target Circle (15px radius for forgiving clicks) */}
+                    <circle
+                      cx={pos.x}
+                      cy={pos.y}
+                      r={15}
+                      fill="transparent"
+                      style={{ cursor: 'pointer' }}
+                    />
+
                     {/* Outer Selection Reticle Ring */}
                     {isSelected && (
-                      <circle
-                        cx={pos.x}
-                        cy={pos.y}
+                      <motion.circle
+                        animate={{ cx: pos.x, cy: pos.y }}
+                        transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 340, damping: 32 }}
                         r={12}
                         className={styles.nodeSelectedRing}
                       />
                     )}
 
-                    {/* Node Dot */}
-                    <circle
-                      cx={pos.x}
-                      cy={pos.y}
-                      r={isSelected ? 6 : node.degreeM >= 22 ? 5 : 4}
-                      fill={getNodeColor(node)}
+                    {/* Node Dot with Phosphor Color Transition */}
+                    <motion.circle
+                      animate={{
+                        cx: pos.x,
+                        cy: pos.y,
+                        fill: getNodeColor(node),
+                        r: isSelected ? 6 : node.degreeM >= 22 ? 5 : 4,
+                      }}
+                      transition={
+                        shouldReduceMotion
+                          ? { duration: 0 }
+                          : {
+                              cx: { type: 'spring', stiffness: 340, damping: 32 },
+                              cy: { type: 'spring', stiffness: 340, damping: 32 },
+                              fill: { duration: 0.22, ease: 'easeOut' },
+                              r: { type: 'spring', stiffness: 400, damping: 28 },
+                            }
+                      }
                       stroke={isSelected ? '#ffffff' : 'var(--border-emphasis)'}
                       strokeWidth={isSelected ? 1.8 : 1}
                     />
