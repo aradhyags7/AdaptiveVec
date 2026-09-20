@@ -135,7 +135,7 @@ Step Configuration & Recall@10 & QPS & Edges & RAM (MB) \\\\
         return (
           <div className={styles.drawerSection}>
             <div className={styles.sectionNotice}>
-              Index Construction Policy Calibration. Configures the adaptive neighborhood bounds before offline graph generation.
+              Index Policy Reference Inspector. Interactive exploration of adaptive neighborhood bounds and traversal budget parameters.
             </div>
 
             <div className={styles.paramGroup}>
@@ -223,7 +223,7 @@ Step Configuration & Recall@10 & QPS & Edges & RAM (MB) \\\\
             </div>
 
             <div className={styles.subNote}>
-              Compiled index target: <span className="tabular-nums font-semibold text-accent-glow">adaptive_hnsw_sift100k.bin</span>. Graph construction is executed via native C++ AVX2 backend.
+              Parameters shown for reference; live recompilation is not yet available in this interface. Benchmarks reflect offline verified runs on SIFT-100K.
             </div>
           </div>
         );
