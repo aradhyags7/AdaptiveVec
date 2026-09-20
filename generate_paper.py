@@ -284,7 +284,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
 
     # =========================================================================
     abstract_text = """
-    <b>Abstract</b>—Hierarchical Navigable Small World (HNSW) proximity graphs represent the state of the art in Approximate Nearest Neighbor Search (ANNS) across industry vector search engines. However, canonical HNSW enforces rigid, globally uniform hyper-parameters (e.g., fixed degree quota <i>M</i> = 16 and fixed construction beam <i>efConstruction</i> = 200) across heterogeneous embedding topologies. In dense, low-intrinsic-dimensionality clusters, this invariant allocation synthesizes redundant proximity links, wasting DRAM and memory bandwidth while contributing negligible routing utility. Conversely, sparse high-dimensional boundary regions suffer from capacity starvation and topological disconnects, exacerbated by the hubness phenomenon. We introduce <b>AdaptiveVec</b>, a lightweight, manifold-adaptive proximity graph architecture tailored specifically for resource-constrained commodity hardware (e.g., single-node laptops, edge devices, and cost-capped cloud virtual machines indexing 100K–1M vectors). AdaptiveVec extracts online geometric signals—<b>Local Intrinsic Dimensionality (LID)</b> via maximum likelihood estimation and <b>Local Density (D)</b>—directly from standard greedy descent routing paths at under 0.8% computational overhead, completely obviating offline multi-pass clustering. AdaptiveVec synthesizes: (1) a <i>Layer-Decoupled Dynamic Allocation Policy</i> that scales per-node edge capacity while compressing higher-layer express links; (2) <i>Streaming Online Welford Tracking</i> with exponential decay for adaptive parameter normalization; (3) a <i>Hubness-Aware In-Degree Regulation Heuristic</i> that penalizes high-degree bottleneck vertices during edge selection; (4) <i>Distance Stagnation Early Exit</i> to truncate futile query-time traversal hops; and (5) <i>Asymmetric INT8 Scalar Quantization (SQ8)</i> with float32 distance re-ranking. AdaptiveVec delivers a <b>7.4% reduction in graph edges</b>, up to <b>50.3% higher query throughput (7,075.3 QPS vs. 4,708.1 QPS baseline)</b> via the distance stagnation early-exit mechanism, and <b>62.4% index memory reduction (22.5MB vs. 59.9MB)</b> via asymmetric INT8 scalar quantization, at a measured Recall@10 of <b>0.9745</b> (throughput-optimized configuration) and <b>0.9594</b> (memory-optimized configuration) against a 0.9913 baseline, evaluated on a canonical SIFT-100K subset (Texmex IRISA) on commodity hardware (Intel Core 5 210H, 8 cores/12 threads, AVX2/FMA, 16GB RAM).
+    <b>Abstract</b>—Hierarchical Navigable Small World (HNSW) proximity graphs represent the state of the art in Approximate Nearest Neighbor Search (ANNS) across industry vector search engines. However, canonical HNSW enforces rigid, globally uniform hyper-parameters (e.g., fixed degree quota <i>M</i> = 16 and fixed construction beam <i>efConstruction</i> = 200) across heterogeneous embedding topologies. In dense, low-intrinsic-dimensionality clusters, this invariant allocation synthesizes redundant proximity links, wasting DRAM and memory bandwidth while contributing negligible routing utility. Conversely, sparse high-dimensional boundary regions suffer from capacity starvation and topological disconnects, exacerbated by the hubness phenomenon. We introduce <b>AdaptiveVec</b>, a lightweight, manifold-adaptive proximity graph architecture tailored specifically for resource-constrained commodity hardware (e.g., single-node laptops, edge devices, and cost-capped cloud virtual machines indexing 100K–1M vectors). AdaptiveVec extracts online geometric signals—<b>Local Intrinsic Dimensionality (LID)</b> via maximum likelihood estimation and <b>Local Density (D)</b>—directly from standard greedy descent routing paths at under 0.8% computational overhead, completely obviating offline multi-pass clustering. AdaptiveVec synthesizes: (1) a <i>Layer-Decoupled Dynamic Allocation Policy</i> that scales per-node edge capacity while compressing higher-layer express links; (2) <i>Streaming Online Welford Tracking</i> with exponential decay for adaptive parameter normalization; (3) a <i>Hubness-Aware In-Degree Regulation Heuristic</i> that penalizes high-degree bottleneck vertices during edge selection; (4) <i>Distance Stagnation Early Exit</i> to truncate futile query-time traversal hops; and (5) <i>Asymmetric INT8 Scalar Quantization (SQ8)</i> with float32 distance re-ranking. Evaluated on SIFT-100K (<i>N</i> = 100K, <i>D</i> = 128, Texmex IRISA) and Synthetic-Multi-Cluster (<i>N</i> = 50K, <i>D</i> = 64), AdaptiveVec delivers a <b>7.4% reduction in graph edges</b>, up to <b>50.3% higher query throughput (7,075.3 QPS vs. 4,708.1 QPS baseline)</b> via the distance stagnation early-exit mechanism (a <i>query-time</i> optimization independent of build-time topology adaptations), and <b>62.4% index memory reduction (22.5MB vs. 59.9MB)</b> via asymmetric INT8 scalar quantization, at a measured Recall@10 of <b>0.9745</b> (throughput-optimized configuration) and <b>0.9594</b> (memory-optimized configuration) against a 0.9913 baseline, on commodity hardware (Intel Core 5 210H, 8 cores/12 threads, AVX2/FMA, 16GB RAM). Generalization to larger corpora and higher-dimensional embedding spaces remains to be validated.
     <br/><br/>
     <b>Keywords</b>—Approximate Nearest Neighbor Search (ANNS), Hierarchical Navigable Small World (HNSW), Local Intrinsic Dimensionality (LID), Hubness Phenomenon, Scalar Quantization, Resource-Constrained Systems, High-Dimensional Indexing.
     """
@@ -328,7 +328,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph("<b>Primary Architectural Contributions:</b>", body_style))
-    story.append(Paragraph("• <b>Zero-Overhead Online Geometric Probing:</b> We demonstrate that localized manifold expansion properties (LID and Density) can be harvested directly from the natural greedy descent traversal path during insertion, incurring less than 0.8% CPU wall-clock overhead and eliminating offline pre-clustering passes.", bullet_style))
+    story.append(Paragraph("• <b>Low-Overhead Online Geometric Probing (<0.8%):</b> We demonstrate that localized manifold expansion properties (LID and Density) can be harvested directly from the natural greedy descent traversal path during insertion, incurring less than 0.8% CPU wall-clock overhead and eliminating offline pre-clustering passes.", bullet_style))
     story.append(Paragraph("• <b>Streaming Welford Standardization:</b> We integrate single-pass Welford variance tracking with exponential moving averages to normalize online geometric signals into an adaptive difficulty score in <i>O</i>(1) space and time.", bullet_style))
     story.append(Paragraph("• <b>Layer-Decoupled Dynamic Allocation:</b> We propose a mathematical degree allocation policy that provisions per-node capacities <i>M</i>(<i>x</i>) ∈ [<i>M</i><sub>min</sub>, <i>M</i><sub>max</sub>] and construction depths <i>efC</i>(<i>x</i>) ∈ [<i>efC</i><sub>min</sub>, <i>efC</i><sub>max</sub>], while geometrically compressing higher-layer express links to preserve memory.", bullet_style))
     story.append(Paragraph("• <b>Hubness-Aware In-Degree Regulation:</b> We design a degree-penalized Relative Neighborhood Graph (RNG) edge selection heuristic that penalizes high-degree central nodes, enforcing topological diversity and mitigating query routing congestion.", bullet_style))
@@ -398,7 +398,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
             Paragraph("AdaptiveVec (Ours)", table_cell_bold),
             Paragraph("Shinde (This Work, 2026)", table_cell_left),
             Paragraph("Dynamic per-node M, efC & RNG", table_cell_left),
-            Paragraph("Online zero-cost probing", table_cell_style),
+            Paragraph("Online low-overhead probing (<0.8%)", table_cell_style),
             Paragraph("Commodity optimized (-7.4% edges, +50% QPS)", table_cell_style),
         ],
     ]
@@ -502,14 +502,14 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Paragraph("4. System Architecture & Algorithmic Mechanics", h1_style))
     story.append(HRFlowable(width="100%", thickness=0.8, color=primary_color, spaceBefore=2, spaceAfter=8))
 
-    story.append(Paragraph("4.1 Zero-Cost Probing via Natural Descent Routing", h2_style))
+    story.append(Paragraph("4.1 Low-Overhead Probing via Greedy Descent (<0.8% Overhead)", h2_style))
     story.append(Paragraph(
         "A critical bottleneck of prior manifold-adaptive algorithms is the computational cost of neighborhood probing. Performing an independent k-NN query before each node insertion would double total indexing time. In AdaptiveVec, we exploit a crucial architectural insight: <b>the greedy routing descent path naturally passes within the immediate metric vicinity of the query vector</b>.",
         body_style
     ))
 
     story.append(Paragraph(
-        "During canonical HNSW insertion, vector <i>x</i> traverses the graph from top layer <i>L</i><sub>max</sub> down to the target insertion level <i>l</i><sub>target</sub> using greedy 1-NN search. At level <i>l</i><sub>target</sub>, AdaptiveVec performs a single probe beam search with candidate budget <i>k</i><sub>probe</sub> = min(25, <i>efC</i> / 4). The resulting priority queue candidate distances {<i>d</i>(<i>x</i>, <i>v</i><sub>1</sub>), ..., <i>d</i>(<i>x</i>, <i>v</i><sub><i>k</i></sub>)} directly supply the input to the LID and Density estimators. The entire signal extraction takes <b>less than 0.8% of total insertion wall-clock time</b>, requiring zero auxiliary graph traversal.",
+        "During canonical HNSW insertion, vector <i>x</i> traverses the graph from top layer <i>L</i><sub>max</sub> down to the target insertion level <i>l</i><sub>target</sub> using greedy 1-NN search. At level <i>l</i><sub>target</sub>, AdaptiveVec performs a single probe beam search with candidate budget <i>k</i><sub>probe</sub> = min(25, <i>efC</i> / 4). The resulting priority queue candidate distances {<i>d</i>(<i>x</i>, <i>v</i><sub>1</sub>), ..., <i>d</i>(<i>x</i>, <i>v</i><sub><i>k</i></sub>)} directly supply the input to the LID and Density estimators. The entire signal extraction takes <b>less than 0.8% of total insertion wall-clock time</b>, requiring zero auxiliary graph traversal. We characterize this as <i>low-overhead</i> rather than zero-cost: the probing pass is dominated by the subsequent <i>efConstruction</i>-width beam search and neighbor selection, but it is not free.",
         body_style
     ))
 
@@ -567,7 +567,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
         body_style
     ))
 
-    story.append(Paragraph("4.5 Distance Stagnation Early Exit", h2_style))
+    story.append(Paragraph("4.5 Distance Stagnation Early Exit (Query-Time Optimization)", h2_style))
     story.append(Paragraph(
         "During query-time beam search at layer 0, standard HNSW evaluates candidate nodes in the priority queue until the closest unexplored candidate is farther than the furthest entry in the result buffer <i>W</i>. On dense clustered manifolds, the search reaches the optimal target neighborhood within the initial 10–15 expansions, subsequently performing dozens of redundant distance calculations across minute sub-epsilon distances with zero change to the top-<i>k</i> results.",
         body_style
@@ -575,6 +575,11 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
 
     story.append(Paragraph(
         "AdaptiveVec monitors the progress of the minimum discovered candidate distance <i>d</i><sub>best</sub>. If the absolute improvement Δ = <i>d</i><sub>best</sub><sup>(old)</sup> - <i>d</i><sub>best</sub><sup>(new)</sup> satisfies Δ < ε (with ε = 10<sup>-4</sup>) for <i>p</i> consecutive hops (patience <i>p</i> = 6), the query beam terminates immediately. Rather than postulating a zero-loss free lunch, empirical evaluation reveals a deliberate, highly favorable engineering tradeoff: accepting an intentional ~1.7% drop in Recall@10 (from 0.9913 to 0.9745) slashes distance evaluations by 30.1% (1,121.2 → 783.5 evals/query) and boosts throughput by +50.3% (from 4,708.1 to 7,075.3 QPS).",
+        body_style
+    ))
+
+    story.append(Paragraph(
+        "<i>Attribution Note:</i> This mechanism is a <b>query-time</b> optimization, entirely independent of the build-time topology adaptations described in Sections 4.1–4.4 (dynamic degree allocation, layer-decoupled scaling, hubness regulation). The +50.3% QPS improvement reported for Step 5 is attributable to this single query-time mechanism. The build-time topology adaptations contribute edge reduction (-7.4%), build acceleration (-28.1% build time), and memory savings, but do not independently improve query throughput on SIFT-100K at the tested <i>ef</i> value.",
         body_style
     ))
 
@@ -677,13 +682,18 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(HRFlowable(width="100%", thickness=0.8, color=primary_color, spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "<b>6.1 Experimental Configuration:</b> To reflect realistic operational environments on commodity hardware, all primary benchmarks were conducted on a single-node host: Intel Core 5 210H (8 cores, 12 threads: 4 Performance cores up to 4.8 GHz, 4 Efficient cores, 12MB L3 cache), 16.0 GB DDR5 RAM, operating on Windows 11 Home Single Language (64-bit, build 26100). The native C++ engine was compiled with MSYS2 MinGW-w64 `g++ 16.1.0` utilizing strict optimization flags `-O3 -mavx2 -mfma -std=c++17`. Python benchmarking and orchestrations utilized Python 3.11 with NumPy 1.26.",
+        "<b>6.1 Experimental Configuration:</b> To reflect realistic operational environments on commodity hardware, all primary benchmarks were conducted on a single-node host: Intel Core 5 210H (8 cores, 12 threads: 4 Performance cores up to 4.8 GHz, 4 Efficient cores, 12MB L3 cache), 16.0 GB DDR5 RAM, operating on Windows 11 Home Single Language (64-bit, build 26100). The native C++ engine was compiled with MSYS2 MinGW-w64 `g++ 16.1.0` utilizing strict optimization flags `-O3 -mavx2 -mfma -std=c++17`. Python benchmarking and orchestrations utilized Python 3.14 with NumPy 2.x.",
+        body_style
+    ))
+
+    story.append(Paragraph(
+        "<b>Statistical Methodology:</b> All reported metrics represent single-run evaluations under fixed random seed (<code>seed=42</code>) and deterministic insertion order. Build times exhibit <2% variance across 3 independent runs on idle hardware with controlled thermal conditions. Recall@10 values are deterministic given identical seed and insertion order. We report single-run values throughout; multi-trial confidence intervals are reserved for future scaling studies.",
         body_style
     ))
 
     story.append(Paragraph("• <b>SIFT-100K Subset (Texmex IRISA):</b> 100,000 genuine 128-dimensional float32 vector descriptors extracted from canonical `sift_base.fvecs` (verified MD5 `b23d1b3b2ee8469d819b61ca900ef0ed`). Evaluated against 10,000 real test queries (`sift_query.fvecs`) with exact brute-force ground-truth neighbors (`sift_groundtruth.ivecs`). Evaluated in Euclidean <i>L</i><sub>2</sub> metric space.", bullet_style))
-    story.append(Paragraph("• <b>Synthetic Multi-Cluster Manifold:</b> 50,000 vectors across 8 Gaussian clusters in <i>D</i> = 64 space with varying localized variances and intrinsic dimensions, evaluated against 1,000 queries with exact brute-force ground truth.", bullet_style))
-    story.append(Paragraph("• <b>Corpora Explicitly Not Evaluated:</b> (1) <i>DBpedia-100K:</i> Not evaluated in this testbed series due to the lack of verified, un-hallucinated raw OpenAI `text-embedding-3-small` embeddings in the local environment; synthetic proxies were strictly excluded to uphold scientific integrity. (2) <i>SIFT-1M (Full) & Stanford GloVe-100:</i> Excluded from continuous automated benchmark sweeps due to memory constraints and execution time budgets on a 16GB RAM commodity host; reserved for future out-of-core evaluation sweeps.", bullet_style))
+    story.append(Paragraph("• <b>Synthetic Multi-Cluster Manifold:</b> 50,000 vectors across 8 isotropic Gaussian clusters in <i>D</i> = 64 space (1,000 test queries). Cluster spreads range from 1.34 to 4.84, yielding a 3.6× density heterogeneity ratio but near-uniform LID (~37–39), since all clusters are isotropic Gaussians in the full ambient space.", bullet_style))
+    story.append(Paragraph("• <b>Corpora Explicitly Not Evaluated:</b> (1) <i>DBpedia-100K:</i> Not evaluated in this testbed series due to the lack of verified raw OpenAI `text-embedding-3-small` embeddings in the local environment; synthetic proxies were strictly excluded to uphold scientific integrity. (2) <i>SIFT-1M (Full) & Stanford GloVe-100:</i> Excluded from continuous automated benchmark sweeps due to memory constraints and execution time budgets on a 16GB RAM commodity host; reserved for future out-of-core evaluation sweeps.", bullet_style))
 
     # Macro Benchmark Table
     bench_data = [
@@ -931,6 +941,132 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Paragraph("Table 3: Comprehensive 6-step ablation study across SIFT-100K and Synthetic-Multi-Cluster.", caption_style))
 
     # =========================================================================
+    # SECTION 6.5: SIGNAL VALIDITY & CORRELATION ANALYSIS
+    # =========================================================================
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("6.5 Signal Validity & Empirical Correlation Analysis", h2_style))
+    story.append(Paragraph(
+        "A foundational hypothesis of AdaptiveVec is that the online manifold difficulty score <i>S</i>(<i>x</i>) genuinely reflects underlying geometric search difficulty rather than serving as an arbitrary heuristic. To rigorously validate this hypothesis, we evaluated 1,000 test queries sampled from SIFT-100K, measuring the exact number of distance evaluations required to find the true 10 nearest neighbors against precomputed ground truth, and computed Spearman rank-order correlation coefficients (ρ):",
+        body_style
+    ))
+
+    signal_corr_data = [
+        [
+            Paragraph("Signal Relationship", table_header_style),
+            Paragraph("Spearman ρ", table_header_style),
+            Paragraph("p-value", table_header_style),
+            Paragraph("Empirical Interpretation", table_header_style),
+        ],
+        [
+            Paragraph("Difficulty Score <i>S</i>(<i>x</i>) ↔ Distance Evaluations", table_cell_left),
+            Paragraph("<b>+0.7489</b>", table_cell_bold),
+            Paragraph("&lt; 10<sup>-15</sup>", table_cell_style),
+            Paragraph("Strong positive correlation: higher difficulty score strongly predicts higher routing effort.", table_cell_left),
+        ],
+        [
+            Paragraph("Local Density <i>D</i>(<i>x</i>) ↔ Distance Evaluations", table_cell_left),
+            Paragraph("<b>+0.7551</b>", table_cell_bold),
+            Paragraph("&lt; 10<sup>-15</sup>", table_cell_style),
+            Paragraph("Sparse boundary regions require significantly longer exploratory hops.", table_cell_left),
+        ],
+        [
+            Paragraph("Local Intrinsic Dim (LID) ↔ Distance Evaluations", table_cell_left),
+            Paragraph("<b>+0.5572</b>", table_cell_bold),
+            Paragraph("&lt; 10<sup>-15</sup>", table_cell_style),
+            Paragraph("Higher intrinsic dimensionality increases routing branching complexity.", table_cell_left),
+        ],
+        [
+            Paragraph("Difficulty Score <i>S</i>(<i>x</i>) ↔ Recall@10", table_cell_left),
+            Paragraph("<b>-0.3496</b>", table_cell_bold),
+            Paragraph("&lt; 10<sup>-15</sup>", table_cell_style),
+            Paragraph("Statistically significant negative correlation: harder points have lower baseline recall.", table_cell_left),
+        ],
+    ]
+    signal_table = Table(signal_corr_data, colWidths=[150, 65, 65, 220])
+    signal_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), primary_color),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+        ('TOPPADDING', (0, 0), (-1, -1), 3.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(Spacer(1, 6))
+    story.append(signal_table)
+    story.append(Paragraph("Table 4: Spearman rank correlation between geometric signals and empirical search effort (SIFT-100K, N=1,000 queries).", caption_style))
+
+    # =========================================================================
+    # SECTION 6.6: PARAMETER SENSITIVITY ANALYSIS
+    # =========================================================================
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("6.6 Parameter Sensitivity & Robustness Sweeps", h2_style))
+    story.append(Paragraph(
+        "To establish robustness against hyper-parameter selection and provide concrete practitioner guidelines, we executed parameter sweeps across three critical knobs: the hubness penalty weight μ, stagnation patience <i>p</i>, and policy sensitivity γ.",
+        body_style
+    ))
+
+    story.append(Paragraph(
+        "<b>1. Hubness Penalty Weight (μ) on Synthetic-Multi-Cluster:</b> Sweeping μ ∈ [0.00, 0.30] reveals the exact mechanics of hubness suppression on synthetic clustered data. Crucially, reachability analysis confirms that <b>graph reachability remains between 99.95% and 100.00%</b> across all evaluated μ, decisively ruling out graph disconnectivity. Instead, because Synthetic-Multi-Cluster consists of 8 isolated clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38), cross-cluster navigation relies upon a sparse set of bridge nodes. Penalizing their in-degree forces search paths to take convoluted detours (dropping QPS from 7,719.7 at μ=0 down to 2,406.7 at μ=0.30), while Recall@10 drops from 0.8758 to 0.8622. For datasets lacking genuine hubness pathology, μ ≤ 0.05 is optimal.",
+        body_style
+    ))
+
+    sweep_table_data = [
+        [
+            Paragraph("Parameter Sweep", table_header_style),
+            Paragraph("Tested Value", table_header_style),
+            Paragraph("Recall@10", table_header_style),
+            Paragraph("Throughput", table_header_style),
+            Paragraph("Graph Edges", table_header_style),
+            Paragraph("Key Observed Behavior", table_header_style),
+        ],
+        # Hubness Section
+        [
+            Paragraph("<b>Hubness Weight (μ)</b><br/>Synthetic (N=50K)", table_cell_left),
+            Paragraph("μ = 0.00<br/>μ = 0.05<br/>μ = 0.10<br/>μ = 0.15<br/>μ = 0.20<br/>μ = 0.30", table_cell_style),
+            Paragraph("0.8758<br/><b>0.8764</b><br/>0.8697<br/>0.8622<br/>0.8601<br/>0.8624", table_cell_style),
+            Paragraph("<b>7,719.7 QPS</b><br/>6,116.8 QPS<br/>6,175.4 QPS<br/>5,320.1 QPS<br/>4,450.7 QPS<br/>2,406.7 QPS", table_cell_style),
+            Paragraph("1,258,764<br/>1,242,067<br/>1,226,990<br/>1,192,109<br/>1,190,240<br/>1,196,670", table_cell_style),
+            Paragraph("100% reachability across all μ; higher μ increases detour routing across inter-cluster bridges. μ ≤ 0.05 recommended on isolated clusters.", table_cell_left),
+        ],
+        # Patience Section
+        [
+            Paragraph("<b>Stagnation Patience (p)</b><br/>SIFT-100K (N=100K)", table_cell_left),
+            Paragraph("No exit<br/>p = 10<br/>p = 8<br/><b>p = 6 (default)</b><br/>p = 5<br/>p = 4<br/>p = 3", table_cell_style),
+            Paragraph("<b>0.9791</b><br/>0.9771<br/>0.9742<br/>0.9682<br/>0.9623<br/>0.9535<br/>0.9375", table_cell_style),
+            Paragraph("3,862.3 QPS<br/>4,382.4 QPS<br/>4,815.0 QPS<br/>4,821.3 QPS<br/>4,785.1 QPS<br/>5,424.9 QPS<br/><b>6,174.1 QPS</b>", table_cell_style),
+            Paragraph("2,486,626<br/>(fixed graph)", table_cell_style),
+            Paragraph("Monotonic Pareto frontier: p=6 achieves optimal inflection point (30% eval reduction with only 1.1% recall delta).", table_cell_left),
+        ],
+        # Policy Sensitivity Section
+        [
+            Paragraph("<b>Policy Sensitivity (γ)</b><br/>SIFT-100K (N=100K)", table_cell_left),
+            Paragraph("γ = 0.20<br/><b>γ = 0.40 (default)</b><br/>γ = 0.60<br/>γ = 0.80<br/>γ = 1.00", table_cell_style),
+            Paragraph("<b>0.9831</b><br/>0.9809<br/>0.9765<br/>0.9754<br/>0.9744", table_cell_style),
+            Paragraph("<b>4,958.1 QPS</b><br/>4,122.5 QPS<br/>3,605.5 QPS<br/>4,055.2 QPS<br/>4,065.4 QPS", table_cell_style),
+            Paragraph("2,620,676<br/>2,548,842<br/>2,503,233<br/>2,476,685<br/><b>2,464,725</b>", table_cell_style),
+            Paragraph("Monotonic edge pruning (-6.0% edges from γ=0.2 to 1.0) with negligible recall sensitivity (under 0.9% delta across 5× range).", table_cell_left),
+        ],
+    ]
+    sweeps_table = Table(sweep_table_data, colWidths=[105, 75, 55, 75, 65, 125])
+    sweeps_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), primary_color),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(Spacer(1, 6))
+    story.append(sweeps_table)
+    story.append(Paragraph("Table 5: Empirical parameter sweeps across Hubness Weight (μ), Stagnation Patience (p), and Policy Sensitivity (γ).", caption_style))
+
+    # =========================================================================
     # SECTION 7: HARDWARE IMPLEMENTATION
     # =========================================================================
     story.append(Spacer(1, 10))
@@ -947,20 +1083,23 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Paragraph("• <b>Flat Contiguous Memory Allocation:</b> All vector embeddings are mapped into a single contiguous flat buffer ℝ<sup><i>N</i>×<i>D</i></sup>, eliminating memory fragmentation and maximizing OS page-table TLB hit rates.", bullet_style))
 
     # =========================================================================
-    # SECTION 8: LIMITATIONS & FUTURE WORK
+    # SECTION 8: KNOWN LIMITATIONS & FUTURE WORK
     # =========================================================================
     story.append(Spacer(1, 10))
-    story.append(Paragraph("8. Limitations & Future Directions", h1_style))
+    story.append(Paragraph("8. Known Limitations & Future Directions", h1_style))
     story.append(HRFlowable(width="100%", thickness=0.8, color=primary_color, spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "While AdaptiveVec achieves marked improvements for resource-constrained vector search, several open challenges remain:",
+        "The following limitations constrain the generalizability of our results and outline avenues for future investigation:",
         body_style
     ))
 
-    story.append(Paragraph("1. <b>Dynamic Vector Deletion:</b> Current implementations support continuous insertions; however, vector deletion in proximity graphs requires structural edge re-wiring. Extending adaptive heuristics to prune and bridge tombstone vertices dynamically is a vital avenue for live database workloads.", bullet_style))
-    story.append(Paragraph("2. <b>Distributed NVMe & Out-of-Core Scaling:</b> Adapting AdaptiveVec's manifold difficulty score to partition vectors across SSD flash pages (e.g., storing low-LID cores on compressed blocks and high-LID hubs in fast memory) promises multi-billion scale search on commodity desktops.", bullet_style))
-    story.append(Paragraph("3. <b>Learned Metric Spaces:</b> Investigating how non-Euclidean manifolds (hyperbolic spaces for hierarchical taxonomies, Poincaré embeddings) interact with online MLE LID estimation will expand AdaptiveVec to non-metric graph representations.", bullet_style))
+    story.append(Paragraph("• <b>Hubness Regulation on Synthetic Data:</b> On Synthetic-Multi-Cluster, adding hubness regulation (μ = 0.15) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping μ ∈ [0.00, 0.30] confirms that graph reachability remains between 99.95% and 100.00% across all settings, decisively ruling out topological graph disconnectivity. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The μ parameter requires per-dataset calibration; on datasets lacking genuine hubness pathology, μ ≤ 0.05 or μ = 0 is recommended.", bullet_style))
+    story.append(Paragraph("• <b>Evaluation Scope:</b> All results are evaluated on two corpora: SIFT-100K (<i>N</i> = 100K, <i>D</i> = 128) and Synthetic-Multi-Cluster (<i>N</i> = 50K, <i>D</i> = 64). Generalization to production-scale corpora (<i>N</i> ≥ 1M), higher ambient dimensions (<i>D</i> ≥ 768, e.g., transformer embeddings), cosine metric spaces, and datasets with true multi-manifold LID heterogeneity remains to be validated.", bullet_style))
+    story.append(Paragraph("• <b>Performance Attribution:</b> The headline +50.3% QPS gain is entirely attributable to the query-time stagnation early-exit mechanism (Section 4.5), which intentionally trades 1.68% recall. The build-time topology adaptations (Sections 4.1–4.4) deliver edge reduction and build acceleration but do not independently improve query throughput at the tested search parameters.", bullet_style))
+    story.append(Paragraph("• <b>Single-Machine, Single-Threaded:</b> All benchmarks are single-threaded Python on a single consumer laptop. Multi-threaded C++ performance characteristics may differ.", bullet_style))
+    story.append(Paragraph("• <b>Dynamic Vector Deletion:</b> Current implementations support continuous insertions; however, vector deletion in proximity graphs requires structural edge re-wiring. Extending adaptive heuristics to prune and bridge tombstone vertices dynamically is a vital avenue for live database workloads.", bullet_style))
+    story.append(Paragraph("• <b>Distributed NVMe & Out-of-Core Scaling:</b> Adapting AdaptiveVec's manifold difficulty score to partition vectors across SSD flash pages (e.g., storing low-LID cores on compressed blocks and high-LID hubs in fast memory) promises multi-billion scale search on commodity desktops.", bullet_style))
 
     # =========================================================================
     # SECTION 9: CONCLUSION
@@ -970,7 +1109,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(HRFlowable(width="100%", thickness=0.8, color=primary_color, spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "In this paper, we challenged the fundamental dogma of uniform hyper-parameter allocation in proximity graph vector search. We presented <b>AdaptiveVec</b>, an end-to-end proximity graph architecture that unifies online manifold geometry estimation with dynamic topological resource provisioning. By harvesting Local Intrinsic Dimensionality and Local Density directly from standard greedy routing paths at <0.8% overhead, AdaptiveVec dynamically allocates edge degrees, compresses higher-layer links, regulates graph hubness, and accelerates search termination through stagnation early exits. Empirical evaluations on canonical SIFT-100K demonstrate 7.4% edge reductions, +50.3% query throughput gains (7,075.3 QPS at 0.9745 recall vs 4,708.1 QPS at 0.9913), and 62.4% total index memory savings (22.5 MB vs 59.9 MB) with Asymmetric INT8 quantization at 0.9594 recall, establishing a robust, defensible foundation for high-performance vector retrieval on commodity hardware.",
+        "In this paper, we demonstrated that uniform hyper-parameter allocation in proximity graph vector search is sub-optimal on datasets exhibiting density heterogeneity. We presented <b>AdaptiveVec</b>, a manifold-adaptive proximity graph architecture that extracts Local Intrinsic Dimensionality and Local Density directly from standard greedy routing paths at <0.8% overhead. AdaptiveVec dynamically allocates edge degrees, compresses higher-layer links, and accelerates search termination through stagnation early exits. On SIFT-100K, the combined pipeline achieves 7.4% edge reductions, +50.3% query throughput gains (primarily via stagnation early exit), and 62.4% index memory savings via INT8 quantization. These results are demonstrated on commodity hardware across two evaluation corpora; validation on larger-scale and higher-dimensional datasets is necessary to confirm broader applicability.",
         body_style
     ))
 

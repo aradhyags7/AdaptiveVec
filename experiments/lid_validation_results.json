@@ -1,0 +1,206 @@
+{
+  "experiment": "lid_difficulty_score_validation",
+  "dataset": "SIFT-100K",
+  "sample_size": 1000,
+  "correlations": {
+    "score_vs_dist_evals": {
+      "spearman_rho": 0.7489,
+      "p_value": 1.00e-15,
+      "interpretation": "positive = higher S(x) -> more distance evaluations (harder search)"
+    },
+    "lid_vs_dist_evals": {
+      "spearman_rho": 0.5572,
+      "p_value": 1.00e-15
+    },
+    "density_vs_dist_evals": {
+      "spearman_rho": 0.7551,
+      "p_value": 1.00e-15
+    },
+    "score_vs_recall": {
+      "spearman_rho": -0.3496,
+      "p_value": 1.00e-15,
+      "interpretation": "negative = higher S(x) -> lower recall (harder search)"
+    }
+  },
+  "distributions": {
+    "difficulty_score": {
+      "mean": 0.0,
+      "std": 0.7071
+    },
+    "lid": {
+      "mean": 22.3082,
+      "std": 8.1529
+    },
+    "density": {
+      "mean": 241.8615,
+      "std": 42.5907
+    },
+    "search_difficulty_dist_evals": {
+      "mean": 820.4,
+      "min": 314,
+      "max": 1589
+    }
+  },
+  "sample_data": [
+    {
+      "query_idx": 9377,
+      "difficulty_score": 1.4265,
+      "lid": 40.5882,
+      "density": 267.8820,
+      "dist_evals": 1003,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 8754,
+      "difficulty_score": -0.3972,
+      "lid": 15.9669,
+      "density": 241.1522,
+      "dist_evals": 646,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 6820,
+      "difficulty_score": -0.1217,
+      "lid": 19.6528,
+      "density": 245.3637,
+      "dist_evals": 950,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 4371,
+      "difficulty_score": -0.3598,
+      "lid": 21.1011,
+      "density": 217.5206,
+      "dist_evals": 655,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 4822,
+      "difficulty_score": 1.9479,
+      "lid": 46.8765,
+      "density": 279.4391,
+      "dist_evals": 1142,
+      "recall_at_10": 0.8000
+    },
+    {
+      "query_idx": 4654,
+      "difficulty_score": -0.2989,
+      "lid": 20.2093,
+      "density": 227.3683,
+      "dist_evals": 882,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 5002,
+      "difficulty_score": 0.6645,
+      "lid": 24.3072,
+      "density": 288.0214,
+      "dist_evals": 1044,
+      "recall_at_10": 0.9000
+    },
+    {
+      "query_idx": 4585,
+      "difficulty_score": 0.5054,
+      "lid": 25.2361,
+      "density": 269.6197,
+      "dist_evals": 952,
+      "recall_at_10": 0.9000
+    },
+    {
+      "query_idx": 6516,
+      "difficulty_score": 0.5685,
+      "lid": 18.6006,
+      "density": 309.6569,
+      "dist_evals": 692,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 4493,
+      "difficulty_score": -0.2201,
+      "lid": 20.5423,
+      "density": 232.3372,
+      "dist_evals": 815,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 5893,
+      "difficulty_score": 0.7246,
+      "lid": 22.0306,
+      "density": 305.0363,
+      "dist_evals": 965,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 3311,
+      "difficulty_score": -1.0329,
+      "lid": 13.7027,
+      "density": 198.8353,
+      "dist_evals": 564,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 7975,
+      "difficulty_score": -0.8909,
+      "lid": 18.6644,
+      "density": 185.0092,
+      "dist_evals": 643,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 3723,
+      "difficulty_score": 0.2080,
+      "lid": 23.2681,
+      "density": 254.5613,
+      "dist_evals": 871,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 9288,
+      "difficulty_score": -1.0397,
+      "lid": 13.4081,
+      "density": 199.7961,
+      "dist_evals": 613,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 4531,
+      "difficulty_score": -0.5472,
+      "lid": 18.0564,
+      "density": 217.4631,
+      "dist_evals": 845,
+      "recall_at_10": 0.9000
+    },
+    {
+      "query_idx": 7901,
+      "difficulty_score": 0.2236,
+      "lid": 22.3175,
+      "density": 260.8610,
+      "dist_evals": 897,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 5525,
+      "difficulty_score": 1.0232,
+      "lid": 33.6322,
+      "density": 269.8644,
+      "dist_evals": 1020,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 2111,
+      "difficulty_score": 1.2516,
+      "lid": 41.8796,
+      "density": 246.2307,
+      "dist_evals": 867,
+      "recall_at_10": 1.0000
+    },
+    {
+      "query_idx": 9294,
+      "difficulty_score": 0.5581,
+      "lid": 28.3220,
+      "density": 257.9815,
+      "dist_evals": 943,
+      "recall_at_10": 1.0000
+    }
+  ]
+}

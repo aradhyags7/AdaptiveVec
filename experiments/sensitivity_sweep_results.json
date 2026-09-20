@@ -1,0 +1,71 @@
+{
+  "experiment": "policy_sensitivity_sweep",
+  "dataset": "SIFT-100K",
+  "n_samples": 100000,
+  "dim": 128,
+  "n_queries": 10000,
+  "k": 10,
+  "gamma_values_tested": [0.2, 0.4, 0.6, 0.8, 1.0],
+  "results": [
+    {
+      "gamma": 0.20,
+      "recall_at_10": 0.9831,
+      "qps": 4958.1,
+      "build_time_sec": 50.61,
+      "total_edges": 2620676,
+      "memory_mb": 59.59,
+      "m_distribution": {
+        "mean": 15.57,
+        "std": 2.53
+      }
+    },
+    {
+      "gamma": 0.40,
+      "recall_at_10": 0.9809,
+      "qps": 4122.5,
+      "build_time_sec": 54.42,
+      "total_edges": 2548842,
+      "memory_mb": 59.31,
+      "m_distribution": {
+        "mean": 15.17,
+        "std": 4.47
+      }
+    },
+    {
+      "gamma": 0.60,
+      "recall_at_10": 0.9765,
+      "qps": 3605.5,
+      "build_time_sec": 53.95,
+      "total_edges": 2503233,
+      "memory_mb": 59.14,
+      "m_distribution": {
+        "mean": 14.93,
+        "std": 5.51
+      }
+    },
+    {
+      "gamma": 0.80,
+      "recall_at_10": 0.9754,
+      "qps": 4055.2,
+      "build_time_sec": 54.23,
+      "total_edges": 2476685,
+      "memory_mb": 59.04,
+      "m_distribution": {
+        "mean": 14.81,
+        "std": 6.12
+      }
+    },
+    {
+      "gamma": 1.00,
+      "recall_at_10": 0.9744,
+      "qps": 4065.4,
+      "build_time_sec": 58.08,
+      "total_edges": 2464725,
+      "memory_mb": 58.99,
+      "m_distribution": {
+        "mean": 14.75,
+        "std": 6.48
+      }
+    }
+  ]
+}

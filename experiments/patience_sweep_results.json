@@ -1,0 +1,92 @@
+{
+  "experiment": "stagnation_patience_sweep",
+  "dataset": "SIFT-100K",
+  "n_samples": 100000,
+  "dim": 128,
+  "n_queries": 10000,
+  "k": 10,
+  "ef_search": 50,
+  "build_time_sec": 106.97,
+  "index_edges": 2486626,
+  "index_memory_mb": 59.08,
+  "patience_values_tested": [3, 4, 5, 6, 8, 10],
+  "results": [
+    {
+      "config": "no_exit",
+      "early_exit": false,
+      "patience": 0,
+      "recall_at_10": 0.9791,
+      "qps": 3862.3,
+      "dist_evals_per_query": 819.4,
+      "latency_p50_ms": 0.223,
+      "latency_p95_ms": 0.494,
+      "latency_p99_ms": 0.891
+    },
+    {
+      "config": "p=3",
+      "early_exit": true,
+      "patience": 3,
+      "recall_at_10": 0.9375,
+      "qps": 6174.1,
+      "dist_evals_per_query": 526.9,
+      "latency_p50_ms": 0.134,
+      "latency_p95_ms": 0.355,
+      "latency_p99_ms": 0.558
+    },
+    {
+      "config": "p=4",
+      "early_exit": true,
+      "patience": 4,
+      "recall_at_10": 0.9535,
+      "qps": 5424.9,
+      "dist_evals_per_query": 590.2,
+      "latency_p50_ms": 0.163,
+      "latency_p95_ms": 0.356,
+      "latency_p99_ms": 0.497
+    },
+    {
+      "config": "p=5",
+      "early_exit": true,
+      "patience": 5,
+      "recall_at_10": 0.9623,
+      "qps": 4785.1,
+      "dist_evals_per_query": 641.7,
+      "latency_p50_ms": 0.180,
+      "latency_p95_ms": 0.423,
+      "latency_p99_ms": 0.617
+    },
+    {
+      "config": "p=6",
+      "early_exit": true,
+      "patience": 6,
+      "recall_at_10": 0.9682,
+      "qps": 4821.3,
+      "dist_evals_per_query": 683.0,
+      "latency_p50_ms": 0.179,
+      "latency_p95_ms": 0.423,
+      "latency_p99_ms": 0.634
+    },
+    {
+      "config": "p=8",
+      "early_exit": true,
+      "patience": 8,
+      "recall_at_10": 0.9742,
+      "qps": 4815.0,
+      "dist_evals_per_query": 738.9,
+      "latency_p50_ms": 0.180,
+      "latency_p95_ms": 0.417,
+      "latency_p99_ms": 0.602
+    },
+    {
+      "config": "p=10",
+      "early_exit": true,
+      "patience": 10,
+      "recall_at_10": 0.9771,
+      "qps": 4382.4,
+      "dist_evals_per_query": 773.0,
+      "latency_p50_ms": 0.198,
+      "latency_p95_ms": 0.450,
+      "latency_p99_ms": 0.699
+    }
+  ]
+}

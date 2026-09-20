@@ -110,6 +110,7 @@ class AdaptiveHNSW:
         self.graphs: List[Dict[int, List[int]]] = []
         self.node_levels: Dict[int, int] = {}
         self.in_degrees: Dict[int, int] = {}
+        self.total_in_degrees: int = 0
         
         # Per-node adaptive metadata
         self.node_params: Dict[int, NodeParameters] = {}
@@ -253,7 +254,7 @@ class AdaptiveHNSW:
         
         avg_deg = 1.0
         if self.hubness_regulation and len(self.in_degrees) > 0:
-            avg_deg = max(1.0, float(np.mean(list(self.in_degrees.values()))))
+            avg_deg = max(1.0, float(self.total_in_degrees) / float(len(self.in_degrees)))
         
         for dist_q_e, e_node in w_sorted:
             if len(result_nodes) >= m_limit:
@@ -391,9 +392,16 @@ class AdaptiveHNSW:
                     
             # Maintain layer-0 in-degree centrality
             if lc == 0:
-                self.in_degrees[q_idx] = len(self.graphs[0].get(q_idx, []))
+                old_deg = self.in_degrees.get(q_idx, 0)
+                new_deg = len(self.graphs[0].get(q_idx, []))
+                self.in_degrees[q_idx] = new_deg
+                self.total_in_degrees += (new_deg - old_deg)
+
                 for neighbor in neighbors:
-                    self.in_degrees[neighbor] = len(self.graphs[0].get(neighbor, []))
+                    old_n_deg = self.in_degrees.get(neighbor, 0)
+                    new_n_deg = len(self.graphs[0].get(neighbor, []))
+                    self.in_degrees[neighbor] = new_n_deg
+                    self.total_in_degrees += (new_n_deg - old_n_deg)
             
             curr_ep = w[0][1] if len(w) > 0 else curr_ep
             

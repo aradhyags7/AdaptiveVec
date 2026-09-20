@@ -20,7 +20,7 @@
 ---
 
 ### Abstract
-Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vector search engines (FAISS, Milvus, Qdrant, pgvector). However, canonical HNSW enforces static, uniform hyper-parameters ($M=16, efConstruction=200$) globally across non-homogeneous vector spaces. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity edges, squandering precious RAM and CPU indexing time with zero recall benefit. Conversely, sparse high-dimensional regions suffer from topological starvations and capacity-limited disconnects. We present **AdaptiveVec**, a novel proximity graph index optimized for resource-constrained commodity hardware ($100\text{K}–1\text{M}$ vectors on single-node laptops and edge cloud instances). AdaptiveVec unifies online manifold signal estimation (**Local Intrinsic Dimensionality (LID)** via Maximum Likelihood Estimation and **Local Density**) with standard insertion routing at $<0.8\%$ computational overhead. It introduces: (i) a **Layer-Decoupled Dynamic Policy** that compresses higher-layer express links; (ii) **Streaming Online Welford Tracking** to eliminate offline calibration passes; (iii) a **Hubness-Aware In-Degree Centrality Penalty** to prevent topological graph bottlenecks; (iv) **Distance Stagnation Early Exit** to accelerate query throughput; and (v) **Asymmetric INT8 Scalar Quantization (SQ8)** with two-stage float32 re-ranking. On canonical SIFT-100K benchmarks, **Step 5 achieves 0.9745 Recall@10 at +50.3% query throughput** (7,075.3 QPS vs. 4,708.1 baseline), -7.4% fewer graph edges, and -28.1% faster build times. For memory-constrained deployments, **Step 6 (INT8 SQ8) slashes index RAM by -62.4%** (22.5 MB vs. 59.9 MB baseline) and vector memory by -75% while maintaining 0.9594 recall.
+Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vector search engines (FAISS, Milvus, Qdrant, pgvector). However, canonical HNSW enforces static, uniform hyper-parameters ($M=16, efConstruction=200$) globally across non-homogeneous vector spaces. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity edges, squandering precious RAM and CPU indexing time with zero recall benefit. Conversely, sparse high-dimensional regions suffer from topological starvations and capacity-limited disconnects. We present **AdaptiveVec**, a manifold-adaptive proximity graph index optimized for resource-constrained commodity hardware ($100\text{K}–1\text{M}$ vectors on single-node laptops and edge cloud instances). AdaptiveVec unifies online manifold signal estimation (**Local Intrinsic Dimensionality (LID)** via Maximum Likelihood Estimation and **Local Density**) with standard insertion routing at $<0.8\%$ computational overhead. It introduces: (i) a **Layer-Decoupled Dynamic Policy** that compresses higher-layer express links; (ii) **Streaming Online Welford Tracking** to eliminate offline calibration passes; (iii) a **Hubness-Aware In-Degree Centrality Penalty** to prevent topological graph bottlenecks; (iv) **Distance Stagnation Early Exit** to accelerate query throughput; and (v) **Asymmetric INT8 Scalar Quantization (SQ8)** with two-stage float32 re-ranking. Evaluated on SIFT-100K ($N=100\text{K}, D=128$) and Synthetic-Multi-Cluster ($N=50\text{K}, D=64$), **Step 5 achieves 0.9745 Recall@10 at +50.3% query throughput** (7,075.3 QPS vs. 4,708.1 baseline) via query-time distance stagnation early exit, -7.4% fewer graph edges, and -28.1% faster build times. For memory-constrained deployments, **Step 6 (INT8 SQ8) slashes index RAM by -62.4%** (22.5 MB vs. 59.9 MB baseline) and vector memory by -75% while maintaining 0.9594 recall. Broader validation on million-scale corpora ($N \ge 1\text{M}$) and higher-dimensional embeddings is ongoing.
 
 ---
 
@@ -34,7 +34,7 @@ Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vecto
    - [4.1 Online Manifold Geometry Probing](#41-online-manifold-geometry-probing)
    - [4.2 Layer-Decoupled Edge Allocation Policy](#42-layer-decoupled-edge-allocation-policy)
    - [4.3 Hubness-Aware In-Degree Regulation](#43-hubness-aware-in-degree-regulation)
-   - [4.4 Distance Stagnation Early Exit](#44-distance-stagnation-early-exit)
+   - [4.4 Distance Stagnation Early Exit (Query-Time Optimization)](#44-distance-stagnation-early-exit-query-time-optimization)
    - [4.5 Asymmetric Scalar Quantization (SQ8) & Two-Stage Re-Ranking](#45-asymmetric-scalar-quantization-sq8--two-stage-re-ranking)
 5. [Theoretical Complexity Analysis](#5-theoretical-complexity-analysis)
 6. [Empirical Evaluation & Benchmark Results](#6-empirical-evaluation--benchmark-results)
@@ -42,6 +42,7 @@ Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vecto
    - [6.2 SIFT-100K Ablation Benchmarks](#62-sift-100k-ablation-benchmarks)
    - [6.3 Synthetic-Multi-Cluster Benchmarks](#63-synthetic-multi-cluster-benchmarks)
    - [6.4 Integrity Disclosures & Paper Draft Alignment](#64-integrity-disclosures--paper-draft-alignment)
+   - [6.5 Known Limitations](#65-known-limitations)
 7. [System Architecture & Repository Structure](#7-system-architecture--repository-structure)
 8. [Quickstart & Reproducibility](#8-quickstart--reproducibility)
    - [8.1 Single-Command Benchmark Reproduction](#81-single-command-benchmark-reproduction)
@@ -194,15 +195,18 @@ where $\bar{d}_{\text{in}} = \frac{1}{|V|}\sum_{w \in V} \text{deg}_{\text{in}}(
 
 ---
 
-### 4.4 Distance Stagnation Early Exit
-Standard vector search algorithms enforce a static candidate capacity ($efSearch = 64$) throughout the entire greedy exploration. For queries landing in dense clusters, the true nearest neighbors are discovered within the first 10–15 expansions; continuing to search until $ef$ is exhausted wastes CPU cycles.
+### 4.4 Distance Stagnation Early Exit (Query-Time Optimization)
+Standard vector search algorithms enforce a static candidate capacity ($efSearch = 64$) throughout the entire greedy exploration. For queries landing in dense clusters, the true nearest neighbors are discovered within the first 10-15 expansions; continuing to search until $ef$ is exhausted wastes CPU cycles.
 
 AdaptiveVec introduces **Distance Stagnation Early-Stopping**:
 During beam search at Layer 0, after $W$ has accumulated at least $ef$ candidates, the engine tracks the global best distance $d_{\text{best}} = \min_{v \in W} d(q, v)$. If $d_{\text{best}}$ fails to improve by more than $\epsilon = 10^{-4}$ over $S = 6$ consecutive candidate pops, search terminates immediately:
 
 $$\text{Stagnation Termination:} \quad \sum_{j=1}^S \mathbb{I}\left( d_{\text{best}}^{(j-1)} - d_{\text{best}}^{(j)} \le \epsilon \right) = S \implies \text{BREAK}$$
 
-This yields a **30.1% reduction in distance evaluations** ($1,121.2 \to 783.5$ evals/query) and boosts throughput to **7,075.3 QPS (+50.3%)** with strict parity recall (0.9745).
+This yields a **30.1% reduction in distance evaluations** ($1,121.2 \to 783.5$ evals/query) and boosts throughput to **7,075.3 QPS (+50.3%)** at a measured Recall@10 of 0.9745 (intentional 1.68% recall delta).
+
+> [!IMPORTANT]
+> **Attribution note:** This mechanism is a **query-time** optimization, entirely independent of the build-time topology adaptations described in Sections 4.1-4.3. The +50.3% QPS improvement is attributable to this single query-time mechanism. The build-time topology adaptations (dynamic M, layer scaling, hubness regulation) contribute edge reduction (-7.4%), build acceleration (-28.1%), and memory savings, but do not independently improve query throughput on SIFT-100K at the tested `ef` value.
 
 ---
 
@@ -277,7 +281,25 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 
 ---
 
-### 6.4 Integrity Disclosures & Paper Draft Alignment
+### 6.4 Signal Validity & Parameter Sensitivity Sweeps
+
+#### Empirical Signal Validation (SIFT-100K, $N=1,000$ Queries)
+To verify that the manifold difficulty score $S(x)$ meaningfully predicts search effort rather than acting arbitrarily:
+* **Difficulty Score $S(x) \leftrightarrow$ Distance Evaluations:** $\rho = \mathbf{+0.7489}$ ($p < 10^{-15}$). Strong positive correlation.
+* **Local Density $D(x) \leftrightarrow$ Distance Evaluations:** $\rho = \mathbf{+0.7551}$ ($p < 10^{-15}$). Sparse boundary regions require significantly longer exploratory hops.
+* **Local Intrinsic Dim (LID) $\leftrightarrow$ Distance Evaluations:** $\rho = \mathbf{+0.5572}$ ($p < 10^{-15}$). Higher LID increases branching complexity.
+* **Difficulty Score $S(x) \leftrightarrow$ Recall@10:** $\rho = \mathbf{-0.3496}$ ($p < 10^{-15}$). Harder points show lower baseline recall.
+
+#### Parameter Sweeps Summary
+| Parameter | Tested Range | Optimal Value | Key Finding |
+| :--- | :---: | :---: | :--- |
+| **Hubness Weight ($\mu$)** | $[0.00, 0.30]$ | $\mu \le 0.05$ (or $\mu=0$ on synthetic) | Reachability remains $\ge 99.95\%$ across all $\mu$; higher $\mu$ penalizes necessary cross-cluster bridge nodes on isolated clusters with uniform LID. |
+| **Stagnation Patience ($p$)** | $[3, 10]$ & no exit | $p = 6$ | Smooth Pareto frontier: $p=6$ cuts distance evals by 30.1% ($819 \to 683$) with only 1.1% recall loss. |
+| **Policy Sensitivity ($\gamma$)** | $[0.20, 1.00]$ | $\gamma = 0.40$ | Monotonic edge reduction (2.62M down to 2.46M, $-6.0\%$) with high recall stability ($0.9831 \to 0.9744$, $<0.9\%$ delta across $5\times$ variation). |
+
+---
+
+### 6.5 Integrity Disclosures & Paper Draft Alignment
 
 > [!WARNING]
 > **Scientific Integrity & Empirical Gap Alignment**:
@@ -286,6 +308,20 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 > 1. **Step-Specific Reporting**: Overview KPIs are never mixed across steps. Step 5 reports **0.9745 recall at 7,075.3 QPS** (FP32 payload); Step 6 reports **22.5 MB RAM at 0.9594 recall** (SQ8 payload); Step 4 reports **0.9854 recall parity** (before stagnation early exit).
 > 2. **Canonical Datasets**: SIFT-100K was evaluated with genuine Texmex query vectors and exact ground truth. DBpedia-100K is explicitly marked **`NOT RUN`** as authentic embeddings were unavailable locally.
 > 3. **Edge Savings**: Real SIFT-100K edge reduction is **7.4%** ($\approx 200,000$ fewer links), maintaining full graph navigability.
+>
+> **Statistical Methodology:** All reported metrics represent single-run evaluations under fixed random seed (`seed=42`) and deterministic insertion order. Recall@10 values are deterministic given identical seed and insertion order.
+
+### 6.6 Known Limitations
+
+The following limitations constrain the generalizability of our results:
+
+1. **Hubness Regulation on Synthetic Data:** On Synthetic-Multi-Cluster, adding hubness regulation ($\mu=0.15$) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping $\mu \in [0.00, 0.30]$ confirms that graph reachability remains between 99.95% and 100.00% across all settings, decisively ruling out topological graph disconnectivity. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The $\mu$ parameter requires per-dataset calibration; on datasets lacking genuine hubness pathology, $\mu \le 0.05$ or $\mu = 0$ is recommended.
+
+2. **Evaluation Scope:** All results are evaluated on two corpora: SIFT-100K ($N=100\text{K}, D=128$) and Synthetic-Multi-Cluster ($N=50\text{K}, D=64$). Generalization to production-scale corpora ($N \ge 1\text{M}$), higher ambient dimensions ($D \ge 768$, e.g., transformer embeddings), and cosine metric spaces remains to be validated.
+
+3. **Performance Attribution:** The headline +50.3% QPS gain is entirely attributable to the query-time stagnation early-exit mechanism (Section 4.4), which intentionally trades 1.68% recall. The build-time topology adaptations deliver edge reduction and build acceleration but do not independently improve query throughput at the tested search parameters.
+
+4. **Single-Machine, Single-Threaded:** All benchmarks are single-threaded Python on a single consumer laptop. Multi-threaded C++ performance characteristics may differ.
 
 ---
 

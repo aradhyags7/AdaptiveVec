@@ -1,0 +1,247 @@
+{
+  "experiment": "synthetic_dataset_characterization",
+  "dataset": "Synthetic-Multi-Cluster",
+  "n_samples": 50000,
+  "dim": 64,
+  "n_clusters": 8,
+  "cluster_params": [
+    {
+      "cluster_id": 0,
+      "center_norm": 240.0126130268514,
+      "spread": 1.7642052935932133,
+      "n_samples": 6250
+    },
+    {
+      "cluster_id": 1,
+      "center_norm": 252.17856144212152,
+      "spread": 2.8326952725850423,
+      "n_samples": 6250
+    },
+    {
+      "cluster_id": 2,
+      "center_norm": 253.30902078300423,
+      "spread": 2.7128700891256954,
+      "n_samples": 6250
+    },
+    {
+      "cluster_id": 3,
+      "center_norm": 244.1106682285544,
+      "spread": 3.936801864670927,
+      "n_samples": 6250
+    },
+    {
+      "cluster_id": 4,
+      "center_norm": 247.8786971999107,
+      "spread": 3.4659752517685867,
+      "n_samples": 6250
+    },
+    {
+      "cluster_id": 5,
+      "center_norm": 243.99760659574267,
+      "spread": 4.839804407639223,
+      "n_samples": 6250
+    },
+    {
+      "cluster_id": 6,
+      "center_norm": 238.53047325506708,
+      "spread": 1.3356181828003364,
+      "n_samples": 6250
+    },
+    {
+      "cluster_id": 7,
+      "center_norm": 246.7035136770928,
+      "spread": 3.744084908040227,
+      "n_samples": 6250
+    }
+  ],
+  "per_cluster_analysis": [
+    {
+      "cluster_id": 0,
+      "n_samples": 6250,
+      "spread": 1.7642052935932133,
+      "lid": {
+        "mean": 38.6185,
+        "std": 11.1391,
+        "min": 23.0098,
+        "max": 94.0262,
+        "q25": 30.2402,
+        "q50": 35.9913,
+        "q75": 44.4951
+      },
+      "density": {
+        "mean": 15.2623,
+        "std": 0.7903,
+        "min": 13.3928,
+        "max": 17.5756
+      },
+      "inter_cluster_dist_min": 334.7,
+      "inter_cluster_dist_mean": 357.29
+    },
+    {
+      "cluster_id": 1,
+      "n_samples": 6250,
+      "spread": 2.8326952725850423,
+      "lid": {
+        "mean": 38.9354,
+        "std": 11.6751,
+        "min": 20.5069,
+        "max": 106.7549,
+        "q25": 30.5095,
+        "q50": 36.8187,
+        "q75": 43.3533
+      },
+      "density": {
+        "mean": 24.4852,
+        "std": 1.2621,
+        "min": 21.2531,
+        "max": 28.326
+      },
+      "inter_cluster_dist_min": 320.8,
+      "inter_cluster_dist_mean": 354.9
+    },
+    {
+      "cluster_id": 2,
+      "n_samples": 6250,
+      "spread": 2.7128700891256954,
+      "lid": {
+        "mean": 37.7569,
+        "std": 10.1971,
+        "min": 20.1075,
+        "max": 78.841,
+        "q25": 30.7376,
+        "q50": 35.0647,
+        "q75": 43.5082
+      },
+      "density": {
+        "mean": 23.4742,
+        "std": 1.2332,
+        "min": 20.577,
+        "max": 26.4721
+      },
+      "inter_cluster_dist_min": 333.91,
+      "inter_cluster_dist_mean": 359.65
+    },
+    {
+      "cluster_id": 3,
+      "n_samples": 6250,
+      "spread": 3.936801864670927,
+      "lid": {
+        "mean": 36.8241,
+        "std": 8.8263,
+        "min": 21.1763,
+        "max": 74.0584,
+        "q25": 31.1498,
+        "q50": 35.7202,
+        "q75": 40.5608
+      },
+      "density": {
+        "mean": 34.113,
+        "std": 1.8676,
+        "min": 29.3892,
+        "max": 40.19
+      },
+      "inter_cluster_dist_min": 320.09,
+      "inter_cluster_dist_mean": 349.48
+    },
+    {
+      "cluster_id": 4,
+      "n_samples": 6250,
+      "spread": 3.4659752517685867,
+      "lid": {
+        "mean": 38.4575,
+        "std": 10.0494,
+        "min": 21.013,
+        "max": 71.559,
+        "q25": 30.9621,
+        "q50": 37.2076,
+        "q75": 43.6656
+      },
+      "density": {
+        "mean": 29.8562,
+        "std": 1.4703,
+        "min": 26.5993,
+        "max": 34.661
+      },
+      "inter_cluster_dist_min": 340.34,
+      "inter_cluster_dist_mean": 356.22
+    },
+    {
+      "cluster_id": 5,
+      "n_samples": 6250,
+      "spread": 4.839804407639223,
+      "lid": {
+        "mean": 38.7957,
+        "std": 10.297,
+        "min": 19.8488,
+        "max": 76.3292,
+        "q25": 31.1005,
+        "q50": 37.2717,
+        "q75": 43.8822
+      },
+      "density": {
+        "mean": 41.6644,
+        "std": 2.3799,
+        "min": 35.7586,
+        "max": 48.2628
+      },
+      "inter_cluster_dist_min": 298.04,
+      "inter_cluster_dist_mean": 352.66
+    },
+    {
+      "cluster_id": 6,
+      "n_samples": 6250,
+      "spread": 1.3356181828003364,
+      "lid": {
+        "mean": 38.7543,
+        "std": 10.1226,
+        "min": 17.3681,
+        "max": 73.2042,
+        "q25": 31.3857,
+        "q50": 36.671,
+        "q75": 44.0764
+      },
+      "density": {
+        "mean": 11.4918,
+        "std": 0.5949,
+        "min": 9.8293,
+        "max": 13.1446
+      },
+      "inter_cluster_dist_min": 298.04,
+      "inter_cluster_dist_mean": 343.5
+    },
+    {
+      "cluster_id": 7,
+      "n_samples": 6250,
+      "spread": 3.744084908040227,
+      "lid": {
+        "mean": 39.0489,
+        "std": 11.7197,
+        "min": 18.8118,
+        "max": 81.1734,
+        "q25": 30.7196,
+        "q50": 36.4898,
+        "q75": 45.4332
+      },
+      "density": {
+        "mean": 32.3973,
+        "std": 1.8051,
+        "min": 27.8432,
+        "max": 37.5195
+      },
+      "inter_cluster_dist_min": 316.75,
+      "inter_cluster_dist_mean": 345.15
+    }
+  ],
+  "global_heterogeneity": {
+    "lid_range_across_clusters": [
+      36.8241,
+      39.0489
+    ],
+    "density_range_across_clusters": [
+      11.4918,
+      41.6644
+    ],
+    "lid_heterogeneity_ratio": 1.06,
+    "density_heterogeneity_ratio": 3.63
+  }
+}
