@@ -2,6 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+.eggs/
+build/
 
 # C++ compiled binaries & objects
 *.exe
@@ -13,6 +16,7 @@ __pycache__/
 *.so
 *.dylib
 cpp/benchmark_runner.exe
+cpp/benchmark_main.exe
 cpp/*.exe
 
 # Environments & Virtual Environments
@@ -27,18 +31,22 @@ ENV/
 .idea/
 *.swp
 *.swo
+*.sublime-workspace
+*.sublime-project
 
 # Operating System files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
 # Test & coverage artifacts
 .pytest_cache/
 .coverage
 htmlcov/
 
-# Benchmark datasets & binary archives
-data/
+# Raw benchmark datasets & binary archives (root data directory)
+/data/
 *.fvecs
 *.ivecs
 *.bvecs
@@ -47,11 +55,30 @@ data/
 *.zip
 *.bin
 
-# Scratch files
+# Scratch & experimental files
 scratch/
+*.tmp
+*.temp
+*.bak
 
-# Node dependencies & builds
+# Node dependencies & web builds
 node_modules/
 dist/
+dist-ssr/
+*.local
+*.tsbuildinfo
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-
+# LaTeX auxiliary build files
+*.aux
+*.log
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+*.fls
+*.fdb_latexmk
