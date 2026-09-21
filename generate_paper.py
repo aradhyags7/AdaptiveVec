@@ -1145,8 +1145,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
         "[12] H. Jégou, M. Douze, and C. Schmid, \"Product quantization for nearest neighbor search,\" <i>IEEE Transactions on Pattern Analysis and Machine Intelligence</i>, vol. 33, no. 1, pp. 117–128, 2011.",
         "[13] P. Guo, P. Zhao, and L. Zou, \"A survey on proximity graph-based approximate nearest neighbor search,\" <i>ACM Computing Surveys</i>, vol. 55, no. 8, pp. 1–38, 2023.",
         "[14] M. E. Houle, \"Local intrinsic dimensionality: Principles and applications,\" in <i>International Conference on Similarity Search and Applications</i>, 2017, pp. 3–14.",
-        "[15] P. Indyk and R. Motwani, \"Approximate nearest neighbors: towards removing the curse of dimensionality,\" in <i>ACM Symposium on Theory of Computing (STOC)</i>, 1998, pp. 604–613.",
-        "[16] A. Shinde, \"AdaptiveVec: Density- and dimension-aware proximity graph index for resource-constrained vector retrieval,\" <i>Proceedings of Engineering Design & Innovation (EDI)</i>, 2026."
+        "[15] P. Indyk and R. Motwani, \"Approximate nearest neighbors: towards removing the curse of dimensionality,\" in <i>ACM Symposium on Theory of Computing (STOC)</i>, 1998, pp. 604–613."
     ]
 
     for ref in refs:
