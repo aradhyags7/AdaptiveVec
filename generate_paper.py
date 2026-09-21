@@ -319,7 +319,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph("• <b>Redundant Edge Bloat:</b> In dense, low-LID subspaces, vectors reside on lower-dimensional hyperplanes. Enforcing 16 bidirectional links synthesizes redundant parallel paths between co-linear neighbors, squandering memory and bus bandwidth with zero recall utility.", bullet_style))
-    story.append(Paragraph("• <b>Topological Starvation & Hubness:</b> In sparse high-dimensional regions, uniform quotas cause capacity starvation. Under the <i>Hubness Phenomenon</i> [Radovanović et al., 2010], central nodes accumulate an exorbitant number of routing paths, generating edge-thrashing and query traffic bottlenecks.", bullet_style))
+    story.append(Paragraph("• <b>Topological Starvation & Hubness:</b> In sparse high-dimensional regions, uniform quotas cause capacity starvation. Under the <i>Hubness Phenomenon</i> [Radovanovic et al., 2010], central nodes accumulate an exorbitant number of routing paths, generating edge-thrashing and query traffic bottlenecks.", bullet_style))
     story.append(Paragraph("• <b>The Commodity Hardware Barrier:</b> Enterprise ANNS literature focuses predominantly on multi-socket servers with 128GB–512GB of RAM. In contrast, thousands of edge deployments operate under strict memory and compute budgets (100K–1M vectors on single-node commodity laptops or cost-capped cloud virtual machines).", bullet_style))
 
     story.append(Paragraph(
@@ -427,7 +427,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(HRFlowable(width="100%", thickness=0.8, color=primary_color, spaceBefore=2, spaceAfter=8))
 
     story.append(Paragraph(
-        "Let <i>X</i> = {<i>x</i><sub>1</sub>, <i>x</i><sub>2</sub>, ..., <i>x</i><sub><i>N</i></sub>} ⊂ ℝ<sup><i>D</i></sup> denote a corpus of <i>N</i> vectors embedded in an ambient space of dimension <i>D</i>, equipped with a metric distance function <i>d</i> : ℝ<sup><i>D</i></sup> × ℝ<sup><i>D</i></sup> → ℝ<sub>≥0</sub> (typically Euclidean distance <i>L</i><sub>2</sub> or Cosine distance). We assume the data points lie on or near a collection of Riemannian sub-manifolds of varying intrinsic dimensionality <i>d</i><sup>*</sup> ≪ <i>D</i>.",
+        "Let <i>X</i> = {<i>x</i><sub>1</sub>, <i>x</i><sub>2</sub>, ..., <i>x</i><sub><i>N</i></sub>} ⊂ <b>R</b><sup><i>D</i></sup> denote a corpus of <i>N</i> vectors embedded in an ambient space of dimension <i>D</i>, equipped with a metric distance function <i>d</i> : <b>R</b><sup><i>D</i></sup> × <b>R</b><sup><i>D</i></sup> → <b>R</b><sub>≥0</sub> (typically Euclidean distance <i>L</i><sub>2</sub> or Cosine distance). We assume the data points lie on or near a collection of Riemannian sub-manifolds of varying intrinsic dimensionality <i>d</i><sup>*</sup> &lt;&lt; <i>D</i>.",
         body_style
     ))
 
@@ -438,12 +438,12 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "LID̂(x) = - [ (1 / (k - 1)) · ∑<sub>i=1</sub><sup>k-1</sup> ln ( d(x, v<sub>i</sub>) / d(x, v<sub>k</sub>) ) ]<sup>-1</sup>",
+        "LID<sub>est</sub>(x) = - [ (1 / (k - 1)) · ∑<sub>i=1</sub><sup>k-1</sup> ln ( d(x, v<sub>i</sub>) / d(x, v<sub>k</sub>) ) ]<sup>-1</sup>",
         formula_style
     ))
 
     story.append(Paragraph(
-        "Where <i>d</i>(<i>x</i>, <i>v</i><sub><i>k</i></sub>) serves as the maximum radius of the local exploratory ball. When local points are concentrated on a low-dimensional manifold, the ratios <i>d</i>(<i>x</i>, <i>v</i><sub><i>i</i></sub>) / <i>d</i>(<i>x</i>, <i>v</i><sub><i>k</i></sub>) decay rapidly, yielding a small denominator and a low estimated LID (e.g., 2.0 ≤ LID̂ ≤ 8.0). Conversely, when local vectors expand uniformly across all ambient degrees of freedom, the ratios cluster closer to 1.0, driving ln(·) toward 0 and yielding a high LID̂ (e.g., 20.0 ≤ LID̂ ≤ 64.0). To guarantee numerical stability in floating-point operations, we clamp the ratio inside [10<sup>-7</sup>, 1.0 - 10<sup>-7</sup>] and constrain the output LID̂ ∈ [1.0, 1000.0].",
+        "Where <i>d</i>(<i>x</i>, <i>v</i><sub><i>k</i></sub>) serves as the maximum radius of the local exploratory ball. When local points are concentrated on a low-dimensional manifold, the ratios <i>d</i>(<i>x</i>, <i>v</i><sub><i>i</i></sub>) / <i>d</i>(<i>x</i>, <i>v</i><sub><i>k</i></sub>) decay rapidly, yielding a small denominator and a low estimated LID (e.g., 2.0 ≤ LID<sub>est</sub> ≤ 8.0). Conversely, when local vectors expand uniformly across all ambient degrees of freedom, the ratios cluster closer to 1.0, driving ln(·) toward 0 and yielding a high LID<sub>est</sub> (e.g., 20.0 ≤ LID<sub>est</sub> ≤ 64.0). To guarantee numerical stability in floating-point operations, we clamp the ratio inside [10<sup>-7</sup>, 1.0 - 10<sup>-7</sup>] and constrain the output LID<sub>est</sub> ∈ [1.0, 1000.0].",
         body_style
     ))
 
@@ -465,23 +465,23 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
 
     story.append(Paragraph("3.3 Online Streaming Welford Tracking", h2_style))
     story.append(Paragraph(
-        "To transform raw signals (LID̂, <i>D</i>) into actionable allocation decisions without requiring an offline pre-computation pass over the entire corpus, AdaptiveVec tracks running statistical moments online using <b>Welford's Algorithm</b> [Welford, 1962]. For every inserted vector <i>x</i><sub><i>n</i></sub>, the running mean <i>M̄</i><sub><i>n</i></sub> and squared variance accumulator <i>S</i><sub><i>n</i></sub> are updated incrementally in <i>O</i>(1) time:",
+        "To transform raw signals (LID<sub>est</sub>, <i>D</i>) into actionable allocation decisions without requiring an offline pre-computation pass over the entire corpus, AdaptiveVec tracks running statistical moments online using <b>Welford's Algorithm</b> [Welford, 1962]. For every inserted vector <i>x</i><sub><i>n</i></sub>, the running mean <i>M</i><sub>mean,<i>n</i></sub> and squared variance accumulator <i>S</i><sub><i>n</i></sub> are updated incrementally in <i>O</i>(1) time:",
         body_style
     ))
 
     story.append(Paragraph(
-        "δ = z<sub>n</sub> - M̄<sub>n-1</sub> ;    M̄<sub>n</sub> = M̄<sub>n-1</sub> + δ / n ;    S<sub>n</sub> = S<sub>n-1</sub> + δ · (z<sub>n</sub> - M̄<sub>n</sub>)",
+        "δ = z<sub>n</sub> - M<sub>mean,n-1</sub> ;    M<sub>mean,n</sub> = M<sub>mean,n-1</sub> + δ / n ;    S<sub>n</sub> = S<sub>n-1</sub> + δ · (z<sub>n</sub> - M<sub>mean,n</sub>)",
         formula_style
     ))
 
     story.append(Paragraph(
-        "Where the running variance is σ<sub><i>n</i></sub><sup>2</sup> = <i>S</i><sub><i>n</i></sub> / (<i>n</i> - 1). For non-stationary data streams where vector distributions drift over time, AdaptiveVec incorporates an Exponential Moving Average (EMA) tracker with momentum parameter γ = 0.05: <i>M̄</i><sub>ema</sub> = (1 - γ)<i>M̄</i><sub>ema</sub> + γ <i>z</i><sub><i>n</i></sub>.",
+        "Where the running variance is σ<sub><i>n</i></sub><sup>2</sup> = <i>S</i><sub><i>n</i></sub> / (<i>n</i> - 1). For non-stationary data streams where vector distributions drift over time, AdaptiveVec incorporates an Exponential Moving Average (EMA) tracker with momentum parameter γ = 0.05: <i>M</i><sub>EMA</sub> = (1 - γ)<i>M</i><sub>EMA</sub> + γ <i>z</i><sub><i>n</i></sub>.",
         body_style
     ))
 
     story.append(Paragraph("3.4 Standardized Manifold Difficulty Score", h2_style))
     story.append(Paragraph(
-        "Using the tracked moments, the raw signals are normalized into standardized z-scores: <i>z</i><sub>LID</sub>(<i>x</i>) = (LID̂(<i>x</i>) - μ<sub>LID</sub>) / σ<sub>LID</sub> and <i>z</i><sub><i>D</i></sub>(<i>x</i>) = (<i>D</i>(<i>x</i>) - μ<sub><i>D</i></sub>) / σ<sub><i>D</i></sub>. The unified <b>Manifold Difficulty Score</b> <i>S</i>(<i>x</i>) is formulated as a linear combination bounded within [-2.5, +2.5]:",
+        "Using the tracked moments, the raw signals are normalized into standardized z-scores: <i>z</i><sub>LID</sub>(<i>x</i>) = (LID<sub>est</sub>(<i>x</i>) - μ<sub>LID</sub>) / σ<sub>LID</sub> and <i>z</i><sub><i>D</i></sub>(<i>x</i>) = (<i>D</i>(<i>x</i>) - μ<sub><i>D</i></sub>) / σ<sub><i>D</i></sub>. The unified <b>Manifold Difficulty Score</b> <i>S</i>(<i>x</i>) is formulated as a linear combination bounded within [-2.5, +2.5]:",
         body_style
     ))
 
@@ -537,7 +537,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "M<sup>(l)</sup>(x) = max ( M<sub>min</sub><sup>(l)</sup>,  ⌊ M(x) · λ<sup>l</sup> ⌋ )",
+        "M<sup>(l)</sup>(x) = max ( M<sub>min</sub><sup>(l)</sup>,  floor( M(x) · λ<sup>l</sup> ) )",
         formula_style
     ))
 
@@ -558,12 +558,12 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "d<sub>eff</sub>(u, v) = d(u, v) · [ 1 + μ · ( deg<sub>in</sub>(v) / deḡ<sub>in</sub> ) ]",
+        "d<sub>eff</sub>(u, v) = d(u, v) · [ 1 + μ · ( deg<sub>in</sub>(v) / deg<sub>in,mean</sub> ) ]",
         formula_style
     ))
 
     story.append(Paragraph(
-        "Where deg<sub>in</sub>(<i>v</i>) is the current in-degree of candidate <i>v</i>, deḡ<sub>in</sub> is the global mean in-degree, and μ is the hubness regulation coefficient (default μ = 0.15). When a candidate node begins accumulating excessive incoming connections, its effective distance expands artificially, encouraging the heuristic to select alternative, topologically diverse neighbors. This flattens the graph's in-degree variance and eliminates query routing bottlenecks.",
+        "Where deg<sub>in</sub>(<i>v</i>) is the current in-degree of candidate <i>v</i>, deg<sub>in,mean</sub> is the global mean in-degree, and μ is the hubness regulation coefficient (default μ = 0.15). When a candidate node begins accumulating excessive incoming connections, its effective distance expands artificially, encouraging the heuristic to select alternative, topologically diverse neighbors. This flattens the graph's in-degree variance and eliminates query routing bottlenecks.",
         body_style
     ))
 
@@ -590,7 +590,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
 
     story.append(Paragraph("4.6 Asymmetric INT8 Scalar Quantization (SQ8)", h2_style))
     story.append(Paragraph(
-        "To achieve maximum memory compaction on resource-constrained hardware, AdaptiveVec integrates <b>Asymmetric INT8 Scalar Quantization (SQ8)</b>. During indexing, float32 vectors are compressed into uint8 coordinates via per-dimension affine transformation: <i>x̃</i><sub><i>d</i></sub> = round((<i>x</i><sub><i>d</i></sub> - <i>min</i><sub><i>d</i></sub>) / <i>scale</i><sub><i>d</i></sub>). Graph construction and query routing compute fast integer-approximated distances. Once the top-<i>K</i> candidate set is retrieved (where <i>K</i> = 2<i>k</i>), an in-memory two-stage re-ranking pass computes exact float32 distances over the candidates, restoring full metric precision while reducing vector storage by 75%.",
+        "To achieve maximum memory compaction on resource-constrained hardware, AdaptiveVec integrates <b>Asymmetric INT8 Scalar Quantization (SQ8)</b>. During indexing, float32 vectors are compressed into uint8 coordinates via per-dimension affine transformation: <i>x'</i><sub><i>d</i></sub> = round((<i>x</i><sub><i>d</i></sub> - <i>min</i><sub><i>d</i></sub>) / <i>scale</i><sub><i>d</i></sub>). Graph construction and query routing compute fast integer-approximated distances. Once the top-<i>K</i> candidate set is retrieved (where <i>K</i> = 2<i>k</i>), an in-memory two-stage re-ranking pass computes exact float32 distances over the candidates, restoring full metric precision while reducing vector storage by 75%.",
         body_style
     ))
 
@@ -598,22 +598,22 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Spacer(1, 6))
     algo_text = """
     <b>Algorithm 1: AdaptiveVec Node Insertion & Dynamic Allocation</b><br/>
-    <b>Input:</b> Index <i>G</i> = (<i>V</i>, <i>E</i>), New Vector <i>x</i> ∈ ℝ<sup><i>D</i></sup>, Baseline Configuration {<i>M</i><sub>base</sub>, <i>efC</i><sub>base</sub>}<br/>
+    <b>Input:</b> Index <i>G</i> = (<i>V</i>, <i>E</i>), New Vector <i>x</i> ∈ <b>R</b><sup><i>D</i></sup>, Baseline Configuration {<i>M</i><sub>base</sub>, <i>efC</i><sub>base</sub>}<br/>
     <b>Output:</b> Updated Index <i>G</i> with vertex <i>x</i> inserted at level <i>l</i><sub>new</sub><br/>
-    1:  <i>l</i><sub>new</sub> ← ⌊ -ln(unif(0, 1)) · <i>m</i><sub><i>L</i></sub> ⌋ ;   <i>curr_ep</i> ← <i>G</i>.enter_point<br/>
+    1:  <i>l</i><sub>new</sub> ← floor( -ln(unif(0, 1)) · <i>m</i><sub><i>L</i></sub> ) ;   <i>curr_ep</i> ← <i>G</i>.enter_point<br/>
     2:  <b>for</b> <i>l</i> = <i>G</i>.max_level <b>downto</b> <i>l</i><sub>new</sub> + 1 <b>do</b><br/>
     3:  &nbsp;&nbsp;&nbsp;&nbsp;<i>curr_ep</i> ← SEARCH-LAYER(<i>x</i>, {<i>curr_ep</i>}, <i>ef</i>=1, <i>l</i>)[0].id<br/>
     4:  <b>end for</b><br/>
     5:  <i>probe_candidates</i> ← SEARCH-LAYER(<i>x</i>, {<i>curr_ep</i>}, <i>ef</i>=min(25, <i>efC</i>/4), min(<i>G</i>.max_level, <i>l</i><sub>new</sub>))<br/>
     6:  <i>dists</i> ← { <i>c.dist</i> for <i>c</i> ∈ <i>probe_candidates</i> }<br/>
-    7:  LID̂ ← ESTIMATE-MLE-LID(<i>dists</i>, <i>k</i>=15) ;   <i>D</i> ← ESTIMATE-LOCAL-DENSITY(<i>dists</i>)<br/>
-    8:  UPDATE-WELFORD-TRACKER(LID̂, <i>D</i>)<br/>
-    9:  <i>S</i>(<i>x</i>) ← STANDARDIZE-DIFFICULTY(LID̂, <i>D</i>)<br/>
+    7:  LID<sub>est</sub> ← ESTIMATE-MLE-LID(<i>dists</i>, <i>k</i>=15) ;   <i>D</i> ← ESTIMATE-LOCAL-DENSITY(<i>dists</i>)<br/>
+    8:  UPDATE-WELFORD-TRACKER(LID<sub>est</sub>, <i>D</i>)<br/>
+    9:  <i>S</i>(<i>x</i>) ← STANDARDIZE-DIFFICULTY(LID<sub>est</sub>, <i>D</i>)<br/>
     10: <i>M</i>(<i>x</i>) ← CLAMP(round(<i>M</i><sub>base</sub> · (1 + γ·<i>S</i>(<i>x</i>))), <i>M</i><sub>min</sub>, <i>M</i><sub>max</sub>)<br/>
     11: <i>efC</i>(<i>x</i>) ← CLAMP(round(<i>efC</i><sub>base</sub> · (1 + γ·<i>S</i>(<i>x</i>))), <i>efC</i><sub>min</sub>, <i>efC</i><sub>max</sub>)<br/>
     12: <b>for</b> <i>l</i> = min(<i>G</i>.max_level, <i>l</i><sub>new</sub>) <b>downto</b> 0 <b>do</b><br/>
     13: &nbsp;&nbsp;&nbsp;&nbsp;<i>W</i> ← SEARCH-LAYER(<i>x</i>, {<i>curr_ep</i>}, <i>efC</i>(<i>x</i>), <i>l</i>)<br/>
-    14: &nbsp;&nbsp;&nbsp;&nbsp;<i>M</i><sup>(<i>l</i>)</sup> ← (<i>l</i> == 0) ? <i>M</i>(<i>x</i>) : max(<i>M</i><sub>min</sub><sup>(<i>l</i>)</sup>, ⌊<i>M</i>(<i>x</i>)·λ<sup><i>l</i></sup>⌋)<br/>
+    14: &nbsp;&nbsp;&nbsp;&nbsp;<i>M</i><sup>(<i>l</i>)</sup> ← (<i>l</i> == 0) ? <i>M</i>(<i>x</i>) : max(<i>M</i><sub>min</sub><sup>(<i>l</i>)</sup>, floor(<i>M</i>(<i>x</i>)·λ<sup><i>l</i></sup>))<br/>
     15: &nbsp;&nbsp;&nbsp;&nbsp;<i>neighbors</i> ← SELECT-NEIGHBORS-HUBNESS-RNG(<i>x</i>, <i>W</i>, <i>M</i><sup>(<i>l</i>)</sup>, <i>l</i>, μ)<br/>
     16: &nbsp;&nbsp;&nbsp;&nbsp;ADD-BIDIRECTIONAL-EDGES(<i>G</i>, <i>l</i>, <i>x</i>, <i>neighbors</i>)<br/>
     17: &nbsp;&nbsp;&nbsp;&nbsp;<i>curr_ep</i> ← <i>W</i>[0].id<br/>
@@ -645,12 +645,12 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "E<sub>AdaptiveVec</sub> = 2 · N · 𝔼[M(x)] · sizeof(uint32)",
+        "E<sub>AdaptiveVec</sub> = 2 · N · <b>E</b>[M(x)] · sizeof(uint32)",
         formula_style
     ))
 
     story.append(Paragraph(
-        "<i>Analytical Justification:</i> Under manifold topologies where clustered, low-LID subspaces predominate, the difficulty score expectation satisfies 𝔼[<i>S</i>(<i>x</i>)] < 0, giving an empirical expectation 𝔼[<i>M</i>(<i>x</i>)] < <i>M</i><sub>base</sub>. With configured bounds <i>M</i><sub>min</sub> = 8, <i>M</i><sub>base</sub> = 16, <i>M</i><sub>max</sub> = 24 and layer-decoupled scaling, this yields a measured 7.4% reduction in graph edges (~200,000 links on SIFT-100K) while preserving full connected component navigability. When combined with Asymmetric INT8 quantization (SQ8), index RAM decreases by 62.4% (from 59.9MB to 22.5MB).",
+        "<i>Analytical Justification:</i> Under manifold topologies where clustered, low-LID subspaces predominate, the difficulty score expectation satisfies <b>E</b>[<i>S</i>(<i>x</i>)] < 0, giving an empirical expectation <b>E</b>[<i>M</i>(<i>x</i>)] < <i>M</i><sub>base</sub>. With configured bounds <i>M</i><sub>min</sub> = 8, <i>M</i><sub>base</sub> = 16, <i>M</i><sub>max</sub> = 24 and layer-decoupled scaling, this yields a measured 7.4% reduction in graph edges (~200,000 links on SIFT-100K) while preserving full connected component navigability. When combined with Asymmetric INT8 quantization (SQ8), index RAM decreases by 62.4% (from 59.9MB to 22.5MB).",
         body_style
     ))
 
@@ -665,7 +665,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     story.append(Paragraph(
-        "<i>Analytical Justification:</i> The probe phase performs a single bounded beam search with constant <i>k</i><sub>probe</sub> ≤ 25 at level <i>l</i><sub>target</sub>. The MLE LID computation operates on <i>k</i><sub>probe</sub> scalar distances, requiring <i>k</i><sub>probe</sub> logarithms and additions, which is strictly <i>O</i>(<i>k</i><sub>probe</sub>) and completely independent of ambient dimension <i>D</i>. Since <i>k</i><sub>probe</sub> ≪ <i>efC</i><sub>base</sub>, the probing cost is negligible (<0.8% wall-clock overhead). Because dense-cluster vectors receive discounted construction budgets (<i>efC</i> = 40, <i>M</i> = 8 vs baseline <i>efC</i> = 200, <i>M</i> = 16), Layer-Decoupled scaling accelerates total build time by 28.1% (33.5s vs 46.6s baseline on SIFT-100K).",
+        "<i>Analytical Justification:</i> The probe phase performs a single bounded beam search with constant <i>k</i><sub>probe</sub> ≤ 25 at level <i>l</i><sub>target</sub>. The MLE LID computation operates on <i>k</i><sub>probe</sub> scalar distances, requiring <i>k</i><sub>probe</sub> logarithms and additions, which is strictly <i>O</i>(<i>k</i><sub>probe</sub>) and completely independent of ambient dimension <i>D</i>. Since <i>k</i><sub>probe</sub> &lt;&lt; <i>efC</i><sub>base</sub>, the probing cost is negligible (<0.8% wall-clock overhead). Because dense-cluster vectors receive discounted construction budgets (<i>efC</i> = 40, <i>M</i> = 8 vs baseline <i>efC</i> = 200, <i>M</i> = 16), Layer-Decoupled scaling accelerates total build time by 28.1% (33.5s vs 46.6s baseline on SIFT-100K).",
         body_style
     ))
 
@@ -1080,7 +1080,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
 
     story.append(Paragraph("• <b>AVX2 & FMA SIMD Vectorization:</b> Both <i>L</i><sub>2</sub> distance and Cosine similarity are vectorized using 256-bit wide registers (`__m256`), unrolling loops by 8 single-precision floats per cycle and accumulating with Fused Multiply-Add (`_mm256_fmadd_ps`). Horizontal reductions are executed via byte shuffles and 128-bit lane extractions without memory round-trips.", bullet_style))
     story.append(Paragraph("• <b>Software Cache Prefetching:</b> Graph traversal exhibits non-contiguous pointer chasing. AdaptiveVec pipelines candidate evaluation: while computing distances for node <i>v</i><sub><i>i</i></sub>, the memory address of neighbor <i>v</i><sub><i>i</i>+1</sub> is prefetched into L1/L2 cache via `__builtin_prefetch(ptr, 0, 3)` (or `_mm_prefetch(_MM_HINT_T0)`), mitigating DRAM stalls by up to 21%.", bullet_style))
-    story.append(Paragraph("• <b>Flat Contiguous Memory Allocation:</b> All vector embeddings are mapped into a single contiguous flat buffer ℝ<sup><i>N</i>×<i>D</i></sup>, eliminating memory fragmentation and maximizing OS page-table TLB hit rates.", bullet_style))
+    story.append(Paragraph("• <b>Flat Contiguous Memory Allocation:</b> All vector embeddings are mapped into a single contiguous flat buffer <b>R</b><sup><i>N</i>×<i>D</i></sup>, eliminating memory fragmentation and maximizing OS page-table TLB hit rates.", bullet_style))
 
     # =========================================================================
     # SECTION 8: KNOWN LIMITATIONS & FUTURE WORK
@@ -1134,7 +1134,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
         "[1] Y. A. Malkov and D. A. Yashunin, \"Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs,\" <i>IEEE Transactions on Pattern Analysis and Machine Intelligence</i>, vol. 42, no. 4, pp. 824–836, 2020.",
         "[2] E. Levina and P. J. Bickel, \"Maximum likelihood estimation of intrinsic dimension,\" in <i>Advances in Neural Information Processing Systems (NeurIPS)</i>, vol. 17, 2005.",
         "[3] L. Amsaleg, O. Chelly, T. Furon, S. Girard, M. E. Houle, K.-I. Kawarabayashi, and M. Nett, \"Estimating local intrinsic dimensionality,\" in <i>ACM SIGKDD International Conference on Knowledge Discovery and Data Mining</i>, 2015, pp. 29–38.",
-        "[4] M. Radovanović, A. Nanopoulos, and M. Ivanović, \"Hubs in space: Popular nearest neighbors in high-dimensional data,\" <i>Journal of Machine Learning Research</i>, vol. 11, pp. 2487–2531, 2010.",
+        "[4] M. Radovanovic, A. Nanopoulos, and M. Ivanovic, \"Hubs in space: Popular nearest neighbors in high-dimensional data,\" <i>Journal of Machine Learning Research</i>, vol. 11, pp. 2487–2531, 2010.",
         "[5] S. Subramanya, F. Kadekodi, R. Krishaswamy, and R. Simhadri, \"DiskANN: Fast accurate billion-point nearest neighbor search on a single node,\" in <i>Advances in Neural Information Processing Systems (NeurIPS)</i>, 2019.",
         "[6] C. Fu, C. Xiang, C. Wang, and D. Cai, \"Fast approximate nearest neighbor search with the navigating spreading-out graph,\" <i>Proceedings of the VLDB Endowment</i>, vol. 12, no. 5, pp. 461–474, 2019.",
         "[7] J. Johnson, M. Douze, and H. Jégou, \"Billion-scale similarity search with GPUs,\" <i>IEEE Transactions on Big Data</i>, vol. 7, no. 3, pp. 535–547, 2021.",
