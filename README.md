@@ -303,7 +303,7 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 
 > [!WARNING]
 > **Scientific Integrity & Empirical Gap Alignment**:
-> The research paper draft ([`AdaptiveVec_Research_Paper.pdf`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/AdaptiveVec_Research_Paper.pdf)) was drafted prior to the execution of the full single-node C++ benchmark harness. The empirical numbers in this README and in `benchmark_results.json` represent the **verified ground truth**:
+> The research paper draft ([`AdaptiveVec_Research_Paper.pdf`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/pdf/AdaptiveVec_Research_Paper.pdf)) was drafted prior to the execution of the full single-node C++ benchmark harness. The empirical numbers in this README and in `benchmark_results.json` represent the **verified ground truth**:
 >
 > 1. **Step-Specific Reporting**: Overview KPIs are never mixed across steps. Step 5 reports **0.9745 recall at 7,075.3 QPS** (FP32 payload); Step 6 reports **22.5 MB RAM at 0.9594 recall** (SQ8 payload); Step 4 reports **0.9854 recall parity** (before stagnation early exit).
 > 2. **Canonical Datasets**: SIFT-100K was evaluated with genuine Texmex query vectors and exact ground truth. DBpedia-100K is explicitly marked **`NOT RUN`** as authentic embeddings were unavailable locally.
