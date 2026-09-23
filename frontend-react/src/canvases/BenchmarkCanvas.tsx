@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useBenchmark } from '../context/BenchmarkContext';
-import { motion, useReducedMotion } from 'framer-motion';
 import { FileCode, Database, Layers } from 'lucide-react';
 import styles from './CanvasShared.module.css';
 
@@ -98,7 +97,8 @@ export const BenchmarkCanvas: React.FC = () => {
   const { toggleDrawer, hardware, results: _results, siftResults, syntheticResults } = useBenchmark();
   const [activeTab, setActiveTab] = useState<'pareto' | 'ablation' | 'regimes'>('pareto');
   const [selectedPoint, setSelectedPoint] = useState<PlotPoint>(BENCHMARK_POINTS[5]); // Default: Step 5
-  const shouldReduceMotion = useReducedMotion();
+  const [hoveredPoint, setHoveredPoint] = useState<PlotPoint | null>(null);
+  const activeDisplayPoint = hoveredPoint || selectedPoint;
 
   // Keyboard navigation between steps along the Pareto frontier
   useEffect(() => {
@@ -155,6 +155,11 @@ export const BenchmarkCanvas: React.FC = () => {
     const y = toSvgY(pt.recall);
     return idx === 0 ? `M ${x} ${y}` : `${acc} L ${x} ${y}`;
   }, '');
+
+  // Area under Pareto frontier for glowing gradient envelope
+  const frontierAreaD = frontierPoints.length > 0
+    ? `${frontierPathD} L ${toSvgX(frontierPoints[frontierPoints.length - 1].qps)} ${svgHeight - marginBottom} L ${toSvgX(frontierPoints[0].qps)} ${svgHeight - marginBottom} Z`
+    : '';
 
   return (
     <div className={styles.canvasContainer}>
@@ -326,47 +331,65 @@ export const BenchmarkCanvas: React.FC = () => {
                     BASELINE ENVELOPE
                   </text>
 
+                  {/* Area Gradients & SVG Defs */}
+                  <defs>
+                    <linearGradient id="paretoAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#C97D4A" stopOpacity="0.22" />
+                      <stop offset="70%" stopColor="#C97D4A" stopOpacity="0.05" />
+                      <stop offset="100%" stopColor="#C97D4A" stopOpacity="0.0" />
+                    </linearGradient>
+                    <linearGradient id="paretoStrokeGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#A65624" />
+                      <stop offset="45%" stopColor="#C97D4A" />
+                      <stop offset="85%" stopColor="#E59866" />
+                      <stop offset="100%" stopColor="#F5B98A" />
+                    </linearGradient>
+                    <filter id="nodeGlow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  {/* Gradient Area Fill under Pareto curve */}
+                  {frontierAreaD && (
+                    <path
+                      d={frontierAreaD}
+                      fill="url(#paretoAreaGrad)"
+                      pointerEvents="none"
+                      style={{ transition: 'opacity 0.2s ease' }}
+                    />
+                  )}
+
                   {/* Pareto Frontier Connecting Line */}
-                  <motion.path
+                  <path
                     d={frontierPathD}
                     className={styles.paretoFrontierGlow}
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 220, damping: 28 }}
+                    stroke="url(#paretoStrokeGrad)"
                   />
 
-                  {/* Active Point Reticle Hairlines (Smooth Spring Glide) */}
-                  {selectedPoint && (
-                    <g>
+                  {/* Active Point Reticle Hairlines (Tracking active display point without jitter) */}
+                  {activeDisplayPoint && (
+                    <g pointerEvents="none">
                       {/* Vertical line to X-axis */}
-                      <motion.line
-                        animate={{
-                          x1: toSvgX(selectedPoint.qps),
-                          y1: toSvgY(selectedPoint.recall),
-                          x2: toSvgX(selectedPoint.qps),
-                          y2: svgHeight - marginBottom,
-                        }}
-                        transition={
-                          shouldReduceMotion
-                            ? { duration: 0 }
-                            : { type: 'spring', stiffness: 420, damping: 36, mass: 0.7 }
-                        }
+                      <line
+                        x1={toSvgX(activeDisplayPoint.qps)}
+                        y1={toSvgY(activeDisplayPoint.recall)}
+                        x2={toSvgX(activeDisplayPoint.qps)}
+                        y2={svgHeight - marginBottom}
                         className={styles.activeReticleLine}
+                        style={{ transition: 'x1 0.12s ease-out, y1 0.12s ease-out, x2 0.12s ease-out' }}
                       />
                       {/* Horizontal line to Y-axis */}
-                      <motion.line
-                        animate={{
-                          x1: marginLeft,
-                          y1: toSvgY(selectedPoint.recall),
-                          x2: toSvgX(selectedPoint.qps),
-                          y2: toSvgY(selectedPoint.recall),
-                        }}
-                        transition={
-                          shouldReduceMotion
-                            ? { duration: 0 }
-                            : { type: 'spring', stiffness: 420, damping: 36, mass: 0.7 }
-                        }
+                      <line
+                        x1={marginLeft}
+                        y1={toSvgY(activeDisplayPoint.recall)}
+                        x2={toSvgX(activeDisplayPoint.qps)}
+                        y2={toSvgY(activeDisplayPoint.recall)}
                         className={styles.activeReticleLine}
+                        style={{ transition: 'x1 0.12s ease-out, y1 0.12s ease-out, y2 0.12s ease-out' }}
                       />
                     </g>
                   )}
@@ -376,35 +399,49 @@ export const BenchmarkCanvas: React.FC = () => {
                     const cx = toSvgX(pt.qps);
                     const cy = toSvgY(pt.recall);
                     const isSelected = selectedPoint.id === pt.id;
+                    const isHovered = hoveredPoint?.id === pt.id;
+                    const isActive = isSelected || isHovered;
 
                     return (
                       <g
                         key={pt.id}
                         className={styles.plotNode}
                         onClick={() => setSelectedPoint(pt)}
-                        onMouseEnter={() => setSelectedPoint(pt)}
+                        onMouseEnter={() => setHoveredPoint(pt)}
+                        onMouseLeave={() => setHoveredPoint(null)}
                       >
-                        {/* Outer Glow on Featured Step 5 */}
-                        {pt.isFeatured && (
-                          <circle
-                            cx={cx}
-                            cy={cy}
-                            r={14}
-                            fill="none"
-                            stroke="var(--accent)"
-                            strokeWidth={1}
-                            opacity={0.4}
-                          />
-                        )}
-
-                        {/* Node Circle */}
+                        {/* Generous Invisible Hit Target Circle (32px diameter for forgiving, stable mouse interaction) */}
                         <circle
                           cx={cx}
                           cy={cy}
-                          r={pt.isFeatured ? 6 : isSelected ? 5.5 : 4.5}
-                          fill={pt.isFeatured ? 'var(--accent-glow)' : isSelected ? 'var(--accent)' : 'var(--bg-card)'}
-                          stroke={pt.isFeatured ? '#ffffff' : isSelected ? 'var(--accent-glow)' : 'var(--border-emphasis)'}
-                          strokeWidth={isSelected || pt.isFeatured ? 2 : 1.5}
+                          r={16}
+                          fill="transparent"
+                        />
+
+                        {/* Outer Glow Halo on Active or Featured Step 5 */}
+                        {(pt.isFeatured || isActive) && (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isActive ? 13 : 11}
+                            fill="none"
+                            stroke={pt.isFeatured ? 'var(--accent)' : 'var(--accent-glow)'}
+                            strokeWidth={isActive ? 1.5 : 1}
+                            opacity={isActive ? 0.75 : 0.35}
+                            filter="url(#nodeGlow)"
+                            style={{ transition: 'r 0.15s ease, opacity 0.15s ease' }}
+                          />
+                        )}
+
+                        {/* Node Core Circle */}
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={isActive ? 6.5 : pt.isFeatured ? 5.5 : 4.5}
+                          fill={isActive ? 'var(--accent-glow)' : pt.isFeatured ? 'var(--accent)' : 'var(--bg-card)'}
+                          stroke={isActive ? '#ffffff' : pt.isFeatured ? '#ffffff' : 'var(--border-emphasis)'}
+                          strokeWidth={isActive ? 2.2 : 1.5}
+                          className={styles.plotNodeCircle}
                         />
 
                         {/* Point Label */}
@@ -413,95 +450,97 @@ export const BenchmarkCanvas: React.FC = () => {
                           y={cy + (pt.id === 'step-5' ? -12 : pt.id === 'step-3' ? 14 : -8)}
                           className={styles.axisLabel}
                           textAnchor={pt.id === 'step-5' ? 'end' : 'start'}
-                          fontWeight={pt.isFeatured || isSelected ? 700 : 500}
-                          fill={pt.isFeatured || isSelected ? 'var(--text-primary)' : 'var(--text-muted)'}
+                          fontWeight={pt.isFeatured || isActive ? 700 : 500}
+                          fill={isActive ? 'var(--text-primary)' : pt.isFeatured ? 'var(--accent-glow)' : 'var(--text-muted)'}
                         >
                           {pt.shortName}
                         </text>
                       </g>
                     );
                   })}
+
+                  {/* Floating Glassmorphic Tooltip on Hover */}
+                  {hoveredPoint && (
+                    <foreignObject
+                      x={Math.max(marginLeft + 4, Math.min(svgWidth - marginRight - 192, toSvgX(hoveredPoint.qps) - 96))}
+                      y={Math.max(marginTop + 4, toSvgY(hoveredPoint.recall) - 96)}
+                      width={188}
+                      height={92}
+                      className={styles.plotTooltipForeign}
+                    >
+                      <div className={styles.plotTooltip}>
+                        <div className={styles.tooltipTitle}>
+                          <span>{hoveredPoint.stepName}</span>
+                          {hoveredPoint.deltaText && (
+                            <span className={styles.tooltipDeltaBadge}>{hoveredPoint.deltaText}</span>
+                          )}
+                        </div>
+                        <div className={styles.tooltipGrid}>
+                          <div className={styles.tooltipMetric}>
+                            <span className={styles.tooltipMetricKey}>Throughput</span>
+                            <span className={styles.tooltipMetricVal}>{hoveredPoint.qps.toLocaleString()} QPS</span>
+                          </div>
+                          <div className={styles.tooltipMetric}>
+                            <span className={styles.tooltipMetricKey}>Recall@10</span>
+                            <span className={styles.tooltipMetricVal}>{hoveredPoint.recall.toFixed(4)}</span>
+                          </div>
+                          <div className={styles.tooltipMetric}>
+                            <span className={styles.tooltipMetricKey}>RAM</span>
+                            <span className={styles.tooltipMetricVal}>{hoveredPoint.memoryMb.toFixed(2)} MB</span>
+                          </div>
+                          <div className={styles.tooltipMetric}>
+                            <span className={styles.tooltipMetricKey}>Edges</span>
+                            <span className={styles.tooltipMetricVal}>{hoveredPoint.edges.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </foreignObject>
+                  )}
                 </svg>
               </div>
 
-              {/* Real-time Telemetry HUD (Selected node readout with spring settle) */}
+              {/* Real-time Telemetry HUD (Rock-solid readout with no unmount flashing) */}
               <div className={styles.plotFooterHud}>
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Active Step Reference</span>
-                  <motion.span
-                    key={selectedPoint.id}
-                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className={`${styles.hudVal} ${styles.hudValHighlight}`}
-                  >
-                    {selectedPoint.stepName}
-                  </motion.span>
+                  <span className={`${styles.hudVal} ${styles.hudValHighlight}`}>
+                    {activeDisplayPoint.stepName}
+                  </span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Throughput (QPS)</span>
-                  <motion.span
-                    key={`${selectedPoint.id}-qps`}
-                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className="tabular-nums font-semibold"
-                  >
-                    {selectedPoint.qps.toLocaleString()} QPS
-                  </motion.span>
+                  <span className="tabular-nums font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {activeDisplayPoint.qps.toLocaleString()} QPS
+                  </span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Recall@10</span>
-                  <motion.span
-                    key={`${selectedPoint.id}-recall`}
-                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className="tabular-nums font-semibold"
-                  >
-                    {selectedPoint.recall.toFixed(4)}
-                  </motion.span>
+                  <span className="tabular-nums font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    {activeDisplayPoint.recall.toFixed(4)}
+                  </span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Graph Edges</span>
-                  <motion.span
-                    key={`${selectedPoint.id}-edges`}
-                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className="tabular-nums"
-                  >
-                    {selectedPoint.edges.toLocaleString()}
-                  </motion.span>
+                  <span className="tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                    {activeDisplayPoint.edges.toLocaleString()}
+                  </span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Memory RAM</span>
-                  <motion.span
-                    key={`${selectedPoint.id}-ram`}
-                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className="tabular-nums"
-                  >
-                    {selectedPoint.memoryMb.toFixed(2)} MB
-                  </motion.span>
+                  <span className="tabular-nums" style={{ color: 'var(--semantic-emerald)' }}>
+                    {activeDisplayPoint.memoryMb.toFixed(2)} MB
+                  </span>
                 </div>
 
                 <div className={styles.hudItem}>
                   <span className={styles.hudKey}>Distance Evals</span>
-                  <motion.span
-                    key={`${selectedPoint.id}-evals`}
-                    initial={shouldReduceMotion ? false : { opacity: 0.4, y: -2 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                    className="tabular-nums"
-                  >
-                    {selectedPoint.evals.toFixed(1)} / q
-                  </motion.span>
+                  <span className="tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                    {activeDisplayPoint.evals.toFixed(1)} / q
+                  </span>
                 </div>
               </div>
 
