@@ -1,0 +1,370 @@
+/* ==========================================================================
+   AdaptiveVec: Scientific Instrument Design Tokens & Avionics Typography
+   Precision Lab Equipment Identity (Oscilloscope, Spectrum Analyzer)
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+
+:root {
+  /* Warm Charcoal Chassis Substrate */
+  --bg-app: #171513;
+  --bg-sidebar: #12110F;
+  --bg-card: #211E1A;
+  --bg-card-subtle: #1A1815;
+  --bg-surface-elevated: #28241F;
+  --bg-surface-sunken: #100F0D;
+  --bg-hover: rgba(232, 162, 92, 0.06);
+  --bg-active: rgba(232, 162, 92, 0.14);
+
+  --text-primary: #EAE4DC;
+  --text-secondary: #A69C8E;
+  --text-muted: #786F62;
+  --text-dim: #524B42;
+
+  --border-subtle: #2B2621;
+  --border-default: #38312A;
+  --border-emphasis: #4F463D;
+  --border-hairline: rgba(225, 210, 190, 0.08);
+
+  /* Filament Amber & Instrument Accents */
+  --accent: #C97D4A;
+  --accent-glow: #E8A25C;
+  --accent-subtle: rgba(201, 125, 74, 0.14);
+  --accent-text: #E8A25C;
+
+  /* Verified Scientific Semantics */
+  --semantic-emerald: #6BA37E;
+  --semantic-emerald-bg: rgba(107, 163, 126, 0.14);
+  --semantic-amber: #D9A74A;
+  --semantic-amber-bg: rgba(217, 167, 74, 0.14);
+  --semantic-rose: #D9655B;
+  --semantic-rose-bg: rgba(217, 101, 91, 0.14);
+
+  --canvas-bg: #141210;
+  --canvas-edge: rgba(201, 125, 74, 0.22);
+  --canvas-grid: rgba(225, 210, 190, 0.04);
+
+  --font-sans: 'Chivo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 3px 10px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 0 12px rgba(232, 162, 92, 0.25);
+}
+
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.48;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-app);
+  position: relative;
+}
+
+.main-content {
+  flex: 1;
+  padding: 20px 28px 48px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Tabular Figures for Real Instrument Readouts */
+.tabular-nums, .mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.text-xs { font-size: 11px; }
+.text-sm { font-size: 12px; }
+.text-base { font-size: 13.5px; }
+.text-lg { font-size: 15px; }
+.text-xl { font-size: 18px; }
+
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.text-dim { color: var(--text-dim); }
+.text-accent { color: var(--accent); }
+.text-accent-glow { color: var(--accent-glow); }
+.text-emerald { color: var(--semantic-emerald); }
+.text-amber { color: var(--semantic-amber); }
+.text-rose { color: var(--semantic-rose); }
+
+/* Instrument Chassis Card */
+.instrument-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.instrument-card:hover {
+  border-color: var(--border-emphasis);
+}
+
+.instrument-card.highlight {
+  border-color: rgba(201, 125, 74, 0.45);
+  box-shadow: 0 0 15px rgba(232, 162, 92, 0.12);
+}
+
+.instrument-card.emerald-highlight {
+  border-color: rgba(107, 163, 126, 0.45);
+  box-shadow: 0 0 15px rgba(107, 163, 126, 0.12);
+}
+
+/* Stat Typography */
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Instrument Badges & Telemetry Pills */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card-subtle);
+  color: var(--text-secondary);
+}
+
+.badge-pill.accent {
+  background: var(--accent-subtle);
+  color: var(--accent-glow);
+  border-color: rgba(201, 125, 74, 0.35);
+}
+
+.badge-pill.emerald {
+  background: var(--semantic-emerald-bg);
+  color: var(--semantic-emerald);
+  border-color: rgba(107, 163, 126, 0.35);
+}
+
+.badge-pill.amber {
+  background: var(--semantic-amber-bg);
+  color: var(--semantic-amber);
+  border-color: rgba(217, 167, 74, 0.35);
+}
+
+.badge-pill.illustrative {
+  background: var(--bg-surface-sunken);
+  color: var(--text-muted);
+  border: 1px solid var(--border-emphasis);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Instrument Segmented Group (Tabs) */
+.segmentedGroup {
+  display: flex;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  padding: 2px;
+  gap: 2px;
+}
+
+.segBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-radius: var(--radius-xs);
+  transition: all 0.12s ease;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.segBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.segBtn.active {
+  background: var(--bg-card);
+  color: var(--accent-glow);
+  font-weight: 600;
+  border-color: var(--border-emphasis);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Buttons */
+.btn-instrument {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  transition: all 0.12s ease;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-decoration: none;
+}
+
+.btn-instrument:hover {
+  border-color: var(--accent);
+  color: var(--accent-glow);
+  background: var(--bg-hover);
+}
+
+.btn-instrument.primary {
+  background: var(--accent-subtle);
+  border-color: rgba(201, 125, 74, 0.45);
+  color: var(--accent-glow);
+}
+
+.btn-instrument.primary:hover {
+  background: rgba(201, 125, 74, 0.24);
+  border-color: var(--accent-glow);
+  box-shadow: var(--shadow-glow);
+}
+
+.btn-instrument.emerald {
+  background: var(--semantic-emerald-bg);
+  border-color: rgba(107, 163, 126, 0.4);
+  color: var(--semantic-emerald);
+}
+
+.btn-instrument.emerald:hover {
+  background: rgba(107, 163, 126, 0.22);
+}
+
+/* Precision Instrument Tables */
+.instrument-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.instrument-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg-surface-sunken);
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+}
+
+.instrument-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.instrument-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+/* Precision Instrument Hairline Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-emphasis);
+}
+
+/* Grid Layouts */
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1024px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .grid-4 { grid-template-columns: 1fr; }
+}
