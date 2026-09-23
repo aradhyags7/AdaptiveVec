@@ -84,7 +84,11 @@ class NumberedCanvas(canvas.Canvas):
         self.restoreState()
 
 
-def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def build_pdf(filename=None):
+    if filename is None:
+        filename = os.path.join(SCRIPT_DIR, "AdaptiveVec_Research_Paper.pdf")
     doc = SimpleDocTemplate(
         filename,
         pagesize=letter,
@@ -819,9 +823,10 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     # Embedded Figure 1: Pareto Frontier
-    if os.path.exists("paper_figures/fig1_pareto.png"):
+    fig1_path = os.path.join(SCRIPT_DIR, "paper_figures", "fig1_pareto.png")
+    if os.path.exists(fig1_path):
         story.append(Spacer(1, 4))
-        story.append(Image("paper_figures/fig1_pareto.png", width=480, height=240))
+        story.append(Image(fig1_path, width=480, height=240))
         story.append(Paragraph("<b>Fig. 1.</b> Throughput-recall Pareto trade-off curve across configurations on SIFT-100K (Intel Core 5 210H, single-threaded). Early-exit patience sweep (<i>p</i> = 2..Inf) demonstrates a favorable operational frontier; the throughput-optimized operating point (<i>p</i> = 6) delivers 7,075.3 QPS (+50.3% speedup) at 0.9745 Recall@10.", fig_caption_style))
 
     story.append(Paragraph("6.3 Convergence Analysis & Hubness Suppression", h2_style))
@@ -831,9 +836,10 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     ))
 
     # Embedded Figure 2: Hubness Distribution
-    if os.path.exists("paper_figures/fig2_hubness_distribution.png"):
+    fig2_path = os.path.join(SCRIPT_DIR, "paper_figures", "fig2_hubness_distribution.png")
+    if os.path.exists(fig2_path):
         story.append(Spacer(1, 4))
-        story.append(Image("paper_figures/fig2_hubness_distribution.png", width=480, height=200))
+        story.append(Image(fig2_path, width=480, height=200))
         story.append(Paragraph("<b>Fig. 2.</b> Node in-degree centrality distributions under canonical RNG edge selection versus AdaptiveVec hubness-regulated selection (μ = 0.15). AdaptiveVec flattens the heavy-tailed power-law distribution, reducing in-degree variance by 54.9% (Var = 19.3 vs 42.8) and preventing high-degree routing bottlenecks.", fig_caption_style))
 
     story.append(Paragraph("6.4 Detailed Component Ablation Studies", h2_style))
@@ -1008,9 +1014,10 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Spacer(1, 4))
 
     # Embedded Figure 3: Ablation Waterfall
-    if os.path.exists("paper_figures/fig3_ablation_waterfall.png"):
+    fig3_path = os.path.join(SCRIPT_DIR, "paper_figures", "fig3_ablation_waterfall.png")
+    if os.path.exists(fig3_path):
         story.append(Spacer(1, 4))
-        story.append(Image("paper_figures/fig3_ablation_waterfall.png", width=480, height=200))
+        story.append(Image(fig3_path, width=480, height=200))
         story.append(Paragraph("<b>Fig. 3.</b> Cumulative component progression across the 6-step developmental sequence on SIFT-100K: (a) query throughput expansion via stagnation early exit (+50.3%), and (b) index memory compaction from 59.9 MB down to 22.5 MB (-62.4%) via Asymmetric INT8 scalar quantization.", fig_caption_style))
 
     # =========================================================================
@@ -1122,9 +1129,10 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
     story.append(Spacer(1, 4))
 
     # Embedded Figure 4: Synthetic Sweep
-    if os.path.exists("paper_figures/fig4_synthetic_sweep.png"):
+    fig4_path = os.path.join(SCRIPT_DIR, "paper_figures", "fig4_synthetic_sweep.png")
+    if os.path.exists(fig4_path):
         story.append(Spacer(1, 4))
-        story.append(Image("paper_figures/fig4_synthetic_sweep.png", width=480, height=200))
+        story.append(Image(fig4_path, width=480, height=200))
         story.append(Paragraph("<b>Fig. 4.</b> Hubness regulation sensitivity sweep across μ ∈ [0.00, 0.30] on Synthetic-Multi-Cluster (<i>N</i> = 50K, <i>D</i> = 64). Reachability remains stable between 99.95% and 100.00%, while cross-cluster detour routing drops throughput from 7,719.7 to 2,406.7 QPS and degrades Recall@10 from 0.8752 to 0.7821.", fig_caption_style))
 
     # =========================================================================
@@ -1217,7 +1225,7 @@ def build_pdf(filename="AdaptiveVec_Research_Paper.pdf"):
 
 
 if __name__ == "__main__":
-    out_pdf = "AdaptiveVec_Research_Paper.pdf"
+    out_pdf = os.path.join(SCRIPT_DIR, "AdaptiveVec_Research_Paper.pdf")
     if len(sys.argv) > 1:
         out_pdf = sys.argv[1]
     build_pdf(out_pdf)
