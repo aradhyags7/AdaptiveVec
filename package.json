@@ -1,0 +1,10 @@
+{
+  "name": "adaptivevec-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend-react2 run dev",
+    "dev:2": "npm --prefix frontend-react2 run dev",
+    "dev:1": "npm --prefix frontend-react run dev",
+    "build": "npm --prefix frontend-react2 run build"
+  }
+}
