@@ -225,11 +225,19 @@
 
 .manifoldNode {
   cursor: pointer;
-  transition: transform 0.12s ease-out;
 }
 
-.manifoldNode:hover {
-  transform: scale(1.3);
+.manifoldNode text {
+  pointer-events: none;
+  user-select: none;
+}
+
+.manifoldNodeCircle {
+  transition: r 0.15s cubic-bezier(0.16, 1, 0.3, 1), stroke-width 0.15s ease, filter 0.15s ease, fill 0.15s ease;
+}
+
+.manifoldNode:hover .manifoldNodeCircle {
+  filter: drop-shadow(0 0 6px var(--accent-glow));
 }
 
 .nodeSelectedRing {
@@ -237,6 +245,8 @@
   stroke: var(--accent-glow);
   stroke-width: 2;
   stroke-dasharray: 2 2;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .manifoldFooterHud {
@@ -391,11 +401,19 @@
 
 .plotNode {
   cursor: pointer;
-  transition: transform 0.15s ease;
 }
 
-.plotNode:hover {
-  transform: scale(1.18);
+.plotNode text {
+  pointer-events: none;
+  user-select: none;
+}
+
+.plotNodeCircle {
+  transition: r 0.18s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.18s ease, stroke-width 0.18s ease, fill 0.18s ease, filter 0.18s ease;
+}
+
+.plotNode:hover .plotNodeCircle {
+  filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
 .activeReticleLine {
@@ -403,6 +421,86 @@
   stroke-width: 1;
   stroke-dasharray: 2 2;
   opacity: 0.6;
+}
+
+/* Glassmorphism Interactive Plot Tooltip */
+.plotTooltipForeign {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.plotTooltip {
+  background: rgba(18, 22, 28, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 125, 74, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 175px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  pointer-events: none;
+  user-select: none;
+  animation: tooltipFadeIn 0.12s ease-out;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltipTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 4px;
+}
+
+.tooltipGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 8px;
+}
+
+.tooltipMetric {
+  display: flex;
+  flex-direction: column;
+}
+
+.tooltipMetricKey {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tooltipMetricVal {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tooltipDeltaBadge {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(107, 163, 126, 0.18);
+  color: var(--semantic-emerald);
 }
 
 /* Hover HUD / Inspector at bottom of plot stage */
@@ -898,6 +996,11 @@
   background: var(--bg-card-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
+}
+
+.radarPulseRing {
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 /* Candidate Queue Table in Right Pane */
