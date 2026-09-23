@@ -217,6 +217,14 @@ export const QueryCanvas: React.FC = () => {
             </div>
 
             <svg viewBox="0 0 520 180" className={styles.convergenceSvg}>
+              <defs>
+                <linearGradient id="convergenceAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#C97D4A" stopOpacity="0.22" />
+                  <stop offset="85%" stopColor="#C97D4A" stopOpacity="0.04" />
+                  <stop offset="100%" stopColor="#C97D4A" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+
               {/* Threshold Line at epsilon = 10^-4 */}
               <line x1={40} y1={140} x2={480} y2={140} stroke="var(--semantic-emerald)" strokeWidth={1} strokeDasharray="3 3" />
               <text x={485} y={143} fill="var(--semantic-emerald)" fontFamily="var(--font-mono)" fontSize="9">
@@ -233,20 +241,31 @@ export const QueryCanvas: React.FC = () => {
                 </>
               )}
 
-              {/* Graph Line */}
+              {/* Area Gradient Fill under Distance Trajectory */}
+              <polygon
+                fill="url(#convergenceAreaGrad)"
+                points={
+                  activeQuery.hops.map((h, i) => {
+                    const x = 50 + (i / (activeQuery.hops.length - 1)) * 400;
+                    const y = 30 + (1 - (h.distance - 0.08) / 0.8) * 110;
+                    return `${x},${Math.min(145, Math.max(30, y))}`;
+                  }).join(' ') + ` ${50 + 400},140 50,140`
+                }
+              />
+
+              {/* Graph Trajectory Line */}
               <polyline
                 fill="none"
                 stroke="var(--accent)"
-                strokeWidth={2}
+                strokeWidth={2.2}
                 points={activeQuery.hops.map((h, i) => {
                   const x = 50 + (i / (activeQuery.hops.length - 1)) * 400;
-                  // Map distance 0.85 -> y=30, 0.087 -> y=140
                   const y = 30 + (1 - (h.distance - 0.08) / 0.8) * 110;
                   return `${x},${Math.min(145, Math.max(30, y))}`;
                 }).join(' ')}
               />
 
-              {/* Data points with Active Hop Radar Ring */}
+              {/* Data points with Active Hop Radar Ring & Clickable Targets */}
               {activeQuery.hops.map((h, i) => {
                 const x = 50 + (i / (activeQuery.hops.length - 1)) * 400;
                 const y = 30 + (1 - (h.distance - 0.08) / 0.8) * 110;
@@ -254,20 +273,30 @@ export const QueryCanvas: React.FC = () => {
                 const isSelected = i === currentHopIdx;
 
                 return (
-                  <g key={`pt-${i}`}>
+                  <g
+                    key={`pt-${i}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setCurrentHopIdx(i)}
+                  >
+                    {/* Generous Hit Circle */}
+                    <circle cx={x} cy={clampedY} r={14} fill="transparent" />
+
+                    {/* Concentric Centered Active Radar Pulse */}
                     {isSelected && (
-                      <motion.circle
+                      <circle
                         cx={x}
                         cy={clampedY}
-                        r={11}
+                        r={12}
                         fill="none"
-                        stroke="var(--accent)"
-                        strokeWidth={1}
-                        initial={false}
-                        animate={shouldReduceMotion ? {} : { scale: [0.9, 1.25, 0.9], opacity: [0.6, 0.2, 0.6] }}
-                        transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+                        stroke="var(--accent-glow)"
+                        strokeWidth={1.8}
+                        strokeDasharray="2 2"
+                        className={styles.radarPulseRing}
+                        style={{ filter: 'drop-shadow(0 0 4px var(--accent-glow))' }}
                       />
                     )}
+
+                    {/* Data Node Circle */}
                     <circle
                       cx={x}
                       cy={clampedY}
@@ -275,6 +304,7 @@ export const QueryCanvas: React.FC = () => {
                       fill={isSelected ? 'var(--accent-glow)' : 'var(--bg-card)'}
                       stroke={isSelected ? '#ffffff' : 'var(--accent)'}
                       strokeWidth={isSelected ? 2 : 1.5}
+                      style={{ transition: 'r 0.15s ease, fill 0.15s ease, stroke-width 0.15s ease' }}
                     />
                   </g>
                 );
