@@ -72,14 +72,7 @@ export const App: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span>CORPUS: SIFT-100K (128-DIM)</span>
           <span>/</span>
-          <a
-            href="/AdaptiveVec_Research_Paper.pdf"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--accent-glow)', textDecoration: 'none', fontWeight: 600 }}
-          >
-            RESEARCH MANUSCRIPT [PDF]
-          </a>
+          <span style={{ color: 'var(--accent-glow)', fontWeight: 600 }}>TOPOLOGY-AWARE PROXIMITY GRAPH</span>
         </div>
       </footer>
     </div>
