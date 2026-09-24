@@ -63,17 +63,17 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
       {/* Baseline Context & Subtext */}
       <div style={{
-        borderTop: '1px solid var(--border-subtle)',
+        borderTop: '1px solid var(--border-default)',
         paddingTop: 8,
         marginTop: 4,
         fontSize: '11px',
       }}>
-        <div style={{ color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Baseline Reference:</span>
-          <span className="tabular-nums" style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{baselineText}</span>
+          <span className="tabular-nums" style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '11.5px' }}>{baselineText}</span>
         </div>
         {subtext && (
-          <div style={{ color: 'var(--text-dim)', marginTop: 3 }}>
+          <div style={{ color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.45, fontWeight: 500 }}>
             {subtext}
           </div>
         )}
