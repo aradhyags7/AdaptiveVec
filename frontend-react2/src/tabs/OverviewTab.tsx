@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MetricCard } from '../components/MetricCard';
+import { MathView } from '../components/MathView';
 import { PIPELINE_STAGES } from '../data/benchmarkData';
 import { ArrowRight, CheckCircle2, ChevronRight } from 'lucide-react';
 
@@ -159,118 +160,106 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ onNavigateToBenchmarks
         {/* Detailed Stage Deep Dive Card */}
         <div style={{
           background: 'var(--bg-surface-sunken)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-xs)',
-          padding: 18,
-          display: 'grid',
-          gridTemplateColumns: '1.2fr 1fr',
-          gap: 20,
+          border: '1px solid var(--border-emphasis)',
+          borderRadius: 'var(--radius-sm)',
+          padding: 20,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
         }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span className="badge-pill accent">Stage {activeStageData.number}</span>
-              <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {activeStageData.name}
-              </h4>
-              <span className="badge-pill illustrative">{activeStageData.tag}</span>
+          {/* Stage Header & Context */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span className="badge-pill accent">Stage {activeStageData.number}</span>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {activeStageData.name}
+                </h4>
+                <span className="badge-pill illustrative">{activeStageData.tag}</span>
+              </div>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 850 }}>
+                {activeStageData.summary}
+              </p>
             </div>
 
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.55, marginTop: 8 }}>
-              {activeStageData.summary}
-            </p>
-
             <div style={{
-              marginTop: 14,
-              padding: '8px 12px',
+              padding: '8px 14px',
               borderRadius: 'var(--radius-xs)',
               background: 'var(--semantic-emerald-bg)',
-              border: '1px solid rgba(107, 163, 126, 0.3)',
+              border: '1px solid rgba(107, 163, 126, 0.4)',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
             }}>
-              <CheckCircle2 size={14} color="var(--semantic-emerald)" />
-              <div style={{ fontSize: '11.5px', color: 'var(--semantic-emerald)', fontWeight: 600 }}>
+              <CheckCircle2 size={15} color="var(--semantic-emerald)" />
+              <div style={{ fontSize: '12px', color: 'var(--semantic-emerald)', fontWeight: 600 }}>
                 {activeStageData.benefit}
               </div>
             </div>
           </div>
 
-          <div style={{
-            background: 'var(--bg-card-subtle)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-xs)',
-            padding: 14,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, fontFamily: 'var(--font-mono)' }}>
-              Mathematical Formulation
-            </div>
-            <div className="mono" style={{
-              fontSize: '11.5px',
-              color: 'var(--accent-glow)',
-              background: 'var(--bg-app)',
-              padding: '10px 12px',
-              borderRadius: 'var(--radius-xs)',
-              border: '1px solid var(--border-subtle)',
-              overflowX: 'auto',
-              whiteSpace: 'pre-wrap',
-              lineHeight: 1.5,
-            }}>
-              {activeStageData.formula}
-            </div>
-          </div>
+          {/* Crystal-Clear KaTeX / MathView Component */}
+          <MathView
+            title={`Stage ${activeStageData.number}: Core Mathematical Formulation`}
+            tag={activeStageData.tag}
+            latex={activeStageData.latex}
+            fallbackText={activeStageData.formula}
+            variables={activeStageData.variables}
+            significance={activeStageData.significance}
+            accentColor="var(--accent-glow)"
+          />
         </div>
       </div>
 
       {/* Comparison: Standard HNSW vs AdaptiveVec */}
+      {/* Comparison: Standard HNSW vs AdaptiveVec */}
       <div className="grid-2">
-        <div className="instrument-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <span className="badge-pill amber">Standard HNSW (Status Quo)</span>
+        <div className="instrument-card" style={{ borderTop: '2px solid var(--semantic-rose)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <span className="badge-pill amber" style={{ fontSize: '11px', padding: '3px 8px' }}>Standard HNSW (Status Quo)</span>
+            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>BASELINE ARCHITECTURE</span>
           </div>
-          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: '12px' }}>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-secondary)' }}>
-              <span style={{ color: 'var(--semantic-rose)', fontWeight: 700 }}>✕</span>
-              <span><strong>Uniform Degree Allocation:</strong> Forces identical M=16 on dense centroids and sparse outliers alike.</span>
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: '12.5px' }}>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-secondary)', background: 'rgba(217, 101, 91, 0.06)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(217, 101, 91, 0.15)' }}>
+              <span style={{ color: 'var(--semantic-rose)', fontWeight: 800, fontSize: '13px' }}>✕</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Uniform Degree Allocation:</strong> Forces identical M=16 on dense centroids and sparse outliers alike.</span>
             </li>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-secondary)' }}>
-              <span style={{ color: 'var(--semantic-rose)', fontWeight: 700 }}>✕</span>
-              <span><strong>Severe Hubness Traps:</strong> A tiny fraction of dense nodes absorb thousands of in-degrees, becoming search bottlenecks.</span>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-secondary)', background: 'rgba(217, 101, 91, 0.06)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(217, 101, 91, 0.15)' }}>
+              <span style={{ color: 'var(--semantic-rose)', fontWeight: 800, fontSize: '13px' }}>✕</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Severe Hubness Traps:</strong> A tiny fraction of dense nodes absorb thousands of in-degrees, becoming search bottlenecks.</span>
             </li>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-secondary)' }}>
-              <span style={{ color: 'var(--semantic-rose)', fontWeight: 700 }}>✕</span>
-              <span><strong>Exhaustive Fixed efSearch:</strong> Wastes 30%+ distance calculations continuing greedy hops after finding the true local minimum.</span>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-secondary)', background: 'rgba(217, 101, 91, 0.06)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(217, 101, 91, 0.15)' }}>
+              <span style={{ color: 'var(--semantic-rose)', fontWeight: 800, fontSize: '13px' }}>✕</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>Exhaustive Fixed efSearch:</strong> Wastes 30%+ distance calculations continuing greedy hops after finding the true local minimum.</span>
             </li>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-secondary)' }}>
-              <span style={{ color: 'var(--semantic-rose)', fontWeight: 700 }}>✕</span>
-              <span><strong>FP32 Memory Bloat:</strong> Stores all 128 dimensions in full 32-bit floats, consuming 59.9 MB on 100K vectors.</span>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-secondary)', background: 'rgba(217, 101, 91, 0.06)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(217, 101, 91, 0.15)' }}>
+              <span style={{ color: 'var(--semantic-rose)', fontWeight: 800, fontSize: '13px' }}>✕</span>
+              <span><strong style={{ color: 'var(--text-primary)' }}>FP32 Memory Bloat:</strong> Stores all 128 dimensions in full 32-bit floats, consuming 59.9 MB on 100K vectors.</span>
             </li>
           </ul>
         </div>
 
-        <div className="instrument-card highlight">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <span className="badge-pill emerald">AdaptiveVec Innovations</span>
+        <div className="instrument-card highlight" style={{ borderTop: '2px solid var(--semantic-emerald)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <span className="badge-pill emerald" style={{ fontSize: '11px', padding: '3px 8px' }}>AdaptiveVec Innovations</span>
+            <span style={{ fontSize: '10.5px', color: 'var(--semantic-emerald)', fontFamily: 'var(--font-mono)' }}>OPTIMIZED SOLUTION</span>
           </div>
-          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: '12px' }}>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-primary)' }}>
-              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 700 }}>✓</span>
-              <span><strong>LID-Guided Degree Scaling:</strong> Trims redundant edges from dense clusters, expanding M only on complex ridges (-7.4% total edges).</span>
+          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10, fontSize: '12.5px' }}>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-primary)', background: 'rgba(107, 163, 126, 0.08)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(107, 163, 126, 0.25)' }}>
+              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 800, fontSize: '13px' }}>✓</span>
+              <span><strong style={{ color: '#FFF' }}>LID-Guided Degree Scaling:</strong> Trims redundant edges from dense clusters, expanding M only on complex ridges (-7.4% total edges).</span>
             </li>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-primary)' }}>
-              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 700 }}>✓</span>
-              <span><strong>In-Degree Hubness Regulation:</strong> Slashes in-degree variance by 54.9% using soft penalty factor μ=0.15.</span>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-primary)', background: 'rgba(107, 163, 126, 0.08)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(107, 163, 126, 0.25)' }}>
+              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 800, fontSize: '13px' }}>✓</span>
+              <span><strong style={{ color: '#FFF' }}>In-Degree Hubness Regulation:</strong> Slashes in-degree variance by 54.9% using soft penalty factor μ=0.15.</span>
             </li>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-primary)' }}>
-              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 700 }}>✓</span>
-              <span><strong>Distance Stagnation Early Exit:</strong> Safely cuts search hops at p=6 stagnation, achieving +50.3% QPS (7,075 QPS).</span>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-primary)', background: 'rgba(107, 163, 126, 0.08)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(107, 163, 126, 0.25)' }}>
+              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 800, fontSize: '13px' }}>✓</span>
+              <span><strong style={{ color: '#FFF' }}>Distance Stagnation Early Exit:</strong> Safely cuts search hops at p=6 stagnation, achieving +50.3% QPS (7,075 QPS).</span>
             </li>
-            <li style={{ display: 'flex', gap: 8, color: 'var(--text-primary)' }}>
-              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 700 }}>✓</span>
-              <span><strong>Asymmetric SQ8 Quantization:</strong> Cuts RAM by 62.4% (down to 22.5 MB) with 95.9% empirical recall retention.</span>
+            <li style={{ display: 'flex', alignItems: 'flex-start', gap: 10, color: 'var(--text-primary)', background: 'rgba(107, 163, 126, 0.08)', padding: '8px 12px', borderRadius: 'var(--radius-xs)', border: '1px solid rgba(107, 163, 126, 0.25)' }}>
+              <span style={{ color: 'var(--semantic-emerald)', fontWeight: 800, fontSize: '13px' }}>✓</span>
+              <span><strong style={{ color: '#FFF' }}>Asymmetric SQ8 Quantization:</strong> Cuts RAM by 62.4% (down to 22.5 MB) with 95.9% empirical recall retention.</span>
             </li>
           </ul>
         </div>
