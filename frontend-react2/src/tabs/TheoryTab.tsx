@@ -1,5 +1,6 @@
 import React from 'react';
 import { BookOpen, Cpu, Copy, Check } from 'lucide-react';
+import { MathView } from '../components/MathView';
 
 export const TheoryTab: React.FC = () => {
   const [copiedBib, setCopiedBib] = React.useState(false);
@@ -30,7 +31,7 @@ export const TheoryTab: React.FC = () => {
         <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
           Theoretical Foundations & Engine Microarchitecture
         </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
           Mathematical observations, topological bounds, and hardware SIMD acceleration specifications powering AdaptiveVec.
         </p>
       </div>
@@ -41,60 +42,54 @@ export const TheoryTab: React.FC = () => {
         <div className="instrument-card" style={{ borderLeft: '3px solid var(--accent)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <span className="badge-pill accent">Empirical Observation 1</span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Local Intrinsic Dimensionality (LID) Bounds
             </span>
           </div>
 
-          <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
             Let <em>P</em> be a dataset sampled from a Riemannian manifold embedded in <strong>R</strong><sup>D</sup>. The local intrinsic dimensionality around node <em>x</em> is estimated via extreme value theory on nearest-neighbor distance ratios:
           </p>
 
-          <div className="mono" style={{
-            background: 'var(--bg-surface-sunken)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-xs)',
-            padding: '10px 14px',
-            color: 'var(--accent-glow)',
-            fontSize: '11.5px',
-            margin: '10px 0',
-          }}>
-            {'LIDest(x) = - [ (1 / k) ∑_{i=1}^k ln( r_i(x) / r_k(x) ) ]⁻¹'}
-          </div>
-
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            <strong>Operational Proof:</strong> By taking <em>k</em> = 16 nearest neighbors during pre-indexing probing, this computation scales in <em>O(N · k log k)</em>, consuming strictly under 0.8% of total index construction wall-clock time while reliably separating low-dimensional manifolds from ambient noise.
-          </p>
+          <MathView
+            title="Levina-Bickel Extreme Value Estimator"
+            latex="\\widehat{\\text{LID}}(x) = -\\left[ \\frac{1}{k} \\sum_{i=1}^{k} \\ln \\left( \\frac{r_i(x)}{r_k(x)} \\right) \\right]^{-1}"
+            fallbackText="LIDest(x) = - [ (1 / k) ∑_{i=1}^k ln( r_i(x) / r_k(x) ) ]⁻¹"
+            variables={[
+              { symbol: 'k = 16', name: 'Neighborhood Size', desc: 'Sample window for extreme value estimation' },
+              { symbol: 'r_i(x)', name: 'Sample Radius', desc: 'Euclidean distance to the i-th nearest neighbor' },
+              { symbol: 'r_k(x)', name: 'Boundary Horizon', desc: 'Distance to the k-th neighbor in local manifold window' },
+            ]}
+            significance="Scales in O(N · k log k) complexity, consuming under 0.8% of index construction time while separating real manifold geometry from ambient noise."
+            accentColor="var(--accent-glow)"
+          />
         </div>
 
         {/* Callout 2: Proposition 1 (Stagnation Search Convergence) */}
         <div className="instrument-card" style={{ borderLeft: '3px solid var(--semantic-emerald)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <span className="badge-pill emerald">Proposition 1</span>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
               Search Convergence Invariance under Stagnation
             </span>
           </div>
 
-          <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 12 }}>
             In greedy graph beam search over a connected Delaunay-approximation graph, let <em>d<sub>t</sub></em> denote the distance from query point <em>q</em> to the best candidate at hop <em>t</em>. If:
           </p>
 
-          <div className="mono" style={{
-            background: 'var(--bg-surface-sunken)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-xs)',
-            padding: '10px 14px',
-            color: 'var(--semantic-emerald)',
-            fontSize: '11.5px',
-            margin: '10px 0',
-          }}>
-            {'∑_{j=0}^{p-1} | d_{t-j} - d_{t-j-1} | < p · ε   (with p = 6, ε = 10⁻⁴)'}
-          </div>
-
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            <strong>Invariance Guarantee:</strong> The probability that subsequent unpruned greedy hops discover an unexplored candidate satisfying <em>dist(q, v) &lt; d<sub>t</sub> - δ</em> decays exponentially with step depth. Terminating early saves 30.1% redundant evals with negligible recall loss (-1.68%).
-          </p>
+          <MathView
+            title="Distance Stagnation Termination Condition"
+            latex="\\sum_{j=0}^{p-1} \\big| d_{t-j} - d_{t-j-1} \\big| < p \\cdot \\varepsilon \\implies \\mathbf{CONVERGENCE\\_EXIT}"
+            fallbackText="∑_{j=0}^{p-1} | d_{t-j} - d_{t-j-1} | < p · ε   (with p = 6, ε = 10⁻⁴)"
+            variables={[
+              { symbol: 'p = 6', name: 'Patience Steps', desc: 'Number of consecutive search hops evaluated without distance progress' },
+              { symbol: 'ε = 10⁻⁴', name: 'Convergence Tolerance', desc: 'Minimum meaningful distance improvement threshold' },
+              { symbol: 'd_t', name: 'Current Minimum', desc: 'Euclidean distance of best-so-far candidate to query q' },
+            ]}
+            significance="The probability of discovering an unexplored candidate satisfying dist(q, v) < d_t - δ decays exponentially. Exiting early eliminates 30.1% redundant evals with negligible recall loss (-1.68%)."
+            accentColor="var(--semantic-emerald)"
+          />
         </div>
       </div>
 
