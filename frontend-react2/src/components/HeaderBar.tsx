@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Activity, Cpu, FileText, HelpCircle, BookOpen, Compass } from 'lucide-react';
+import { Layers, Activity, Cpu, FileText, HelpCircle } from 'lucide-react';
 
 interface HeaderBarProps {
   activeTab: string;
@@ -97,39 +97,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
       {/* Right Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <a
-          href="/AdaptiveVec_Technical_Progress_and_Roadmap.pdf"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-instrument"
-          title="Open lead researcher progress & roadmap dossier PDF"
-        >
-          <Compass size={13} color="var(--accent-glow)" />
-          <span>Roadmap PDF</span>
-        </a>
-
-        <a
-          href="/AdaptiveVec_Team_Master_Handbook.pdf"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-instrument"
-          title="Open complete master team handbook PDF"
-        >
-          <BookOpen size={13} color="var(--semantic-emerald)" />
-          <span>Team Handbook</span>
-        </a>
-
-        <a
-          href="/AdaptiveVec_Research_Paper.pdf"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn-instrument"
-          title="Open camera-ready research paper PDF"
-        >
-          <FileText size={13} color="var(--accent-glow)" />
-          <span>Paper PDF</span>
-        </a>
-
         <button
           className={`btn-instrument ${guideOpen ? 'emerald' : 'primary'}`}
           onClick={onToggleGuide}
