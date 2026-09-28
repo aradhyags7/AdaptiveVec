@@ -38,12 +38,12 @@ class NumberedCanvas(canvas.Canvas):
     def draw_page_decorations(self, page_count):
         self.saveState()
         
-        # ---------------- Page 1: First Page Publishing Slug ----------------
+        # ---------------- Page 1: First Page Preprint Slug ----------------
         if self._pageNumber == 1:
             self.setFont('Times-Bold', 8)
             self.setFillColor(colors.HexColor('#0F2A4A'))
-            self.drawString(54, 754, "PROCEEDINGS OF ENGINEERING DESIGN & INNOVATION (EDI), VOL. 14, NO. 1, 2026")
-            self.drawRightString(612 - 54, 754, "ISSN: 2831-9230 • OPEN ACCESS")
+            self.drawString(54, 754, "TECHNICAL WORKING PAPER • PREPRINT")
+            self.drawRightString(612 - 54, 754, "DRAFT MANUSCRIPT — NOT YET SUBMITTED FOR PEER REVIEW")
             self.setStrokeColor(colors.HexColor('#0F2A4A'))
             self.setLineWidth(0.8)
             self.line(54, 748, 612 - 54, 748)
@@ -54,8 +54,8 @@ class NumberedCanvas(canvas.Canvas):
             self.line(54, 40, 612 - 54, 40)
             self.setFont('Times-Roman', 7.5)
             self.setFillColor(colors.HexColor('#475569'))
-            self.drawString(54, 30, "Manuscript received March 12, 2026; revised September 18, 2026; accepted September 21, 2026. Published September 2026.")
-            self.drawString(54, 21, "Digital Object Identifier (DOI): 10.1145/3689230.3689401 • © 2026 Author. Published under CC BY 4.0.")
+            self.drawString(54, 30, "Draft manuscript — working paper prepared for peer-review submission.")
+            self.drawString(54, 21, "Source code, benchmarks, and reproduction scripts: https://github.com/aradhyags7/AdaptiveVec")
             self.drawRightString(612 - 54, 25, f"1 of {page_count}")
         else:
             # ---------------- Pages 2+: Alternating Running Headers ----------------
@@ -66,7 +66,7 @@ class NumberedCanvas(canvas.Canvas):
                 self.drawRightString(612 - 54, 754, str(self._pageNumber))
             else:
                 self.drawString(54, 754, str(self._pageNumber))
-                self.drawRightString(612 - 54, 754, "PROCEEDINGS OF ENGINEERING DESIGN & INNOVATION (EDI 2026)")
+                self.drawRightString(612 - 54, 754, "ADAPTIVEVEC: TECHNICAL WORKING PAPER")
             self.setStrokeColor(colors.HexColor('#CBD5E1'))
             self.setLineWidth(0.5)
             self.line(54, 748, 612 - 54, 748)
@@ -77,7 +77,7 @@ class NumberedCanvas(canvas.Canvas):
             self.line(54, 40, 612 - 54, 40)
             self.setFont('Times-Roman', 8)
             self.setFillColor(colors.HexColor('#475569'))
-            self.drawString(54, 28, "Proceedings of Engineering Design & Innovation (EDI) • Published by EDI Research Society")
+            self.drawString(54, 28, "AdaptiveVec: A Density- and Dimension-Aware Proximity Graph Index (Working Draft)")
             page_str = f"Page {self._pageNumber} of {page_count}"
             self.drawRightString(612 - 54, 28, page_str)
             
@@ -617,7 +617,7 @@ def build_pdf(filename=None):
     ))
 
     story.append(Paragraph(
-        "Where γ is the sensitivity coefficient (default γ = 0.40). For a canonical configuration {<i>M</i><sub>base</sub>=16, <i>M</i><sub>min</sub>=8, <i>M</i><sub>max</sub>=24}, dense cluster vectors receive compact allocations (<i>M</i> = 8, <i>efC</i> = 40), while complex vectors receive expanded budgets (<i>M</i> = 24, <i>efC</i> = 360).",
+        "Where γ is the sensitivity coefficient (default γ = 0.40). For a canonical configuration {<i>M</i><sub>base</sub>=16, <i>M</i><sub>min</sub>=8, <i>M</i><sub>max</sub>=24, <i>efC</i><sub>min</sub>=40, <i>efC</i><sub>max</sub>=220}, dense cluster vectors receive compact allocations (<i>M</i> = 8, <i>efC</i> = 40), while complex vectors receive expanded budgets (<i>M</i> = 24, <i>efC</i> = 220).",
         body_style
     ))
 
@@ -840,7 +840,7 @@ def build_pdf(filename=None):
     if os.path.exists(fig2_path):
         story.append(Spacer(1, 4))
         story.append(Image(fig2_path, width=480, height=200))
-        story.append(Paragraph("<b>Fig. 2.</b> Node in-degree centrality distributions under canonical RNG edge selection versus AdaptiveVec hubness-regulated selection (μ = 0.15). AdaptiveVec flattens the heavy-tailed power-law distribution, reducing in-degree variance by 54.9% (Var = 19.3 vs 42.8) and preventing high-degree routing bottlenecks.", fig_caption_style))
+        story.append(Paragraph("<b>Fig. 2.</b> Node in-degree centrality distributions under canonical RNG edge selection versus AdaptiveVec hubness-regulated selection (μ = 0.15). AdaptiveVec flattens the heavy-tailed power-law distribution, reducing in-degree variance by 54.9% (Var = 64.4 vs 142.8) and preventing high-degree routing bottlenecks.", fig_caption_style))
 
     story.append(Paragraph("6.4 Detailed Component Ablation Studies", h2_style))
     story.append(Paragraph(
@@ -1079,7 +1079,7 @@ def build_pdf(filename=None):
     ))
 
     story.append(Paragraph(
-        "<b>1. Hubness Penalty Weight (μ) on Synthetic-Multi-Cluster:</b> Sweeping μ ∈ [0.00, 0.30] reveals the exact mechanics of hubness suppression on synthetic clustered data. Crucially, reachability analysis confirms that <b>graph reachability remains between 99.95% and 100.00%</b> across all evaluated μ, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. Instead, because Synthetic-Multi-Cluster consists of 8 isolated clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38), cross-cluster navigation relies upon a sparse set of bridge nodes. Penalizing their in-degree forces search paths to take convoluted detours (dropping QPS from 7,719.7 at μ=0 down to 2,406.7 at μ=0.30), while Recall@10 drops from 0.8758 to 0.8622. On the evaluated Synthetic-Multi-Cluster topology, μ ≤ 0.05 produced the best observed recall/throughput behavior (with μ ≤ 0.05 or μ = 0 recommended when evaluating clusters lacking empirical hubness pathology).",
+        "<b>1. Hubness Penalty Weight (μ) on Synthetic-Multi-Cluster:</b> Sweeping μ ∈ [0.00, 0.30] reveals the exact mechanics of hubness suppression on synthetic clustered data. Crucially, reachability analysis confirms that <b>graph reachability remains between 99.95% and 100.00%</b> across all evaluated μ, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. Instead, because Synthetic-Multi-Cluster consists of 8 isolated clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38), cross-cluster navigation relies upon a sparse set of bridge nodes. Penalizing their in-degree forces search paths to take convoluted detours (dropping QPS from 7,719.7 at μ=0 down to 2,406.7 at μ=0.30), while Recall@10 drops from 0.8758 to 0.8622. On the evaluated Synthetic-Multi-Cluster topology, μ ≤ 0.05 produced the best observed recall/throughput behavior (with μ = 0 recommended when evaluating clusters lacking empirical hubness pathology).",
         body_style
     ))
 
@@ -1133,7 +1133,7 @@ def build_pdf(filename=None):
     if os.path.exists(fig4_path):
         story.append(Spacer(1, 4))
         story.append(Image(fig4_path, width=480, height=200))
-        story.append(Paragraph("<b>Fig. 4.</b> Hubness regulation sensitivity sweep across μ ∈ [0.00, 0.30] on Synthetic-Multi-Cluster (<i>N</i> = 50K, <i>D</i> = 64). Reachability remains stable between 99.95% and 100.00%, while cross-cluster detour routing drops throughput from 7,719.7 to 2,406.7 QPS and degrades Recall@10 from 0.8752 to 0.7821.", fig_caption_style))
+        story.append(Paragraph("<b>Fig. 4.</b> Hubness regulation sensitivity sweep across μ ∈ [0.00, 0.30] on Synthetic-Multi-Cluster (<i>N</i> = 50K, <i>D</i> = 64). Reachability remains stable between 99.95% and 100.00%, while cross-cluster detour routing drops throughput from 7,719.7 to 2,406.7 QPS and slightly reduces Recall@10 from 0.8758 to 0.8622.", fig_caption_style))
 
     # =========================================================================
     # SECTION 7: HARDWARE IMPLEMENTATION
@@ -1162,10 +1162,10 @@ def build_pdf(filename=None):
         body_style
     ))
 
-    story.append(Paragraph("• <b>Hubness Regulation on Synthetic Data:</b> On Synthetic-Multi-Cluster, adding hubness regulation (μ = 0.15) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping μ ∈ [0.00, 0.30] confirms that graph reachability remains between 99.95% and 100.00% across all settings, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The μ parameter requires per-dataset calibration; μ ≤ 0.05 produced the best observed recall/throughput behavior on the evaluated Synthetic-Multi-Cluster topology, while μ ≤ 0.05 or μ = 0 is recommended when evaluating clusters lacking empirical hubness pathology.", bullet_style))
+    story.append(Paragraph("• <b>Hubness Regulation on Synthetic Data:</b> On Synthetic-Multi-Cluster, adding hubness regulation (μ = 0.15) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping μ ∈ [0.00, 0.30] confirms that graph reachability remains between 99.95% and 100.00% across all settings, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The μ parameter requires per-dataset calibration: on the evaluated Synthetic-Multi-Cluster topology, μ ≤ 0.05 produced the best observed recall/throughput behavior, whereas setting μ = 0 is recommended when indexing data manifolds that lack empirical hubness pathology.", bullet_style))
     story.append(Paragraph("• <b>Evaluation Scope:</b> All results are evaluated on two corpora: SIFT-100K (<i>N</i> = 100K, <i>D</i> = 128) and Synthetic-Multi-Cluster (<i>N</i> = 50K, <i>D</i> = 64). Generalization to production-scale corpora (<i>N</i> ≥ 1M), higher ambient dimensions (<i>D</i> ≥ 768, e.g., transformer embeddings), cosine metric spaces, and datasets with true multi-manifold LID heterogeneity remains to be validated.", bullet_style))
     story.append(Paragraph("• <b>Performance Attribution:</b> The headline +50.3% QPS gain is entirely attributable to the query-time stagnation early-exit mechanism (Section 4.5), which intentionally trades 1.68% recall. The build-time topology adaptations (Sections 4.1–4.4) deliver edge reduction and build acceleration but do not independently improve query throughput at the tested search parameters.", bullet_style))
-    story.append(Paragraph("• <b>Single-Machine, Single-Threaded:</b> All benchmarks are single-threaded Python on a single consumer laptop. Multi-threaded C++ performance characteristics may differ.", bullet_style))
+    story.append(Paragraph("• <b>Single-Threaded Execution:</b> All benchmarks evaluate single-threaded performance of the native C++ AVX2 engine on a single consumer laptop (with Python test harness orchestration). Multi-threaded concurrent index construction and parallel query batching scaling characteristics remain to be evaluated.", bullet_style))
     story.append(Paragraph("• <b>Dynamic Vector Deletion:</b> Current implementations support continuous insertions; however, vector deletion in proximity graphs requires structural edge re-wiring. Extending adaptive heuristics to prune and bridge tombstone vertices dynamically is a vital avenue for live database workloads.", bullet_style))
     story.append(Paragraph("• <b>Distributed NVMe & Out-of-Core Scaling:</b> Adapting AdaptiveVec's manifold difficulty score to partition vectors across SSD flash pages (e.g., storing low-LID cores on compressed blocks and high-LID hubs in fast memory) promises multi-billion scale search on commodity desktops.", bullet_style))
 
