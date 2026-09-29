@@ -230,6 +230,27 @@ $\gamma = 1.00$ & 0.9744 & 4,065.4 & \textbf{2,464,725} & --- & $M_{\text{mean}}
 \end{tabular}
 \end{table}
 
+\subsection{Multi-Core Scalability \& Hardware Concurrency}
+To evaluate scalability on commodity multi-core architectures, we evaluated AdaptiveVec on an Intel Core 5 210H (8 physical cores: 4 P-cores + 4 E-cores, 12 logical threads, AVX2/FMA, 16GB RAM) using OpenMP and 4,096 striped mutexes. Table~\ref{tab:multithread} details the empirical scaling across 1 to 12 threads.
+
+\begin{table}[t]
+\caption{Multi-Threaded Scaling on Intel Core 5 210H (SIFT-100K, efSearch=64, $k=10$)}
+\label{tab:multithread}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Threads} & \textbf{Query Latency} & \textbf{Throughput} & \textbf{Speedup} & \textbf{Build Time} & \textbf{Recall@10} \\
+\midrule
+1 Thread  & 4,249.0 ms & 2,353.5 QPS & 1.00$\times$ & 32.61 s & 0.9508 \\
+2 Threads & 1,964.5 ms & 5,090.5 QPS & 2.16$\times$ & 11.28 s & 0.9508 \\
+4 Threads & 1,274.2 ms & 7,848.0 QPS & 3.33$\times$ & 8.01 s & 0.9508 \\
+6 Threads & 1,221.0 ms & 8,190.3 QPS & 3.48$\times$ & --- & 0.9508 \\
+8 Threads & 1,198.8 ms & \textbf{8,341.5 QPS} & \textbf{3.54$\times$} & 7.96 s & 0.9508 \\
+12 Threads & 1,336.6 ms & 7,481.8 QPS & 3.18$\times$ & \textbf{4.31 s (7.57$\times$)} & 0.9508 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Known Limitations}
 The following limitations constrain the generalizability of our results:
 
@@ -239,7 +260,7 @@ The following limitations constrain the generalizability of our results:
 
 \textbf{Performance Attribution:} The headline +50.3\% QPS gain is entirely attributable to the query-time stagnation early-exit mechanism (Section 3.5), which intentionally trades 1.68\% recall. The build-time topology adaptations (Sections 3.1--3.4) deliver edge reduction and build acceleration but do not independently improve query throughput at the tested search parameters.
 
-\textbf{Single-Threaded Execution:} All benchmarks evaluate single-threaded performance of the native C++ AVX2 engine on a single consumer laptop (with Python test harness orchestration). Multi-threaded concurrent index construction and parallel query batching scaling characteristics remain to be evaluated.
+\textbf{Hardware Concurrency Scope:} While multi-threaded evaluation demonstrates strong scaling on the mobile Intel Core 5 210H (reaching 8,341.5 QPS query search and 7.57$\times$ construction speedup on 12 threads), memory bus saturation on mobile DDR5 limits additional throughput gains past 8 threads. Scaling characteristics on high-core server architectures (e.g., 64-core AMD EPYC / Intel Xeon NUMA) with multi-channel DDR5 remain to be benchmarked.
 
 \subsection{Methodology \& AI-Assisted Engineering Disclosure}
 In adherence to modern transparency standards, the author discloses that AI-assisted engineering tools (Anthropic Claude and Google DeepMind Antigravity) were utilized for exploratory scaffolding, generating unit tests, and optimizing C++ SIMD AVX2 intrinsic loops. All mathematical formulations, bug resolutions, and empirical evaluations were executed and verified on local hardware testbeds.

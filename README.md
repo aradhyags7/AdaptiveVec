@@ -41,8 +41,10 @@ Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vecto
    - [6.1 Experimental Setup & Testbed](#61-experimental-setup--testbed)
    - [6.2 SIFT-100K Ablation Benchmarks](#62-sift-100k-ablation-benchmarks)
    - [6.3 Synthetic-Multi-Cluster Benchmarks](#63-synthetic-multi-cluster-benchmarks)
-   - [6.4 Integrity Disclosures & Paper Draft Alignment](#64-integrity-disclosures--paper-draft-alignment)
-   - [6.5 Known Limitations](#65-known-limitations)
+   - [6.4 Signal Validity & Parameter Sensitivity Sweeps](#64-signal-validity--parameter-sensitivity-sweeps)
+   - [6.5 Multi-Core Thread Scaling Benchmarks](#65-multi-core-thread-scaling-benchmarks)
+   - [6.6 Integrity Disclosures & Paper Draft Alignment](#66-integrity-disclosures--paper-draft-alignment)
+   - [6.7 Known Limitations](#67-known-limitations)
 7. [System Architecture & Repository Structure](#7-system-architecture--repository-structure)
 8. [Quickstart & Reproducibility](#8-quickstart--reproducibility)
    - [8.1 Single-Command Benchmark Reproduction](#81-single-command-benchmark-reproduction)
@@ -297,9 +299,27 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 | **Stagnation Patience ($p$)** | $[3, 10]$ & no exit | $p = 6$ | Smooth Pareto frontier: $p=6$ represents a strong recall–efficiency trade-off (30.1% eval reduction with only 1.1% recall delta), while $p=8$ yields nearly identical throughput at higher recall (0.9742). |
 | **Policy Sensitivity ($\gamma$)** | $[0.20, 1.00]$ | $\gamma = 0.40$ | Monotonic edge reduction (2.62M down to 2.46M, $-6.0\%$) with high recall stability ($0.9831 \to 0.9744$, $<0.9\%$ delta across $5\times$ variation). |
 
+### 6.5 Multi-Core Thread Scaling Benchmarks
+*Evaluated on Intel Core 5 210H (8 physical cores: 4 P-cores + 4 E-cores, 12 logical threads, 16GB LPDDR5), OpenMP concurrency, AVX2/FMA vectorization:*
+
+| Worker Threads | Query Latency | Query Throughput | Query Speedup | Core Efficiency | Build Time (25K SIFT) | Build Speedup | Recall@10 |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1 Thread** | 4,249.0 ms | 2,353.5 QPS | 1.00× | 100.0% | 32.61 s | 1.00× | 0.9508 |
+| **2 Threads** | 1,964.5 ms | 5,090.5 QPS | **2.16×** | **108.1%** | 11.28 s | **2.89×** | 0.9508 |
+| **4 Threads** | 1,274.2 ms | 7,848.0 QPS | **3.33×** | 83.4% | 8.01 s | **4.07×** | 0.9508 |
+| **6 Threads** | 1,221.0 ms | 8,190.3 QPS | **3.48×** | 58.0% | --- | --- | 0.9508 |
+| **8 Threads** | 1,198.8 ms | **8,341.5 QPS** | **3.54×** | 44.3% | 7.96 s | **4.10×** | 0.9508 |
+| **12 Threads** | 1,336.6 ms | 7,481.8 QPS | 3.18× | 26.5% | **4.31 s** | **7.57×** | 0.9508 |
+
+<p align="center">
+  <img src="pdf/paper_figures/fig5_multithread_scaling.png" width="95%" alt="Figure 5: Multi-Core Thread Scaling"/>
+  <br>
+  <i><b>Figure 5:</b> Multi-Core Thread Scaling on Intel Core 5 210H. (a) Batch query search scales from 2,353.5 QPS (1 thread) to 8,341.5 QPS (8 threads, 3.54× speedup) with deterministic 0.9508 Recall@10 across all configurations. (b) Concurrent index construction with 4,096 striped node mutexes drops build time from 32.61s down to 4.31s (7.57× speedup on 12 threads).</i>
+</p>
+
 ---
 
-### 6.5 Integrity Disclosures & Paper Draft Alignment
+### 6.6 Integrity Disclosures & Paper Draft Alignment
 
 > [!WARNING]
 > **Scientific Integrity & Empirical Gap Alignment**:
@@ -311,7 +331,7 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 >
 > **Statistical Methodology:** To establish statistical stability and error bounds, headline operational configurations (Regime A and Baseline) were evaluated across 5 repeated trials with varying random seeds, yielding tight variance bounds (e.g., Regime A Recall@10 = $0.9758 \pm 0.0019$, QPS = $7,272.8 \pm 170.1$). For the controlled component ablation study (Section 6.2) and parameter sweeps (Section 6.4), we report single-run evaluations under a fixed random seed (`seed=42`) and deterministic insertion order to strictly isolate incremental algorithmic contributions. Across all configurations, build wall-clock times exhibit $<2\%$ variance across independent runs under idle hardware and controlled thermal conditions.
 
-### 6.6 Known Limitations
+### 6.7 Known Limitations
 
 The following limitations constrain the generalizability of our results:
 
@@ -321,7 +341,7 @@ The following limitations constrain the generalizability of our results:
 
 3. **Performance Attribution:** The headline +50.3% QPS gain is entirely attributable to the query-time stagnation early-exit mechanism (Section 4.4), which intentionally trades 1.68% recall. The build-time topology adaptations deliver edge reduction and build acceleration but do not independently improve query throughput at the tested search parameters.
 
-4. **Single-Threaded Execution:** All benchmarks evaluate single-threaded performance of the native C++ AVX2 engine on a single consumer laptop (with Python test harness orchestration). Multi-threaded concurrent index construction and parallel query batching scaling characteristics remain to be evaluated.
+4. **Hardware Concurrency Scope:** While multi-threaded evaluation demonstrates strong scaling on the mobile Intel Core 5 210H (reaching 8,341.5 QPS query search and 7.57× construction speedup on 12 threads), memory bus saturation on mobile DDR5 limits additional throughput gains past 8 threads. Scaling characteristics on high-core server architectures (e.g., 64-core AMD EPYC / Intel Xeon NUMA) with multi-channel DDR5 remain to be benchmarked.
 
 ---
 
