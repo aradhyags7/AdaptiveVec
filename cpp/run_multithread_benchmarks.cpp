@@ -112,12 +112,10 @@ int main(int argc, char** argv) {
     policy.ada_ef_epsilon = 1e-4f;
     policy.enable_ada_ef = true;
 
-    std::cout << "[*] Building SIFT-100K index for query scaling benchmarks ... " << std::flush;
+    std::cout << "[*] Building SIFT-100K index for query scaling benchmarks (12 threads) ... " << std::flush;
     auto b_start = std::chrono::high_resolution_clock::now();
     AdaptiveHNSWIndex index(dim, SpaceType::L2, true, policy);
-    for (size_t i = 0; i < n_samples; ++i) {
-        index.insert(&data[i * dim]);
-    }
+    index.batch_insert(data.data(), n_samples, 12);
     auto b_end = std::chrono::high_resolution_clock::now();
     double b_time = std::chrono::duration<double>(b_end - b_start).count();
     std::cout << "Done! (" << std::fixed << std::setprecision(2) << b_time << "s, "
@@ -171,14 +169,14 @@ int main(int argc, char** argv) {
     }
     std::cout << "---------------------------------------------------------------------------------\n\n";
 
-    // 5. Index Construction Scaling Sweep across Thread Counts (50,000 vectors)
-    size_t build_bench_n = 50000;
+    // 5. Index Construction Scaling Sweep across Thread Counts (25,000 vectors)
+    size_t build_bench_n = 25000;
     std::vector<int> build_threads = {1, 2, 4, 8, 12};
     std::vector<BuildScalingRecord> build_results;
     double baseline_build_time = 0.0;
 
     std::cout << "---------------------------------------------------------------------------------\n";
-    std::cout << " PART 2: CONCURRENT INDEX CONSTRUCTION SCALING (50,000 SIFT VECTORS)\n";
+    std::cout << " PART 2: CONCURRENT INDEX CONSTRUCTION SCALING (25,000 SIFT VECTORS)\n";
     std::cout << "---------------------------------------------------------------------------------\n";
     std::cout << " Threads | Build Time | Insertion Rate | Speedup  | Core Efficiency | Total Edges\n";
     std::cout << "---------+------------+----------------+----------+-----------------+------------\n";

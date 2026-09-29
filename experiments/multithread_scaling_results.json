@@ -1,0 +1,103 @@
+{
+  "hardware": {
+    "cpu": "Intel Core 5 210H",
+    "cores": 8,
+    "threads": 12,
+    "p_cores": 4,
+    "e_cores": 4,
+    "simd": "AVX2 / FMA",
+    "ram_gb": 16
+  },
+  "query_scaling": [
+    {
+      "threads": 1,
+      "latency_ms": 4248.98,
+      "qps": 2353.5,
+      "speedup": 1.00,
+      "core_efficiency_pct": 100.0,
+      "recall_at_10": 0.9508
+    },
+    {
+      "threads": 2,
+      "latency_ms": 1964.46,
+      "qps": 5090.5,
+      "speedup": 2.16,
+      "core_efficiency_pct": 108.1,
+      "recall_at_10": 0.9508
+    },
+    {
+      "threads": 4,
+      "latency_ms": 1274.21,
+      "qps": 7848.0,
+      "speedup": 3.33,
+      "core_efficiency_pct": 83.4,
+      "recall_at_10": 0.9508
+    },
+    {
+      "threads": 6,
+      "latency_ms": 1220.96,
+      "qps": 8190.3,
+      "speedup": 3.48,
+      "core_efficiency_pct": 58.0,
+      "recall_at_10": 0.9508
+    },
+    {
+      "threads": 8,
+      "latency_ms": 1198.83,
+      "qps": 8341.5,
+      "speedup": 3.54,
+      "core_efficiency_pct": 44.3,
+      "recall_at_10": 0.9508
+    },
+    {
+      "threads": 12,
+      "latency_ms": 1336.58,
+      "qps": 7481.8,
+      "speedup": 3.18,
+      "core_efficiency_pct": 26.5,
+      "recall_at_10": 0.9508
+    }
+  ],
+  "build_scaling": [
+    {
+      "threads": 1,
+      "build_time_sec": 32.61,
+      "vectors_per_sec": 766.7,
+      "speedup": 1.00,
+      "core_efficiency_pct": 100.0,
+      "total_edges": 624703
+    },
+    {
+      "threads": 2,
+      "build_time_sec": 11.28,
+      "vectors_per_sec": 2216.7,
+      "speedup": 2.89,
+      "core_efficiency_pct": 144.6,
+      "total_edges": 604823
+    },
+    {
+      "threads": 4,
+      "build_time_sec": 8.01,
+      "vectors_per_sec": 3120.6,
+      "speedup": 4.07,
+      "core_efficiency_pct": 101.8,
+      "total_edges": 603380
+    },
+    {
+      "threads": 8,
+      "build_time_sec": 7.96,
+      "vectors_per_sec": 3141.1,
+      "speedup": 4.10,
+      "core_efficiency_pct": 51.2,
+      "total_edges": 605684
+    },
+    {
+      "threads": 12,
+      "build_time_sec": 4.31,
+      "vectors_per_sec": 5803.8,
+      "speedup": 7.57,
+      "core_efficiency_pct": 63.1,
+      "total_edges": 603534
+    }
+  ]
+}
