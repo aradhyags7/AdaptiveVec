@@ -431,10 +431,14 @@ public:
     int max_level = -1;
     double m_l;
     
+    static constexpr size_t NUM_NODE_LOCKS = 4096;
+    mutable std::vector<std::mutex> node_locks;
     mutable std::atomic<uint64_t> total_dist_computations{0};
+    mutable std::mutex entry_point_mutex;
+    mutable std::mutex tracker_mutex;
     
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
-        : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension) {
+        : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), node_locks(NUM_NODE_LOCKS) {
         m_l = 1.0 / std::log(policy.m_base > 1 ? policy.m_base : 2);
     }
     
@@ -511,7 +515,8 @@ public:
         int ef,
         int lc,
         bool early_exit = true,
-        bool use_asym_sq8 = false
+        bool use_asym_sq8 = false,
+        bool concurrent_search = false
     ) const {
         std::unordered_set<tableint> visited(enter_points.begin(), enter_points.end());
         std::priority_queue<Candidate, std::vector<Candidate>, std::greater<Candidate>> candidates;
@@ -539,7 +544,12 @@ public:
             bool improved = false;
             
             if (lc < (int)graphs.size() && curr.id < graphs[lc].size()) {
-                const auto& neighbors = graphs[lc][curr.id];
+                std::vector<tableint> local_neighbors;
+                if (concurrent_search) {
+                    std::lock_guard<std::mutex> lk(node_locks[curr.id % NUM_NODE_LOCKS]);
+                    local_neighbors = graphs[lc][curr.id];
+                }
+                const auto& neighbors = concurrent_search ? local_neighbors : graphs[lc][curr.id];
                 for (size_t n_idx = 0; n_idx < neighbors.size(); ++n_idx) {
                     tableint neighbor = neighbors[n_idx];
                     
@@ -820,12 +830,6 @@ public:
         }
         if (seed_count >= n_vectors) return;
 
-        // Striped mutexes for fine-grained concurrent edge updates
-        constexpr size_t NUM_STRIPES = 4096;
-        std::vector<std::mutex> stripe_locks(NUM_STRIPES);
-        std::mutex entry_point_mutex;
-        std::mutex tracker_mutex;
-
         // Reserve and copy vector memory up-front
         size_t start_idx = num_elements;
         num_elements = n_vectors;
@@ -842,6 +846,9 @@ public:
 
         node_levels.resize(n_vectors);
         node_params.resize(n_vectors);
+        for (size_t i = start_idx; i < n_vectors; ++i) {
+            node_params[i] = NodeParams{policy.m_base, policy.m_base, 2 * policy.m_base, policy.ef_c_base, 0.0f, 0.0f, 0.0f};
+        }
         in_degrees.resize(n_vectors, 0);
 
         // Pre-generate levels and ensure graphs layers exist
@@ -857,6 +864,9 @@ public:
         for (size_t l = 0; l < graphs.size(); ++l) {
             if (graphs[l].size() < n_vectors) {
                 graphs[l].resize(n_vectors);
+            }
+            for (size_t i = 0; i < n_vectors; ++i) {
+                graphs[l][i].reserve(64);
             }
         }
 
@@ -878,7 +888,7 @@ public:
 
             // Phase 1: Top-down greedy 1-NN traversal (ef=1)
             for (int lc = top_level; lc > q_level; --lc) {
-                auto w = search_layer(vec, {curr_ep}, 1, lc, false, false);
+                auto w = search_layer(vec, {curr_ep}, 1, lc, false, false, true);
                 if (!w.empty()) curr_ep = w[0].id;
             }
 
@@ -887,7 +897,7 @@ public:
             if (is_adaptive) {
                 int probe_lc = std::min(top_level, q_level);
                 int probe_budget = std::min(25, std::max(10, policy.ef_c_base / 4));
-                auto probe_w = search_layer(vec, {curr_ep}, probe_budget, probe_lc, false, false);
+                auto probe_w = search_layer(vec, {curr_ep}, probe_budget, probe_lc, false, false, true);
                 std::vector<dist_t> probe_dists;
                 for (const auto& c : probe_w) probe_dists.push_back(c.dist);
 
@@ -913,24 +923,26 @@ public:
 
             // Phase 2: Insert into levels min(top_level, q_level) down to 0
             for (int lc = std::min(top_level, q_level); lc >= 0; --lc) {
-                auto w = search_layer(vec, {curr_ep}, params.ef_construction, lc, false, false);
+                auto w = search_layer(vec, {curr_ep}, params.ef_construction, lc, false, false, true);
                 int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
                 auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc);
 
                 {
-                    std::lock_guard<std::mutex> lk(stripe_locks[q_idx % NUM_STRIPES]);
+                    std::lock_guard<std::mutex> lk(node_locks[q_idx % NUM_NODE_LOCKS]);
                     graphs[lc][q_idx] = neighbors;
                 }
 
                 for (tableint neighbor : neighbors) {
-                    std::lock_guard<std::mutex> lk(stripe_locks[neighbor % NUM_STRIPES]);
+                    std::lock_guard<std::mutex> lk(node_locks[neighbor % NUM_NODE_LOCKS]);
                     graphs[lc][neighbor].push_back((tableint)q_idx);
                     if (lc == 0) {
-                        in_degrees[neighbor]++;
-                        in_degrees[q_idx]++;
+                        __atomic_fetch_add(&in_degrees[neighbor], 1, __ATOMIC_RELAXED);
+                        __atomic_fetch_add(&in_degrees[q_idx], 1, __ATOMIC_RELAXED);
                     }
 
-                    int n_limit = node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
+                    int n_limit = (node_params[neighbor].m > 0)
+                        ? node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                        : policy.m_base * 2;
                     if ((int)graphs[lc][neighbor].size() > n_limit) {
                         std::vector<Candidate> n_candidates;
                         const float* n_vec = get_vector(neighbor);
@@ -943,8 +955,8 @@ public:
                             std::unordered_set<tableint> kept(pruned.begin(), pruned.end());
                             for (tableint old_cand : graphs[lc][neighbor]) {
                                 if (kept.find(old_cand) == kept.end()) {
-                                    if (in_degrees[old_cand] > 0) in_degrees[old_cand]--;
-                                    if (in_degrees[neighbor] > 0) in_degrees[neighbor]--;
+                                    __atomic_fetch_sub(&in_degrees[old_cand], 1, __ATOMIC_RELAXED);
+                                    __atomic_fetch_sub(&in_degrees[neighbor], 1, __ATOMIC_RELAXED);
                                 }
                             }
                         }
@@ -963,6 +975,16 @@ public:
                 }
             }
         }
+
+        // Recompute exact total_in_degrees in parallel
+        uint64_t total = 0;
+        #if defined(_OPENMP)
+        #pragma omp parallel for reduction(+:total)
+        #endif
+        for (size_t i = 0; i < n_vectors; ++i) {
+            total += in_degrees[i];
+        }
+        total_in_degrees = total;
     }
     
     std::vector<Candidate> search(const float* query, int k, int ef) const {
