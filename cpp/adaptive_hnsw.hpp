@@ -23,6 +23,12 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
+#include <atomic>
+#include <mutex>
+#include <thread>
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
 
 namespace adaptivevec {
 
@@ -425,7 +431,7 @@ public:
     int max_level = -1;
     double m_l;
     
-    mutable uint64_t total_dist_computations = 0;
+    mutable std::atomic<uint64_t> total_dist_computations{0};
     
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
         : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension) {
@@ -811,6 +817,53 @@ public:
             w.resize(k);
         }
         return w;
+    }
+    
+    /**
+     * Multi-Threaded Batch Search
+     * Executes queries in parallel across worker threads with dynamic load balancing.
+     */
+    std::vector<std::vector<Candidate>> batch_search(
+        const float* queries,
+        size_t n_queries,
+        int k,
+        int ef,
+        int num_threads = 0
+    ) const {
+        if (num_threads <= 0) {
+            #if defined(_OPENMP)
+            num_threads = omp_get_max_threads();
+            #else
+            num_threads = (int)std::max(1u, std::thread::hardware_concurrency());
+            #endif
+        }
+        
+        std::vector<std::vector<Candidate>> results(n_queries);
+        
+        #if defined(_OPENMP)
+        #pragma omp parallel for num_threads(num_threads) schedule(dynamic, 32)
+        for (size_t q = 0; q < n_queries; ++q) {
+            results[q] = search(&queries[q * dim], k, ef);
+        }
+        #else
+        std::vector<std::thread> workers;
+        size_t chunk_size = (n_queries + num_threads - 1) / num_threads;
+        for (int t = 0; t < num_threads; ++t) {
+            size_t start = t * chunk_size;
+            size_t end = std::min(start + chunk_size, n_queries);
+            if (start >= end) continue;
+            workers.emplace_back([this, queries, &results, k, ef, start, end]() {
+                for (size_t q = start; q < end; ++q) {
+                    results[q] = this->search(&queries[q * dim], k, ef);
+                }
+            });
+        }
+        for (auto& w : workers) {
+            if (w.joinable()) w.join();
+        }
+        #endif
+        
+        return results;
     }
     
     size_t get_total_edges() const {
