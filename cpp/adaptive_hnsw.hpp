@@ -790,6 +790,181 @@ public:
         return q_idx;
     }
     
+    /**
+     * Multi-Threaded Concurrent Batch Insertion
+     * Parallelizes vector insertion across worker threads using striped node locking.
+     */
+    void batch_insert(const float* vectors, size_t n_vectors, int num_threads = 0) {
+        if (n_vectors == 0) return;
+        
+        if (num_threads <= 0) {
+            #if defined(_OPENMP)
+            num_threads = omp_get_max_threads();
+            #else
+            num_threads = (int)std::max(1u, std::thread::hardware_concurrency());
+            #endif
+        }
+
+        // If single thread requested, simply run sequential insert
+        if (num_threads == 1) {
+            for (size_t i = 0; i < n_vectors; ++i) {
+                insert(&vectors[i * dim]);
+            }
+            return;
+        }
+
+        // Seed Phase: Insert the first min(n_vectors, 256) sequentially to establish graph root hierarchy
+        size_t seed_count = std::min((size_t)256, n_vectors);
+        for (size_t i = 0; i < seed_count; ++i) {
+            insert(&vectors[i * dim]);
+        }
+        if (seed_count >= n_vectors) return;
+
+        // Striped mutexes for fine-grained concurrent edge updates
+        constexpr size_t NUM_STRIPES = 4096;
+        std::vector<std::mutex> stripe_locks(NUM_STRIPES);
+        std::mutex entry_point_mutex;
+        std::mutex tracker_mutex;
+
+        // Reserve and copy vector memory up-front
+        size_t start_idx = num_elements;
+        num_elements = n_vectors;
+        data.resize(n_vectors * dim);
+        std::memcpy(&data[start_idx * dim], &vectors[start_idx * dim], (n_vectors - start_idx) * dim * sizeof(float));
+
+        if (policy.enable_sq8) {
+            quantized_data.resize(n_vectors * dim);
+            #pragma omp parallel for num_threads(num_threads) schedule(static)
+            for (size_t i = start_idx; i < n_vectors; ++i) {
+                quantizer.encode(&data[i * dim], &quantized_data[i * dim]);
+            }
+        }
+
+        node_levels.resize(n_vectors);
+        node_params.resize(n_vectors);
+        in_degrees.resize(n_vectors, 0);
+
+        // Pre-generate levels and ensure graphs layers exist
+        int expected_max_level = max_level;
+        for (size_t i = start_idx; i < n_vectors; ++i) {
+            int lvl = generate_random_level();
+            node_levels[i] = lvl;
+            if (lvl > expected_max_level) expected_max_level = lvl;
+        }
+        if (expected_max_level >= (int)graphs.size()) {
+            graphs.resize(expected_max_level + 1);
+        }
+        for (size_t l = 0; l < graphs.size(); ++l) {
+            if (graphs[l].size() < n_vectors) {
+                graphs[l].resize(n_vectors);
+            }
+        }
+
+        // Parallel insertion phase for remaining vectors
+        #if defined(_OPENMP)
+        #pragma omp parallel for num_threads(num_threads) schedule(dynamic, 64)
+        #endif
+        for (size_t q_idx = start_idx; q_idx < n_vectors; ++q_idx) {
+            const float* vec = &data[q_idx * dim];
+            int q_level = node_levels[q_idx];
+            
+            tableint curr_ep;
+            int top_level;
+            {
+                std::lock_guard<std::mutex> lk(entry_point_mutex);
+                curr_ep = enter_point;
+                top_level = max_level;
+            }
+
+            // Phase 1: Top-down greedy 1-NN traversal (ef=1)
+            for (int lc = top_level; lc > q_level; --lc) {
+                auto w = search_layer(vec, {curr_ep}, 1, lc, false, false);
+                if (!w.empty()) curr_ep = w[0].id;
+            }
+
+            // Online Signal Estimation
+            NodeParams params;
+            if (is_adaptive) {
+                int probe_lc = std::min(top_level, q_level);
+                int probe_budget = std::min(25, std::max(10, policy.ef_c_base / 4));
+                auto probe_w = search_layer(vec, {curr_ep}, probe_budget, probe_lc, false, false);
+                std::vector<dist_t> probe_dists;
+                for (const auto& c : probe_w) probe_dists.push_back(c.dist);
+
+                float density = estimate_local_density(probe_dists);
+                float lid = estimate_mle_lid(probe_dists);
+
+                if (policy.use_streaming_welford) {
+                    std::lock_guard<std::mutex> lk(tracker_mutex);
+                    density_tracker.update(density);
+                    lid_tracker.update(lid);
+                    if (density_tracker.count >= 10) {
+                        policy.density_mean = density_tracker.get_mean();
+                        policy.density_std = density_tracker.get_std();
+                        policy.lid_mean = lid_tracker.get_mean();
+                        policy.lid_std = lid_tracker.get_std();
+                    }
+                }
+                params = evaluate_policy(density, lid, policy);
+            } else {
+                params = {policy.m_base, policy.m_base, 2 * policy.m_base, policy.ef_c_base, 0.0f, 0.0f, 0.0f};
+            }
+            node_params[q_idx] = params;
+
+            // Phase 2: Insert into levels min(top_level, q_level) down to 0
+            for (int lc = std::min(top_level, q_level); lc >= 0; --lc) {
+                auto w = search_layer(vec, {curr_ep}, params.ef_construction, lc, false, false);
+                int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
+                auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc);
+
+                {
+                    std::lock_guard<std::mutex> lk(stripe_locks[q_idx % NUM_STRIPES]);
+                    graphs[lc][q_idx] = neighbors;
+                }
+
+                for (tableint neighbor : neighbors) {
+                    std::lock_guard<std::mutex> lk(stripe_locks[neighbor % NUM_STRIPES]);
+                    graphs[lc][neighbor].push_back((tableint)q_idx);
+                    if (lc == 0) {
+                        in_degrees[neighbor]++;
+                        in_degrees[q_idx]++;
+                    }
+
+                    int n_limit = node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
+                    if ((int)graphs[lc][neighbor].size() > n_limit) {
+                        std::vector<Candidate> n_candidates;
+                        const float* n_vec = get_vector(neighbor);
+                        for (tableint cand : graphs[lc][neighbor]) {
+                            n_candidates.push_back({get_distance(n_vec, get_vector(cand)), cand});
+                        }
+                        auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc);
+
+                        if (lc == 0) {
+                            std::unordered_set<tableint> kept(pruned.begin(), pruned.end());
+                            for (tableint old_cand : graphs[lc][neighbor]) {
+                                if (kept.find(old_cand) == kept.end()) {
+                                    if (in_degrees[old_cand] > 0) in_degrees[old_cand]--;
+                                    if (in_degrees[neighbor] > 0) in_degrees[neighbor]--;
+                                }
+                            }
+                        }
+                        graphs[lc][neighbor] = pruned;
+                    }
+                }
+
+                if (!w.empty()) curr_ep = w[0].id;
+            }
+
+            if (q_level > max_level) {
+                std::lock_guard<std::mutex> lk(entry_point_mutex);
+                if (q_level > max_level) {
+                    max_level = q_level;
+                    enter_point = (tableint)q_idx;
+                }
+            }
+        }
+    }
+    
     std::vector<Candidate> search(const float* query, int k, int ef) const {
         if (num_elements == 0) return {};
         
