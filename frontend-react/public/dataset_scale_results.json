@@ -1,0 +1,121 @@
+{
+  "hardware": {
+    "cpu": "Intel Core 5 210H",
+    "cores": 8,
+    "threads": 12,
+    "p_cores": 4,
+    "e_cores": 4,
+    "simd": "AVX2 / FMA",
+    "ram_gb": 16
+  },
+  "scale_benchmarks": [
+    {
+      "n_vectors": 100000,
+      "baseline": {
+        "build_time_s": 51.65,
+        "build_rate_vps": 1936.1,
+        "edges": 2705138,
+        "ram_mb": 59.9,
+        "qps": 5623.5,
+        "recall_at_10": 0.9900,
+        "dist_evals_per_q": 1121.0
+      },
+      "adaptivevec": {
+        "build_time_s": 45.81,
+        "build_rate_vps": 2183.1,
+        "edges": 2418545,
+        "ram_mb": 58.8,
+        "qps": 6687.2,
+        "recall_at_10": 0.9497,
+        "dist_evals_per_q": 683.5
+      },
+      "comparisons": {
+        "edge_reduction_pct": 10.59,
+        "qps_speedup": 1.19,
+        "build_speedup": 1.13,
+        "ram_savings_pct": 1.82
+      }
+    },
+    {
+      "n_vectors": 250000,
+      "baseline": {
+        "build_time_s": 157.06,
+        "build_rate_vps": 1591.7,
+        "edges": 6730228,
+        "ram_mb": 149.7,
+        "qps": 4044.2,
+        "recall_at_10": 0.9836,
+        "dist_evals_per_q": 1256.1
+      },
+      "adaptivevec": {
+        "build_time_s": 97.84,
+        "build_rate_vps": 2555.3,
+        "edges": 6154914,
+        "ram_mb": 147.5,
+        "qps": 34859.1,
+        "recall_at_10": 0.9296,
+        "dist_evals_per_q": 786.2
+      },
+      "comparisons": {
+        "edge_reduction_pct": 8.55,
+        "qps_speedup": 8.62,
+        "build_speedup": 1.61,
+        "ram_savings_pct": 1.47
+      }
+    },
+    {
+      "n_vectors": 500000,
+      "baseline": {
+        "build_time_s": 92.23,
+        "build_rate_vps": 5421.1,
+        "edges": 13414363,
+        "ram_mb": 299.1,
+        "qps": 15236.7,
+        "recall_at_10": 0.9733,
+        "dist_evals_per_q": 1312.7
+      },
+      "adaptivevec": {
+        "build_time_s": 215.34,
+        "build_rate_vps": 2321.9,
+        "edges": 12147532,
+        "ram_mb": 294.3,
+        "qps": 6728.4,
+        "recall_at_10": 0.9183,
+        "dist_evals_per_q": 864.1
+      },
+      "comparisons": {
+        "edge_reduction_pct": 9.44,
+        "qps_speedup": 0.44,
+        "build_speedup": 0.43,
+        "ram_savings_pct": 1.62
+      }
+    },
+    {
+      "n_vectors": 1000000,
+      "baseline": {
+        "build_time_s": 461.43,
+        "build_rate_vps": 2167.2,
+        "edges": 26855494,
+        "ram_mb": 598.4,
+        "qps": 4007.5,
+        "recall_at_10": 0.9675,
+        "dist_evals_per_q": 1360.6
+      },
+      "adaptivevec": {
+        "build_time_s": 241.27,
+        "build_rate_vps": 4144.8,
+        "edges": 24289631,
+        "ram_mb": 588.6,
+        "qps": 20682.9,
+        "recall_at_10": 0.9078,
+        "dist_evals_per_q": 889.0
+      },
+      "comparisons": {
+        "edge_reduction_pct": 9.55,
+        "qps_speedup": 5.16,
+        "build_speedup": 1.91,
+        "ram_savings_pct": 1.64
+      }
+    }
+  ]
+}
