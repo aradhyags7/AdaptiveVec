@@ -251,6 +251,26 @@ To evaluate scalability on commodity multi-core architectures, we evaluated Adap
 \end{tabular}
 \end{table}
 
+\subsection{Dataset Scale Expansion: SIFT-100K to SIFT-250K}
+To evaluate whether the topological benefits of AdaptiveVec compound under larger corpora on commodity hardware, we benchmarked Baseline HNSW against AdaptiveVec across SIFT-100K ($N=100\text{K}$) and SIFT-250K ($N=250\text{K}$, a 2.5$\times$ scale expansion) on 12 threads. On SIFT-250K, AdaptiveVec prunes 575,314 redundant links ($-8.55\%$ edges), accelerates build time from 157.1\,s down to 97.8\,s (1.61$\times$ build speedup), and reduces distance evaluation hops by $-37.4\%$ (786.2 vs. 1,256.1 evals/query). Full 1M+ scale campaigns are designated for institutional high-performance compute clusters. Table~\ref{tab:scale_expansion} summarizes the scaling characteristics.
+
+\begin{table}[t]
+\caption{Dataset Scale Expansion on Intel Core 5 210H (12 Threads)}
+\label{tab:scale_expansion}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Scale} & \textbf{System} & \textbf{Total Edges} & \textbf{Build Time} & \textbf{Dist Evals/q} & \textbf{Recall@10} \\
+\midrule
+SIFT-100K & Baseline HNSW & 2,705,138 & 51.7 s & 1,121.0 & 0.9900 \\
+          & \textbf{AdaptiveVec} & \textbf{2,418,545 (-10.6\%)} & \textbf{45.8 s (1.13$\times$)} & \textbf{683.5 (-39.0\%)} & 0.9497 \\
+\midrule
+SIFT-250K & Baseline HNSW & 6,730,228 & 157.1 s & 1,256.1 & 0.9836 \\
+          & \textbf{AdaptiveVec} & \textbf{6,154,914 (-8.55\%)} & \textbf{97.8 s (1.61$\times$)} & \textbf{786.2 (-37.4\%)} & 0.9296 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Known Limitations}
 The following limitations constrain the generalizability of our results:
 

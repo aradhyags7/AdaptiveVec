@@ -1218,6 +1218,53 @@ def build_pdf(filename=None):
         story.append(Image(fig5_path, width=480, height=192))
         story.append(Paragraph("<b>Fig. 5.</b> Multi-core thread scaling on Intel Core 5 210H (8 physical cores [4 P-cores + 4 E-cores], 12 logical threads, AVX2/FMA). (a) Batch query search scales from 2,353.5 QPS (1 thread) to 8,341.5 QPS (8 threads, 3.54× speedup) with deterministic 0.9508 Recall@10 across all configurations. (b) Concurrent index construction with 4,096 striped node mutexes drops build time from 32.61s down to 4.31s (7.57× speedup on 12 threads).", fig_caption_style))
 
+    # Subsection 6.7: Dataset Scale Expansion (SIFT-100K to SIFT-250K)
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("<b>6.7 Dataset Scale Expansion (SIFT-100K to SIFT-250K on Commodity Laptop):</b> To evaluate whether manifold-adaptive benefits compound as corpus size expands on consumer hardware, we evaluated AdaptiveVec against Baseline HNSW across SIFT-100K (100,000 vectors) and SIFT-250K (250,000 vectors, 2.5× scale expansion) using 12 worker threads. On SIFT-250K, AdaptiveVec prunes 575,314 redundant links (-8.55% edges), accelerates concurrent construction from 157.1s down to 97.8s (1.61× faster build), and reduces distance evaluations by -37.4% (786.2 vs. 1,256.1 evals/query). Evaluation on 1,000,000 (1M) and multi-million vector corpora is reserved for institutional high-performance cluster infrastructure.", body_style))
+    story.append(Spacer(1, 4))
+
+    # Scale Table
+    scale_table_data = [
+        [
+            Paragraph("Dataset Scale", table_header_style),
+            Paragraph("System", table_header_style),
+            Paragraph("Total Edges", table_header_style),
+            Paragraph("Build Time (s)", table_header_style),
+            Paragraph("Index RAM", table_header_style),
+            Paragraph("Dist Evals/q", table_header_style),
+            Paragraph("Recall@10", table_header_style),
+        ],
+        [
+            Paragraph("SIFT-100K<br/>(100,000)", table_cell_style),
+            Paragraph("Baseline HNSW<br/><b>AdaptiveVec</b>", table_cell_style),
+            Paragraph("2,705,138<br/><b>2,418,545 (-10.6%)</b>", table_cell_style),
+            Paragraph("51.7 s<br/><b>45.8 s (1.13×)</b>", table_cell_style),
+            Paragraph("59.9 MB<br/><b>58.8 MB</b>", table_cell_style),
+            Paragraph("1,121.0<br/><b>683.5 (-39.0%)</b>", table_cell_style),
+            Paragraph("0.9900<br/>0.9497", table_cell_style),
+        ],
+        [
+            Paragraph("SIFT-250K<br/>(250,000)", table_cell_style),
+            Paragraph("Baseline HNSW<br/><b>AdaptiveVec</b>", table_cell_style),
+            Paragraph("6,730,228<br/><b>6,154,914 (-8.55%)</b>", table_cell_style),
+            Paragraph("157.1 s<br/><b>97.8 s (1.61×)</b>", table_cell_style),
+            Paragraph("149.7 MB<br/><b>147.5 MB</b>", table_cell_style),
+            Paragraph("1,256.1<br/><b>786.2 (-37.4%)</b>", table_cell_style),
+            Paragraph("0.9836<br/>0.9296", table_cell_style),
+        ],
+    ]
+    scale_table = Table(scale_table_data, colWidths=[74, 80, 85, 75, 60, 70, 60])
+    scale_table.setStyle(get_booktabs_style(primary_color))
+    story.append(scale_table)
+    story.append(Spacer(1, 4))
+
+    # Embedded Figure 6: Dataset Scale Expansion
+    fig6_path = os.path.join(SCRIPT_DIR, "paper_figures", "fig6_dataset_scaling.png")
+    if os.path.exists(fig6_path):
+        story.append(Spacer(1, 4))
+        story.append(Image(fig6_path, width=480, height=192))
+        story.append(Paragraph("<b>Fig. 6.</b> Dataset scale expansion from SIFT-100K to SIFT-250K on commodity laptop hardware (Intel Core 5 210H, 12 threads). (a) Graph edge reduction is maintained across scale (-10.6% at 100K, -8.6% at 250K, saving 575,314 links). (b) Build time drops from 157.1s to 97.8s (1.61× build speedup) while reducing distance search hops by -37.4%. Full 1M+ scale campaigns are designated for institutional server infrastructure.", fig_caption_style))
+
     # =========================================================================
     # SECTION 7: HARDWARE IMPLEMENTATION
     # =========================================================================

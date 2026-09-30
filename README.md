@@ -43,8 +43,9 @@ Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vecto
    - [6.3 Synthetic-Multi-Cluster Benchmarks](#63-synthetic-multi-cluster-benchmarks)
    - [6.4 Signal Validity & Parameter Sensitivity Sweeps](#64-signal-validity--parameter-sensitivity-sweeps)
    - [6.5 Multi-Core Thread Scaling Benchmarks](#65-multi-core-thread-scaling-benchmarks)
-   - [6.6 Integrity Disclosures & Paper Draft Alignment](#66-integrity-disclosures--paper-draft-alignment)
-   - [6.7 Known Limitations](#67-known-limitations)
+   - [6.6 Dataset Scale Expansion: SIFT-100K to SIFT-250K](#66-dataset-scale-expansion-sift-100k-to-sift-250k-on-commodity-laptop)
+   - [6.7 Integrity Disclosures & Paper Draft Alignment](#67-integrity-disclosures--paper-draft-alignment)
+   - [6.8 Known Limitations](#68-known-limitations)
 7. [System Architecture & Repository Structure](#7-system-architecture--repository-structure)
 8. [Quickstart & Reproducibility](#8-quickstart--reproducibility)
    - [8.1 Single-Command Benchmark Reproduction](#81-single-command-benchmark-reproduction)
@@ -319,7 +320,28 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 
 ---
 
-### 6.6 Integrity Disclosures & Paper Draft Alignment
+### 6.6 Dataset Scale Expansion (SIFT-100K to SIFT-250K on Commodity Laptop)
+*Evaluated on Intel Core 5 210H (8 cores, 12 threads, 16GB RAM), OpenMP concurrent construction, AVX2/FMA vectorization:*
+
+| Dataset Scale | System | Total Edges | Edge Delta | Build Time | Build Speedup | Index RAM | Dist Evals/q | Recall@10 |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **SIFT-100K** (100K vectors) | Baseline HNSW | 2,705,138 | Baseline | 51.7 s | 1.00× | 59.9 MB | 1,121.0 | 0.9900 |
+| | **AdaptiveVec** | **2,418,545** | **-10.6%** | **45.8 s** | **1.13×** | **58.8 MB** | **683.5 (-39.0%)** | 0.9497 |
+| **SIFT-250K** (250K vectors) | Baseline HNSW | 6,730,228 | Baseline | 157.1 s | 1.00× | 149.7 MB | 1,256.1 | 0.9836 |
+| | **AdaptiveVec** | **6,154,914** | **-8.55%** | **97.8 s** | **1.61×** | **147.5 MB** | **786.2 (-37.4%)** | 0.9296 |
+
+> [!NOTE]
+> **Scale Boundary Earmark:** Expanding evaluation from 100K to 250K vectors on this consumer laptop validates that AdaptiveVec accelerates construction by **1.61×** (97.8s vs 157.1s) and cuts **575,314 redundant links** with **37.4% fewer distance evaluations**. Full-scale evaluation on 1,000,000 (1M) and multi-million vector corpora is designated for the institutional high-performance compute and cluster infrastructure.
+
+<p align="center">
+  <img src="pdf/paper_figures/fig6_dataset_scaling.png" width="95%" alt="Figure 6: Dataset Scale Expansion"/>
+  <br>
+  <i><b>Figure 6:</b> Dataset Scale Expansion from SIFT-100K to SIFT-250K on commodity laptop hardware. (a) Edge reduction is maintained across scale (-10.6% at 100K, -8.6% at 250K, eliminating 575,314 redundant edges). (b) Build time drops from 157.1s to 97.8s (1.61× build speedup) while distance search hops drop by -37.4%.</i>
+</p>
+
+---
+
+### 6.7 Integrity Disclosures & Paper Draft Alignment
 
 > [!WARNING]
 > **Scientific Integrity & Empirical Gap Alignment**:
@@ -331,7 +353,7 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 >
 > **Statistical Methodology:** To establish statistical stability and error bounds, headline operational configurations (Regime A and Baseline) were evaluated across 5 repeated trials with varying random seeds, yielding tight variance bounds (e.g., Regime A Recall@10 = $0.9758 \pm 0.0019$, QPS = $7,272.8 \pm 170.1$). For the controlled component ablation study (Section 6.2) and parameter sweeps (Section 6.4), we report single-run evaluations under a fixed random seed (`seed=42`) and deterministic insertion order to strictly isolate incremental algorithmic contributions. Across all configurations, build wall-clock times exhibit $<2\%$ variance across independent runs under idle hardware and controlled thermal conditions.
 
-### 6.7 Known Limitations
+### 6.8 Known Limitations
 
 The following limitations constrain the generalizability of our results:
 
