@@ -82,7 +82,7 @@ export const BenchmarksTab: React.FC = () => {
             onClick={() => setSubTab('figures')}
           >
             <ImageIcon size={12} />
-            <span>Publication Plots (4)</span>
+            <span>Publication Plots (6)</span>
           </button>
 
           <button
@@ -590,6 +590,16 @@ export const BenchmarksTab: React.FC = () => {
                   src: '/paper_figures/fig4_synthetic_sweep.png',
                   title: 'Figure 4: Synthetic-Multi-Cluster Hubness Penalty Sweep',
                   caption: 'Sensitivity sweep of hubness regulation coefficient μ ∈ [0.0, 0.30] showing the trade-off between in-degree balance and routing fidelity.',
+                },
+                {
+                  src: '/paper_figures/fig5_multithread_scaling.png',
+                  title: 'Figure 5: Multi-Core OpenMP Parallel Speedup (1–12 Threads)',
+                  caption: 'Build throughput (vectors/sec) and parallel scaling efficiency across physical P-cores, E-cores, and SMT threads on Intel Core 5 210H, reaching 8.89× speedup.',
+                },
+                {
+                  src: '/paper_figures/fig6_dataset_scaling.png',
+                  title: 'Figure 6: Dataset Scale Expansion: SIFT-100K to SIFT-250K',
+                  caption: 'Empirical scaling comparison on commodity laptop hardware (Intel Core 5 210H) showing 1.61× faster build time, -575K redundant edges, and -37.4% distance computations.',
                 },
               ].map((fig, idx) => (
                 <div
