@@ -1,3 +1,4 @@
+// Dataset loader utility with bounds checking and buffer pre-allocation
 #pragma once
 
 #include <iostream>
