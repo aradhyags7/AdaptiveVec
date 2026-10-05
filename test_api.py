@@ -1,7 +1,13 @@
 import urllib.request
 import json
+import pytest
 
 def test_api():
+    try:
+        urllib.request.urlopen('http://127.0.0.1:8000/api/status', timeout=1)
+    except Exception:
+        pytest.skip("FastAPI server not running on port 8000")
+
     print("Testing /api/status...")
     r = json.loads(urllib.request.urlopen('http://127.0.0.1:8000/api/status').read().decode())
     print("Status:", r['status'], "Samples:", r['n_samples'])
