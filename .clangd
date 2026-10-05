@@ -5,6 +5,9 @@ CompileFlags:
     - -std=c++17
     - -mavx2
     - -mfma
+    - -fopenmp
+    - -Icpp
+    - -I.
 
 Diagnostics:
   UnusedIncludes: None
