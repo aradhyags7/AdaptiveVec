@@ -1,6 +1,10 @@
 -std=c++17
 -mavx2
 -mfma
+-fopenmp
+--target=x86_64-w64-mingw32
+-Icpp
+-I.
 -isystem
 C:/msys64/ucrt64/include/c++/16.1.0
 -isystem
