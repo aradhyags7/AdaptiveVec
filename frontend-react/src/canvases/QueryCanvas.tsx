@@ -1,3 +1,4 @@
+/* Real-Time Query Traversal & Stagnation Step Inspector */
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Play, Pause, SkipForward, RotateCcw, Activity } from 'lucide-react';
