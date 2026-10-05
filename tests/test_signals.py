@@ -64,3 +64,12 @@ class TestSignals(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_zero_distance_stability():
+    """Verify numerical stability when distances approach zero."""
+    import numpy as np
+    from adaptivevec.signals import compute_lid
+    dists = np.zeros(10, dtype=np.float32)
+    lid = compute_lid(dists)
+    assert lid >= 0.0
