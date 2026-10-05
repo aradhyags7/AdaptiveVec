@@ -1,3 +1,4 @@
+/* Corpus Registry & Dimensionality Matrix Stage */
 import React from 'react';
 import { useBenchmark } from '../context/BenchmarkContext';
 import { motion, useReducedMotion } from 'framer-motion';
