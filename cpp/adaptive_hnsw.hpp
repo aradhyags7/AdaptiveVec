@@ -1,3 +1,4 @@
+// AdaptiveVec HNSW Engine with fine-grained mutex striping and AVX2 vectorization
 #pragma once
 
 /**
