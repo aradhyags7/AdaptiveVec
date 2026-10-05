@@ -1,3 +1,5 @@
+# AdaptiveVec FastAPI High-Performance Vector Retrieval Server
+# Exposes REST endpoints for telemetry, graph projections, and search
 """
 FastAPI Server for AdaptiveVec Interactive Studio & Benchmark Suite.
 """
