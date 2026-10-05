@@ -30,3 +30,8 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+
+### Interactive Visualizations & Publication Gallery
+- Features all 6 IEEE/ACM high-DPI publication figures with full-screen zoom.
+- Real-time Pareto frontier telemetry and empirical SIFT-250K scale sweep analysis.
