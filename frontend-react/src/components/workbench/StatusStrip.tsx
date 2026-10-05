@@ -1,3 +1,4 @@
+/* Telemetry and Runtime Status Strip Component */
 import React from 'react';
 import { useBenchmark } from '../../context/BenchmarkContext';
 import styles from './StatusStrip.module.css';
