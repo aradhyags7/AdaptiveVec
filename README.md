@@ -1,3 +1,4 @@
+<!-- Verified 250K Scale Expansion Milestone: Oct 5, 2026 -->
 <div align="center">
 
 # AdaptiveVec: A Density- and Dimension-Aware Proximity Graph Index for Resource-Constrained Vector Retrieval
@@ -616,6 +617,7 @@ If you utilize AdaptiveVec in your academic research, benchmarking studies, or e
 
 ---
 
+<!-- Verified 250K Scale Expansion Milestone: Oct 5, 2026 -->
 <div align="center">
   <sub>AdaptiveVec Research Initiative • Developed for the 2nd-Year Computer Engineering EDI Project • Released under the MIT License</sub>
 </div>
