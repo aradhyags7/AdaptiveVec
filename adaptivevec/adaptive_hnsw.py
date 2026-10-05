@@ -1,3 +1,5 @@
+# Adaptive Hierarchical Navigable Small World (HNSW) Python Reference
+# Native Python reference implementation with heuristic edge selection
 """
 AdaptiveVec: Density- and Dimension-Aware Vector Index.
 Extends Hierarchical Navigable Small World graphs with dynamic, per-node
