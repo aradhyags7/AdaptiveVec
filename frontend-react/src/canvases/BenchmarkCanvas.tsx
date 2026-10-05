@@ -1,3 +1,4 @@
+/* Benchmark & Pareto Frontier Interactive Canvas */
 import React, { useState, useEffect } from 'react';
 import { useBenchmark } from '../context/BenchmarkContext';
 import { FileCode, Database, Layers, Image as ImageIcon, Maximize2, X, TrendingUp } from 'lucide-react';
