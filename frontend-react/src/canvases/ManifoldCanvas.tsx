@@ -1,3 +1,4 @@
+/* 2D Manifold Graph Projection & Hubness Distribution Observatory */
 import React, { useState, useMemo } from 'react';
 import { useBenchmark } from '../context/BenchmarkContext';
 import { Info } from 'lucide-react';
