@@ -147,3 +147,12 @@ class TestHNSW(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_empty_index_query_handling():
+    """Verify that searching an empty index returns empty results without crashing."""
+    import numpy as np
+    from adaptivevec.adaptive_hnsw import AdaptiveHNSW
+    idx = AdaptiveHNSW(dim=16)
+    labels, dists = idx.search(np.zeros(16, dtype=np.float32), k=5)
+    assert len(labels) == 0
