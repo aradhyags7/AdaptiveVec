@@ -1,3 +1,5 @@
+# Asymmetric Scalar Quantization (SQ8) Implementation
+# Provides 8-bit integer quantization with linear scale and offset
 """
 Scalar Quantization (SQ8) Module for AdaptiveVec.
 
