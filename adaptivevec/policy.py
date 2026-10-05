@@ -1,3 +1,5 @@
+# Adaptive Degree and Search Policy Specification
+# Implements M(x), efConstruction(x), and adaptive efSearch stagnation policies
 """
 Adaptive Policy Mapper for AdaptiveVec.
 
