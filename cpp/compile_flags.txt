@@ -1,6 +1,7 @@
 -std=c++17
 -mavx2
 -mfma
+-fopenmp
 --target=x86_64-w64-mingw32
 -I.
 -isystem
