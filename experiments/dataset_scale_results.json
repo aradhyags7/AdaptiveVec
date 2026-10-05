@@ -6,7 +6,8 @@
     "p_cores": 4,
     "e_cores": 4,
     "simd": "AVX2 / FMA",
-    "ram_gb": 16
+    "ram_gb": 16,
+    "methodology": "OpenMP multi-threaded empirical evaluation"
   },
   "scale_benchmarks": [
     {
