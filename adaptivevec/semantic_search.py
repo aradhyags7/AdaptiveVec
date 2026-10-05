@@ -1,3 +1,5 @@
+# Semantic Search Pipeline & In-Memory Knowledge Retrieval
+# Demonstrates real-time query vectorization and graph retrieval
 """
 Semantic Document Search Engine powered by AdaptiveVec and Stock HNSW.
 Demonstrates practical RAG / Semantic Retrieval on real text corpora.
