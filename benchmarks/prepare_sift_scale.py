@@ -1,3 +1,5 @@
+# Automated Dataset Scaling and Ground Truth Pre-computation
+# Prepares canonical SIFT subsets and calculates exact nearest neighbors
 """
 benchmarks/prepare_sift_1m.py
 Prepares canonical SIFT datasets for large-scale evaluation:
