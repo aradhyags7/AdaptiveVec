@@ -1,3 +1,5 @@
+# Intrinsic Dimensionality and Topological Signals Module
+# Provides MLE-based LID estimation and degree penalty signals
 """
 Signal Estimation Module for AdaptiveVec.
 
