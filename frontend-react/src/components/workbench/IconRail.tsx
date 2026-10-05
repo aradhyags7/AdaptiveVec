@@ -1,3 +1,4 @@
+/* Precision Tool Rail with Physical Keyboard Shortcuts */
 import React from 'react';
 import { useBenchmark } from '../../context/BenchmarkContext';
 import type { CanvasType } from '../../types/benchmark';
