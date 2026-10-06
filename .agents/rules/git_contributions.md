@@ -15,3 +15,7 @@
 
 ### October 5th Continuous Contribution Milestone
 - Verified 29 atomic commits rollout across C++ engine, test suites, IDE flags, and frontend telemetry.
+
+4. **Timestamp & Real-Time Cadence:**
+   - All subsequent commits must use the current, real system timestamp (standard `git commit`).
+   - Do not backdate any commits unless explicitly requested.
