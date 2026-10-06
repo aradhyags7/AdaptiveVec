@@ -103,9 +103,9 @@ if __name__ == "__main__":
 
 def test_policy_extreme_lid_clamping():
     """Verify that policy clamps degree allocation for extreme LID values."""
-    from adaptivevec.policy import AdaptivePolicy, PolicyConfig
-    policy = AdaptivePolicy(PolicyConfig())
-    m_high = policy.compute_dynamic_m(lid=999.0)
-    m_low = policy.compute_dynamic_m(lid=0.01)
-    assert m_high <= 64
-    assert m_low >= 4
+    from adaptivevec.policy import AdaptivePolicy, AdaptivePolicyConfig
+    policy = AdaptivePolicy(AdaptivePolicyConfig())
+    params_high = policy.evaluate(density=1.0, lid=999.0)
+    params_low = policy.evaluate(density=1.0, lid=0.01)
+    assert params_high.m <= policy.config.m_max
+    assert params_low.m >= policy.config.m_min
