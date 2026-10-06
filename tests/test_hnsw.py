@@ -154,5 +154,5 @@ def test_empty_index_query_handling():
     import numpy as np
     from adaptivevec.adaptive_hnsw import AdaptiveHNSW
     idx = AdaptiveHNSW(dim=16)
-    labels, dists = idx.search(np.zeros(16, dtype=np.float32), k=5)
-    assert len(labels) == 0
+    results = idx.search(np.zeros(16, dtype=np.float32), k=5)
+    assert len(results) == 0
