@@ -67,6 +67,12 @@ struct PolicyConfig {
     bool enable_ada_ef = true;
     bool enable_sq8 = false;
     
+    // Frontier 1: Query-Time Dynamic efSearch
+    bool enable_dynamic_ef_search = false;
+    float dynamic_ef_factor = 0.40f;
+    int dynamic_ef_min = 16;
+    int dynamic_ef_max = 128;
+    
     // Mechanics parameters
     float lambda_layer = 0.75f;
     int m_min_layer = 4;
@@ -1000,7 +1006,20 @@ public:
             if (!w.empty()) curr_ep = w[0].id;
         }
         
-        int search_beam = use_asym ? std::max(policy.sq8_rerank_factor * k, ef) : ef;
+        int target_ef = ef;
+        if (policy.enable_dynamic_ef_search && curr_ep < node_params.size()) {
+            float node_score = node_params[curr_ep].score;
+            dist_t d_entry = (use_asym && quantizer.is_trained) 
+                             ? get_sq8_distance(query, curr_ep) 
+                             : get_distance(query, get_vector(curr_ep));
+            float norm_d = (d_entry - policy.density_mean) / (policy.density_std + 1e-6f);
+            float query_hardness = 0.7f * node_score + 0.3f * std::max(-2.0f, std::min(norm_d, 2.0f));
+            float factor = 1.0f + policy.dynamic_ef_factor * query_hardness;
+            target_ef = std::max(policy.dynamic_ef_min, 
+                        std::min((int)std::round((float)ef * factor), policy.dynamic_ef_max));
+        }
+        
+        int search_beam = use_asym ? std::max(policy.sq8_rerank_factor * k, target_ef) : target_ef;
         auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym);
         
         if (use_asym) {

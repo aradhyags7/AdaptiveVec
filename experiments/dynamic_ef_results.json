@@ -1,0 +1,211 @@
+[
+  {
+    "mode": "Static",
+    "base_ef": 24,
+    "kappa": 0,
+    "recall_10": 0.87547,
+    "qps": 16171.6,
+    "mean_dist_evals": 430.153,
+    "p50_us": 165.5,
+    "p95_us": 6371.4,
+    "p99_us": 10359.4
+  },
+  {
+    "mode": "Static",
+    "base_ef": 32,
+    "kappa": 0,
+    "recall_10": 0.90524,
+    "qps": 14388.2,
+    "mean_dist_evals": 495.342,
+    "p50_us": 193.8,
+    "p95_us": 6612.2,
+    "p99_us": 10185.6
+  },
+  {
+    "mode": "Static",
+    "base_ef": 48,
+    "kappa": 0,
+    "recall_10": 0.93581,
+    "qps": 8955.66,
+    "mean_dist_evals": 601.334,
+    "p50_us": 234.1,
+    "p95_us": 10699.8,
+    "p99_us": 14432.1
+  },
+  {
+    "mode": "Static",
+    "base_ef": 64,
+    "kappa": 0,
+    "recall_10": 0.9518,
+    "qps": 6344.32,
+    "mean_dist_evals": 688.396,
+    "p50_us": 275.7,
+    "p95_us": 13661.1,
+    "p99_us": 20440.5
+  },
+  {
+    "mode": "Static",
+    "base_ef": 80,
+    "kappa": 0,
+    "recall_10": 0.96082,
+    "qps": 7691.59,
+    "mean_dist_evals": 763.573,
+    "p50_us": 322.4,
+    "p95_us": 9639.7,
+    "p99_us": 12863.8
+  },
+  {
+    "mode": "Static",
+    "base_ef": 96,
+    "kappa": 0,
+    "recall_10": 0.96771,
+    "qps": 7739.8,
+    "mean_dist_evals": 832.479,
+    "p50_us": 355.4,
+    "p95_us": 8698.2,
+    "p99_us": 12354.6
+  },
+  {
+    "mode": "Static",
+    "base_ef": 128,
+    "kappa": 0,
+    "recall_10": 0.97623,
+    "qps": 6258.71,
+    "mean_dist_evals": 955.401,
+    "p50_us": 435.9,
+    "p95_us": 9290.5,
+    "p99_us": 12929
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 32,
+    "kappa": 0.3,
+    "recall_10": 0.90723,
+    "qps": 13682.6,
+    "mean_dist_evals": 511.112,
+    "p50_us": 205.7,
+    "p95_us": 6558.4,
+    "p99_us": 9509.7
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 32,
+    "kappa": 0.45,
+    "recall_10": 0.90666,
+    "qps": 11849.9,
+    "mean_dist_evals": 516.977,
+    "p50_us": 209.4,
+    "p95_us": 7707.9,
+    "p99_us": 12813.7
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 32,
+    "kappa": 0.6,
+    "recall_10": 0.90449,
+    "qps": 10931.4,
+    "mean_dist_evals": 521.173,
+    "p50_us": 220.4,
+    "p95_us": 8367.6,
+    "p99_us": 12793.2
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 48,
+    "kappa": 0.3,
+    "recall_10": 0.93771,
+    "qps": 9253.91,
+    "mean_dist_evals": 619.989,
+    "p50_us": 272.8,
+    "p95_us": 8827.3,
+    "p99_us": 12173.6
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 48,
+    "kappa": 0.45,
+    "recall_10": 0.93638,
+    "qps": 7660.8,
+    "mean_dist_evals": 626.185,
+    "p50_us": 269.5,
+    "p95_us": 11172,
+    "p99_us": 14940.2
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 48,
+    "kappa": 0.6,
+    "recall_10": 0.93481,
+    "qps": 8547.46,
+    "mean_dist_evals": 631.468,
+    "p50_us": 272.9,
+    "p95_us": 9929.4,
+    "p99_us": 13196.5
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 64,
+    "kappa": 0.3,
+    "recall_10": 0.95259,
+    "qps": 7918.34,
+    "mean_dist_evals": 708.313,
+    "p50_us": 323.8,
+    "p95_us": 9513.1,
+    "p99_us": 12479
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 64,
+    "kappa": 0.45,
+    "recall_10": 0.95226,
+    "qps": 6783.71,
+    "mean_dist_evals": 716.518,
+    "p50_us": 305.1,
+    "p95_us": 12079.7,
+    "p99_us": 16655.7
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 64,
+    "kappa": 0.6,
+    "recall_10": 0.95122,
+    "qps": 8568.29,
+    "mean_dist_evals": 723.581,
+    "p50_us": 328.3,
+    "p95_us": 8256.6,
+    "p99_us": 11264
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 80,
+    "kappa": 0.3,
+    "recall_10": 0.96235,
+    "qps": 8195.15,
+    "mean_dist_evals": 787.366,
+    "p50_us": 362.5,
+    "p95_us": 8401.1,
+    "p99_us": 10540.9
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 80,
+    "kappa": 0.45,
+    "recall_10": 0.96182,
+    "qps": 8040.28,
+    "mean_dist_evals": 795.812,
+    "p50_us": 371.6,
+    "p95_us": 8204.8,
+    "p99_us": 10707.2
+  },
+  {
+    "mode": "Dynamic",
+    "base_ef": 80,
+    "kappa": 0.6,
+    "recall_10": 0.96086,
+    "qps": 6996.25,
+    "mean_dist_evals": 804.248,
+    "p50_us": 363.1,
+    "p95_us": 9688.6,
+    "p99_us": 13788.6
+  }
+]
