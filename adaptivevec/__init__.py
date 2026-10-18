@@ -8,7 +8,7 @@ from .hnsw_base import StockHNSW
 from .adaptive_hnsw import AdaptiveHNSW
 from .datasets import load_or_generate_dataset, generate_multi_manifold_dataset
 from .benchmark import BenchmarkHarness, BenchmarkResult
-from .quantization import ScalarQuantizer
+from .quantization import ScalarQuantizer, ScalarQuantizer4Bit
 
 __all__ = [
     "compute_local_density",
@@ -21,6 +21,7 @@ __all__ = [
     "StockHNSW",
     "AdaptiveHNSW",
     "ScalarQuantizer",
+    "ScalarQuantizer4Bit",
     "load_or_generate_dataset",
     "generate_multi_manifold_dataset",
     "BenchmarkHarness",

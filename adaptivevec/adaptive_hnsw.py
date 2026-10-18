@@ -30,7 +30,7 @@ class AdaptiveHNSWConfig:
     quantize: bool = False
 from .signals import estimate_node_signals, compute_mle_lid, compute_local_density, profile_dataset_signals
 from .policy import AdaptivePolicy, AdaptivePolicyConfig, NodeParameters
-from .quantization import ScalarQuantizer
+from .quantization import ScalarQuantizer, ScalarQuantizer4Bit
 
 def l2_distance(a: np.ndarray, b: np.ndarray) -> float:
     diff = a - b
@@ -98,7 +98,10 @@ class AdaptiveHNSW:
         self.hubness_penalty_weight = cfg.hubness_penalty_weight
         self.quantize = cfg.quantize
 
-        self.quantizer = ScalarQuantizer(dim=self.dim)
+        if isinstance(self.quantize, str) and self.quantize.lower() == "sq4":
+            self.quantizer = ScalarQuantizer4Bit(dim=self.dim)
+        else:
+            self.quantizer = ScalarQuantizer(dim=self.dim)
         self.quantized_data: List[np.ndarray] = []
 
         self.policy = AdaptivePolicy(cfg.policy_config)

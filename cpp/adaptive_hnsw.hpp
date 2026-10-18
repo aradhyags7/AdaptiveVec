@@ -66,6 +66,7 @@ struct PolicyConfig {
     bool enable_hubness_regulation = true;
     bool enable_ada_ef = true;
     bool enable_sq8 = false;
+    bool enable_sq4 = false;
     
     // Frontier 1: Query-Time Dynamic efSearch
     bool enable_dynamic_ef_search = false;
@@ -80,6 +81,7 @@ struct PolicyConfig {
     int ada_ef_patience = 6;
     float ada_ef_epsilon = 1e-4f;
     int sq8_rerank_factor = 2; // K = 2 * k
+    int sq4_rerank_factor = 3; // K = 3 * k (Frontier 3 Sub-Byte)
     
     // Online tracking state
     bool use_streaming_welford = true;
@@ -340,6 +342,138 @@ struct ScalarQuantizer {
     }
 };
 
+// Frontier 3: 4-Bit Sub-Byte Scalar Quantizer (SQ4) with AVX2 SIMD nibble unpacking
+struct ScalarQuantizer4Bit {
+    size_t dim = 0;
+    size_t packed_dim = 0;
+    std::vector<float> min_vals;
+    std::vector<float> scales;
+    bool is_trained = false;
+
+    ScalarQuantizer4Bit() = default;
+    ScalarQuantizer4Bit(size_t d) 
+        : dim(d), packed_dim((d + 1) / 2), min_vals(d, 0.0f), scales(d, 1.0f) {}
+
+    void train(const float* vectors, size_t n_vectors) {
+        if (n_vectors == 0 || dim == 0) return;
+        packed_dim = (dim + 1) / 2;
+        min_vals.assign(dim, 1e9f);
+        std::vector<float> max_vals(dim, -1e9f);
+        scales.resize(dim);
+
+        for (size_t i = 0; i < n_vectors; ++i) {
+            const float* v = vectors + i * dim;
+            for (size_t d = 0; d < dim; ++d) {
+                if (v[d] < min_vals[d]) min_vals[d] = v[d];
+                if (v[d] > max_vals[d]) max_vals[d] = v[d];
+            }
+        }
+
+        for (size_t d = 0; d < dim; ++d) {
+            float range = max_vals[d] - min_vals[d];
+            scales[d] = (range > 1e-7f) ? (range / 15.0f) : 1.0f;
+        }
+        is_trained = true;
+    }
+
+    void encode(const float* vec, uint8_t* code) const {
+        for (size_t i = 0; i < packed_dim; ++i) {
+            size_t d0 = i * 2;
+            size_t d1 = d0 + 1;
+
+            float scaled0 = (vec[d0] - min_vals[d0]) / scales[d0];
+            int c0 = (int)std::round(scaled0);
+            uint8_t nibble0 = (uint8_t)std::max(0, std::min(15, c0));
+
+            uint8_t nibble1 = 0;
+            if (d1 < dim) {
+                float scaled1 = (vec[d1] - min_vals[d1]) / scales[d1];
+                int c1 = (int)std::round(scaled1);
+                nibble1 = (uint8_t)std::max(0, std::min(15, c1));
+            }
+
+            code[i] = (uint8_t)((nibble1 << 4) | (nibble0 & 0x0F));
+        }
+    }
+
+    void decode(const uint8_t* code, float* vec) const {
+        for (size_t i = 0; i < packed_dim; ++i) {
+            size_t d0 = i * 2;
+            size_t d1 = d0 + 1;
+            uint8_t byte = code[i];
+            uint8_t nibble0 = byte & 0x0F;
+            uint8_t nibble1 = (byte >> 4) & 0x0F;
+
+            vec[d0] = min_vals[d0] + (float)nibble0 * scales[d0];
+            if (d1 < dim) {
+                vec[d1] = min_vals[d1] + (float)nibble1 * scales[d1];
+            }
+        }
+    }
+
+    dist_t asymmetric_l2_distance(const float* q, const uint8_t* code) const {
+        float sum = 0.0f;
+        size_t d = 0;
+#if defined(__AVX2__)
+        __m256 sum256 = _mm256_setzero_ps();
+        const __m128i mask_low = _mm_set1_epi8(0x0F);
+
+        // Process 16 dimensions per 8 packed bytes
+        for (; d + 16 <= dim; d += 16) {
+            size_t byte_idx = d / 2;
+            __m128i raw = _mm_loadl_epi64((const __m128i*)(code + byte_idx));
+            __m128i low_nibbles = _mm_and_si128(raw, mask_low);
+            __m128i high_nibbles = _mm_and_si128(_mm_srli_epi16(raw, 4), mask_low);
+            __m128i unpacked = _mm_unpacklo_epi8(low_nibbles, high_nibbles);
+
+            // First 8 dimensions
+            __m256i epi32_lo = _mm256_cvtepu8_epi32(unpacked);
+            __m256 vc_lo = _mm256_cvtepi32_ps(epi32_lo);
+            __m256 vq_lo = _mm256_loadu_ps(q + d);
+            __m256 vmin_lo = _mm256_loadu_ps(&min_vals[d]);
+            __m256 vscale_lo = _mm256_loadu_ps(&scales[d]);
+#if defined(__FMA__)
+            __m256 approx_lo = _mm256_fmadd_ps(vc_lo, vscale_lo, vmin_lo);
+            __m256 diff_lo = _mm256_sub_ps(vq_lo, approx_lo);
+            sum256 = _mm256_fmadd_ps(diff_lo, diff_lo, sum256);
+#else
+            __m256 approx_lo = _mm256_add_ps(vmin_lo, _mm256_mul_ps(vc_lo, vscale_lo));
+            __m256 diff_lo = _mm256_sub_ps(vq_lo, approx_lo);
+            sum256 = _mm256_add_ps(sum256, _mm256_mul_ps(diff_lo, diff_lo));
+#endif
+
+            // Second 8 dimensions
+            __m128i unpacked_hi = _mm_srli_si128(unpacked, 8);
+            __m256i epi32_hi = _mm256_cvtepu8_epi32(unpacked_hi);
+            __m256 vc_hi = _mm256_cvtepi32_ps(epi32_hi);
+            __m256 vq_hi = _mm256_loadu_ps(q + d + 8);
+            __m256 vmin_hi = _mm256_loadu_ps(&min_vals[d + 8]);
+            __m256 vscale_hi = _mm256_loadu_ps(&scales[d + 8]);
+#if defined(__FMA__)
+            __m256 approx_hi = _mm256_fmadd_ps(vc_hi, vscale_hi, vmin_hi);
+            __m256 diff_hi = _mm256_sub_ps(vq_hi, approx_hi);
+            sum256 = _mm256_fmadd_ps(diff_hi, diff_hi, sum256);
+#else
+            __m256 approx_hi = _mm256_add_ps(vmin_hi, _mm256_mul_ps(vc_hi, vscale_hi));
+            __m256 diff_hi = _mm256_sub_ps(vq_hi, approx_hi);
+            sum256 = _mm256_add_ps(sum256, _mm256_mul_ps(diff_hi, diff_hi));
+#endif
+        }
+        sum = _mm256_reduce_add_ps(sum256);
+#endif
+        // Remainder scalar loop
+        for (; d < dim; ++d) {
+            size_t byte_idx = d / 2;
+            uint8_t byte = code[byte_idx];
+            uint8_t nibble = (d % 2 == 0) ? (byte & 0x0F) : ((byte >> 4) & 0x0F);
+            float approx = min_vals[d] + (float)nibble * scales[d];
+            float diff = q[d] - approx;
+            sum += diff * diff;
+        }
+        return std::sqrt(sum);
+    }
+};
+
 // Online Signal Estimators
 inline float estimate_mle_lid(const std::vector<dist_t>& dists, int k = 15) {
     if (dists.size() < 3) return 2.0f;
@@ -418,7 +552,9 @@ public:
     // Flat vector storage: data[i * dim ... (i+1) * dim - 1]
     std::vector<float> data;
     std::vector<uint8_t> quantized_data;
+    std::vector<uint8_t> quantized_data_sq4;
     ScalarQuantizer quantizer;
+    ScalarQuantizer4Bit quantizer_sq4;
     size_t num_elements = 0;
     
     // Multi-layer adjacency: graphs[layer][node_id] = std::vector<tableint>
@@ -445,7 +581,7 @@ public:
     mutable std::mutex tracker_mutex;
     
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
-        : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), node_locks(NUM_NODE_LOCKS) {
+        : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), quantizer_sq4(dimension), node_locks(NUM_NODE_LOCKS) {
         m_l = 1.0 / std::log(policy.m_base > 1 ? policy.m_base : 2);
     }
     
@@ -461,13 +597,25 @@ public:
                ? quantizer.asymmetric_cosine_distance(query, code) 
                : quantizer.asymmetric_l2_distance(query, code);
     }
+
+    inline dist_t get_sq4_distance(const float* query, tableint id) const {
+        total_dist_computations++;
+        size_t packed_dim = (dim + 1) / 2;
+        const uint8_t* code = &quantized_data_sq4[id * packed_dim];
+        return quantizer_sq4.asymmetric_l2_distance(query, code);
+    }
     
     inline const float* get_vector(tableint id) const {
         return &data[id * dim];
     }
     
     void train_quantizer(const float* sample_data, size_t sample_count) {
-        quantizer.train(sample_data, sample_count);
+        if (policy.enable_sq4) {
+            quantizer_sq4.train(sample_data, sample_count);
+        }
+        if (policy.enable_sq8) {
+            quantizer.train(sample_data, sample_count);
+        }
     }
 
     void calibrate(const float* sample_data, size_t sample_count, int k = 15) {
@@ -523,7 +671,8 @@ public:
         int lc,
         bool early_exit = true,
         bool use_asym_sq8 = false,
-        bool concurrent_search = false
+        bool concurrent_search = false,
+        bool use_asym_sq4 = false
     ) const {
         std::unordered_set<tableint> visited(enter_points.begin(), enter_points.end());
         std::priority_queue<Candidate, std::vector<Candidate>, std::greater<Candidate>> candidates;
@@ -533,7 +682,9 @@ public:
         int stagnation_counter = 0;
         
         for (tableint ep : enter_points) {
-            dist_t d = (use_asym_sq8 && quantizer.is_trained) 
+            dist_t d = (use_asym_sq4 && quantizer_sq4.is_trained)
+                       ? get_sq4_distance(query, ep)
+                       : (use_asym_sq8 && quantizer.is_trained) 
                        ? get_sq8_distance(query, ep) 
                        : get_distance(query, get_vector(ep));
             candidates.push({d, ep});
@@ -572,7 +723,9 @@ public:
                     
                     if (visited.find(neighbor) == visited.end()) {
                         visited.insert(neighbor);
-                        dist_t d = (use_asym_sq8 && quantizer.is_trained) 
+                        dist_t d = (use_asym_sq4 && quantizer_sq4.is_trained)
+                                   ? get_sq4_distance(query, neighbor)
+                                   : (use_asym_sq8 && quantizer.is_trained) 
                                    ? get_sq8_distance(query, neighbor) 
                                    : get_distance(query, get_vector(neighbor));
                         furthest_d = w_furthest.top().dist;
@@ -693,6 +846,16 @@ public:
             size_t old_size = quantized_data.size();
             quantized_data.resize(old_size + dim);
             quantizer.encode(vec, &quantized_data[old_size]);
+        }
+
+        if (policy.enable_sq4) {
+            if (!quantizer_sq4.is_trained) {
+                quantizer_sq4.train(vec, 1);
+            }
+            size_t packed_dim = (dim + 1) / 2;
+            size_t old_size = quantized_data_sq4.size();
+            quantized_data_sq4.resize(old_size + packed_dim);
+            quantizer_sq4.encode(vec, &quantized_data_sq4[old_size]);
         }
         
         in_degrees.push_back(0);
@@ -851,6 +1014,15 @@ public:
             }
         }
 
+        if (policy.enable_sq4) {
+            size_t packed_dim = (dim + 1) / 2;
+            quantized_data_sq4.resize(n_vectors * packed_dim);
+            #pragma omp parallel for num_threads(num_threads) schedule(static)
+            for (size_t i = start_idx; i < n_vectors; ++i) {
+                quantizer_sq4.encode(&data[i * dim], &quantized_data_sq4[i * packed_dim]);
+            }
+        }
+
         node_levels.resize(n_vectors);
         node_params.resize(n_vectors);
         for (size_t i = start_idx; i < n_vectors; ++i) {
@@ -998,20 +1170,24 @@ public:
         if (num_elements == 0) return {};
         
         tableint curr_ep = enter_point;
-        bool use_asym = policy.enable_sq8 && quantizer.is_trained;
+        bool use_asym_sq8 = policy.enable_sq8 && quantizer.is_trained;
+        bool use_asym_sq4 = policy.enable_sq4 && quantizer_sq4.is_trained;
+        bool use_asym = use_asym_sq8 || use_asym_sq4;
         bool use_ada = policy.enable_ada_ef;
         
         for (int lc = max_level; lc > 0; --lc) {
-            auto w = search_layer(query, {curr_ep}, 1, lc, false, use_asym);
+            auto w = search_layer(query, {curr_ep}, 1, lc, false, use_asym_sq8, false, use_asym_sq4);
             if (!w.empty()) curr_ep = w[0].id;
         }
         
         int target_ef = ef;
         if (policy.enable_dynamic_ef_search && curr_ep < node_params.size()) {
             float node_score = node_params[curr_ep].score;
-            dist_t d_entry = (use_asym && quantizer.is_trained) 
-                             ? get_sq8_distance(query, curr_ep) 
-                             : get_distance(query, get_vector(curr_ep));
+            dist_t d_entry = (use_asym_sq4 && quantizer_sq4.is_trained)
+                             ? get_sq4_distance(query, curr_ep)
+                             : ((use_asym_sq8 && quantizer.is_trained) 
+                                ? get_sq8_distance(query, curr_ep) 
+                                : get_distance(query, get_vector(curr_ep)));
             float norm_d = (d_entry - policy.density_mean) / (policy.density_std + 1e-6f);
             float query_hardness = 0.7f * node_score + 0.3f * std::max(-2.0f, std::min(norm_d, 2.0f));
             float factor = 1.0f + policy.dynamic_ef_factor * query_hardness;
@@ -1019,8 +1195,9 @@ public:
                         std::min((int)std::round((float)ef * factor), policy.dynamic_ef_max));
         }
         
-        int search_beam = use_asym ? std::max(policy.sq8_rerank_factor * k, target_ef) : target_ef;
-        auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym);
+        int rerank_factor = use_asym_sq4 ? policy.sq4_rerank_factor : (use_asym_sq8 ? policy.sq8_rerank_factor : 1);
+        int search_beam = use_asym ? std::max(rerank_factor * k, target_ef) : target_ef;
+        auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym_sq8, false, use_asym_sq4);
         
         if (use_asym) {
             // Two-stage re-ranking with exact float32 distance
@@ -1114,6 +1291,10 @@ public:
     }
 
     size_t get_vector_memory_bytes() const {
+        if (policy.enable_sq4 && quantizer_sq4.is_trained) {
+            size_t packed_dim = (dim + 1) / 2;
+            return num_elements * packed_dim * sizeof(uint8_t) + 2 * dim * sizeof(float);
+        }
         if (policy.enable_sq8 && quantizer.is_trained) {
             return num_elements * dim * sizeof(uint8_t) + 2 * dim * sizeof(float);
         }

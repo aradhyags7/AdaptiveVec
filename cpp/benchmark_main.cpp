@@ -139,7 +139,7 @@ BenchmarkRecord run_single_benchmark(
     
     AdaptiveHNSWIndex index(ds.dim, ds.space, is_adaptive, cfg);
     
-    if (cfg.enable_sq8) {
+    if (cfg.enable_sq8 || cfg.enable_sq4) {
         // Pre-train quantizer on dataset sample (first 10,000 vectors)
         index.train_quantizer(ds.data.data(), std::min((size_t)10000, ds.n_samples));
     }
