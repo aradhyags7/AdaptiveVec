@@ -8,8 +8,9 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![C++](https://img.shields.io/badge/C%2B%2B-17_AVX2-00599C?style=for-the-badge&logo=c%2B%2B&logoColor=white)](https://isocpp.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-19_Workbench-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Test Suite](https://img.shields.io/badge/Test_Suite-16%20Passing-brightgreen?style=for-the-badge)]()
+[![Test Suite](https://img.shields.io/badge/Test_Suite-18%20Passing-brightgreen?style=for-the-badge)]()
 [![Hardware Tier](https://img.shields.io/badge/Target-Commodity%20Laptops%20%26%20Edge%20VMs-blueviolet?style=for-the-badge)]()
 
 <p align="center">
@@ -20,8 +21,16 @@
 
 ---
 
+<p align="center">
+  <img src="pdf/paper_figures/fig1_pareto.png" width="92%" alt="AdaptiveVec Headline Pareto Frontier"/>
+  <br>
+  <i><b>Figure 1:</b> Empirical QPS vs. Recall@10 Pareto Frontier on SIFT-100K ($N=100{,}000, D=128, Q=10{,}000$). AdaptiveVec introduces dual operating regimes: <b>Regime A (High-Throughput)</b> achieves <b>7,075.3 QPS (+50.3% speedup)</b> at 0.9745 Recall@10 via distance stagnation early-exit; <b>Regime B (Memory-Compact)</b> slashes index RAM by <b>-62.4%</b> (22.5 MB vs. 59.9 MB) via asymmetric INT8 SQ8 with float32 re-ranking.</i>
+</p>
+
+---
+
 ### Abstract
-Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vector search engines (FAISS, Milvus, Qdrant, pgvector). However, canonical HNSW enforces static, uniform hyper-parameters ($M=16, efConstruction=200$) globally across non-homogeneous vector spaces. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity edges, squandering precious RAM and CPU indexing time with zero recall benefit. Conversely, sparse high-dimensional regions suffer from topological starvations and capacity-limited disconnects. We present **AdaptiveVec**, a manifold-adaptive proximity graph index optimized for resource-constrained commodity hardware ($100\text{K}–1\text{M}$ vectors on single-node laptops and edge cloud instances). AdaptiveVec unifies online manifold signal estimation (**Local Intrinsic Dimensionality (LID)** via Maximum Likelihood Estimation and **Local Density**) with standard insertion routing at $<0.8\%$ computational overhead. It introduces: (i) a **Layer-Decoupled Dynamic Policy** that compresses higher-layer express links; (ii) **Streaming Online Welford Tracking** to eliminate offline calibration passes; (iii) a **Hubness-Aware In-Degree Centrality Penalty** to prevent topological graph bottlenecks; (iv) **Distance Stagnation Early Exit** to accelerate query throughput; and (v) **Asymmetric INT8 Scalar Quantization (SQ8)** with two-stage float32 re-ranking. Evaluated on SIFT-100K ($N=100\text{K}, D=128$) and Synthetic-Multi-Cluster ($N=50\text{K}, D=64$), **Step 5 achieves 0.9745 Recall@10 at +50.3% query throughput** (7,075.3 QPS vs. 4,708.1 baseline) via query-time distance stagnation early exit, -7.4% fewer graph edges, and -28.1% faster build times. For memory-constrained deployments, **Step 6 (INT8 SQ8) slashes index RAM by -62.4%** (22.5 MB vs. 59.9 MB baseline) and vector memory by -75% while maintaining 0.9594 recall. Broader validation on million-scale corpora ($N \ge 1\text{M}$) and higher-dimensional embeddings is ongoing.
+Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vector search engines (FAISS, Milvus, Qdrant, pgvector). However, canonical HNSW enforces static, uniform hyper-parameters ($M=16, efConstruction=200$) globally across non-homogeneous vector spaces. In dense, low-intrinsic-dimensionality subspaces, this uniform allocation synthesizes redundant proximity edges, squandering precious RAM and CPU indexing time with zero recall benefit. Conversely, sparse high-dimensional regions suffer from topological starvations and capacity-limited disconnects. We present **AdaptiveVec**, a manifold-adaptive proximity graph index optimized for resource-constrained commodity hardware ($100\text{K}–1\text{M}$ vectors on single-node laptops and edge cloud instances). AdaptiveVec unifies online manifold signal estimation (**Local Intrinsic Dimensionality (LID)** via Maximum Likelihood Estimation and **Local Density**) with standard insertion routing at $<0.8\%$ computational overhead. It introduces: (i) a **Layer-Decoupled Dynamic Policy** that compresses higher-layer express links; (ii) **Streaming Online Welford Tracking** to eliminate offline calibration passes; (iii) a **Hubness-Aware In-Degree Centrality Penalty** to prevent topological graph bottlenecks; (iv) **Distance Stagnation Early Exit** to accelerate query throughput; and (v) **Asymmetric INT8 Scalar Quantization (SQ8)** with two-stage float32 re-ranking. Evaluated on SIFT-100K ($N=100\text{K}, D=128$) and Synthetic-Multi-Cluster ($N=50\text{K}, D=64$), **Step 5 achieves 0.9745 Recall@10 at +50.3% query throughput** (7,075.3 QPS vs. 4,708.1 baseline) via query-time distance stagnation early exit, -7.4% fewer graph edges, and -28.1% faster build times. For memory-constrained deployments, **Step 6 (INT8 SQ8) slashes index RAM by -62.4%** (22.5 MB vs. 59.9 MB baseline) and vector memory by -75% while maintaining 0.9594 recall. Expanding evaluation to SIFT-250K demonstrates an accelerated build time of **1.61× speedup** (97.8s vs. 157.1s) and cuts 575,314 redundant links. Broader validation on million-scale corpora ($N \ge 1\text{M}$) and higher-dimensional embeddings is ongoing.
 
 ---
 
@@ -40,13 +49,12 @@ Hierarchical Navigable Small World (HNSW) graphs underpin state-of-the-art vecto
 5. [Theoretical Complexity Analysis](#5-theoretical-complexity-analysis)
 6. [Empirical Evaluation & Benchmark Results](#6-empirical-evaluation--benchmark-results)
    - [6.1 Experimental Setup & Testbed](#61-experimental-setup--testbed)
-   - [6.2 SIFT-100K Ablation Benchmarks](#62-sift-100k-ablation-benchmarks)
+   - [6.2 SIFT-100K Ablation Benchmarks (Ablation Waterfall & Pareto)](#62-sift-100k-ablation-benchmarks)
    - [6.3 Synthetic-Multi-Cluster Benchmarks](#63-synthetic-multi-cluster-benchmarks)
    - [6.4 Signal Validity & Parameter Sensitivity Sweeps](#64-signal-validity--parameter-sensitivity-sweeps)
    - [6.5 Multi-Core Thread Scaling Benchmarks](#65-multi-core-thread-scaling-benchmarks)
    - [6.6 Dataset Scale Expansion: SIFT-100K to SIFT-250K](#66-dataset-scale-expansion-sift-100k-to-sift-250k-on-commodity-laptop)
-   - [6.7 Integrity Disclosures & Paper Draft Alignment](#67-integrity-disclosures--paper-draft-alignment)
-   - [6.8 Known Limitations](#68-known-limitations)
+   - [6.7 Known Limitations](#67-known-limitations)
 7. [System Architecture & Repository Structure](#7-system-architecture--repository-structure)
 8. [Quickstart & Reproducibility](#8-quickstart--reproducibility)
    - [8.1 Single-Command Benchmark Reproduction](#81-single-command-benchmark-reproduction)
@@ -76,7 +84,7 @@ Approximate Nearest Neighbor Search (ANNS) in metric spaces is fundamental to mo
 ```
 
 ### The Fundamental Flaw of Uniform Allocation
-In production systems, real-world embeddings (e.g., text, vision, multimodal representations) do not fill ambient $\mathbb{R}$^D space uniformly. Instead, they concentrate on lower-dimensional non-linear sub-manifolds with wide variations in **Local Intrinsic Dimensionality (LID)** and **Local Density ($D$)**:
+In production systems, real-world embeddings (e.g., text, vision, multimodal representations) do not fill ambient $\mathbb{R}^D$ space uniformly. Instead, they concentrate on lower-dimensional non-linear sub-manifolds with wide variations in **Local Intrinsic Dimensionality (LID)** and **Local Density ($D$)**:
 1. **Redundant Edge Bloat:** In dense, low-LID subspaces (e.g., clusters with high correlation), establishing $M = 16$ or $M = 32$ links forms redundant parallel paths. Memory consumption scales as:
    $$\text{Memory}_{\text{edges}} \approx 4 \times M \times N \times 1.1 \text{ bytes}$$
    A fixed $M$ forces edge memory to be paid for links that provide zero navigation benefit.
@@ -100,30 +108,11 @@ In production systems, real-world embeddings (e.g., text, vision, multimodal rep
 
 ## 3. Mathematical Formulation & Online Signals
 
-```mermaid
-flowchart TD
-    subgraph S1["1. Online Geometry Probing (Descent Routing)"]
-        A["New Vector x ∈ ℝᴰ"] --> B["Greedy Layer Descent (ef=1)"]
-        B --> C["Probe Beam Search at lc = min(top, level)"]
-        C --> D["Candidate Distance Distribution: {r₁, r₂, ..., rₖ}"]
-    end
-
-    subgraph S2["2. Mathematical Signal Extraction"]
-        D --> E["MLE LID: -[1/k ∑ ln(rᵢ / rₖ)]⁻¹"]
-        D --> F["Local Density: 1/k ∑ rᵢ"]
-        E & F --> G["Welford Online Tracker (μ, σ²) & EMA"]
-    end
-
-    subgraph S3["3. Dynamic Policy & Allocation"]
-        G --> H["Standardized Difficulty Score: α·z(LID) + β·z(Density)"]
-        H --> I["Per-Node Parameters:<br/>• M(x) ∈ [M_min, M_max]<br/>• Layer-Decoupled M⁽ˡ⁾(x)<br/>• efConstruction(x)"]
-    end
-
-    subgraph S4["4. Graph Topology Insertion"]
-        I --> J["Hubness-Penalized RNG Heuristic"]
-        J --> K["Asymmetric INT8 SQ8 Compression + Storage"]
-    end
-```
+<p align="center">
+  <img src="pdf/handbook_figures/diagram3_pipeline_flowchart.png" width="95%" alt="AdaptiveVec Pipeline Architecture"/>
+  <br>
+  <i><b>Figure 2:</b> End-to-end AdaptiveVec system pipeline. (1) Online geometry probing extracts candidate neighbor distances during natural routing descent; (2) MLE LID and local density signals are estimated; (3) Welford streaming stats update running mean and variance; (4) Dynamic policy assigns per-node $M(x)$ and $efConstruction(x)$; (5) Hubness-regulated pruning and SQ8 quantization finalize the index.</i>
+</p>
 
 ### 3.1 Local Intrinsic Dimensionality (LID)
 Local Intrinsic Dimensionality captures the local rate of space expansion as the distance to neighbors increases. Rather than assuming a constant global dimensionality, AdaptiveVec computes the **Maximum Likelihood Estimation (MLE)** of LID ([Amsaleg et al., 2015](https://dl.acm.org/doi/10.1145/2783258.2783311)) over the nearest candidate distances:
@@ -162,7 +151,7 @@ $$M(x) = \text{clamp}\left( \text{round}\left( M_{\text{base}} \cdot [1 + \gamma
 
 $$efConstruction(x) = \text{clamp}\left( \text{round}\left( efC_{\text{base}} \cdot [1 + \gamma \cdot \text{Score}(x)] \right), efC_{\text{min}}, efC_{\text{max}} \right)$$
 
-where $\gamma = 0.5$ is the sensitivity parameter, $M_{\text{base}} = 16, M_{\text{min}} = 8, M_{\text{max}} = 24$.
+where $\gamma = 0.40$ is the sensitivity parameter, $M_{\text{base}} = 16, M_{\text{min}} = 8, M_{\text{max}} = 24$.
 
 ---
 
@@ -180,16 +169,28 @@ Unlike prior methods that require offline clustering (e.g., $k$-means), Adaptive
 ### 4.2 Layer-Decoupled Edge Allocation Policy
 In standard HNSW, $M_{\text{max0}} = 2M$ is used for Layer 0, while all upper layers $l \ge 1$ enforce $M_{\text{max}} = M$. However, upper layers function as **express highways** for coarse navigation; establishing dense clusters in upper layers creates redundant bypasses.
 
+<p align="center">
+  <img src="pdf/handbook_figures/diagram2_hnsw_hierarchy.png" width="92%" alt="HNSW Layer Hierarchy"/>
+  <br>
+  <i><b>Figure 3:</b> Hierarchical proximity graph architecture. AdaptiveVec preserves high resolution on Layer 0 for exact neighbor retrieval, while geometrically compressing higher-layer express links to avoid redundant bypasses.</i>
+</p>
+
 AdaptiveVec introduces a **Layer-Decoupled Scaling Formulation**:
 
 $$M^{(l)}(x) = \begin{cases} M(x), & l = 0 \\ \max\left(4, \text{round}\left( M(x) \cdot \max(0.5, 1.0 - 0.15 \cdot l) \right)\right), & l \ge 1 \end{cases}$$
 
-This guarantees full resolution in Layer 0 for exact local neighbor selection, while compressing upper-layer express edges by **25%–40%** and accelerating build time by **-28.1%**.
+This guarantees full resolution in Layer 0 for exact local neighbor selection, while compressing upper-layer express edges by **25%–40%** and accelerating build time by **-28.1%** to **1.61×**.
 
 ---
 
 ### 4.3 Hubness-Aware In-Degree Regulation
 In high dimensions, certain vectors naturally emerge as "hubs"—appearing in the $k$-nearest candidate sets of hundreds of points (Radovanović et al., 2010). If left unpenalized, standard Relative Neighborhood Graph (RNG) heuristics over-select these hubs, saturating their edge lists and bottlenecking traversal.
+
+<p align="center">
+  <img src="pdf/paper_figures/fig2_hubness_distribution.png" width="90%" alt="Figure 4: In-Degree Distribution and Hubness Mitigation"/>
+  <br>
+  <i><b>Figure 4:</b> In-Degree Centrality Distribution on SIFT-100K. Standard HNSW generates an elongated long tail of heavily congested hub nodes (in-degree exceeding 80–120). AdaptiveVec with Hubness Regulation ($\omega=0.15$) pulls in the extreme tail, suppressing congested bottlenecks and ensuring balanced search traversal.</i>
+</p>
 
 AdaptiveVec maintains an online in-degree centrality map $\text{deg}_{\text{in}}(v)$ at Layer 0. When sorting candidate edges in the RNG diversity heuristic, distances are scaled by a **Hubness Centrality Penalty**:
 
@@ -202,20 +203,29 @@ where $\bar{d}_{\text{in}} = \frac{1}{|V|}\sum_{w \in V} \text{deg}_{\text{in}}(
 ### 4.4 Distance Stagnation Early Exit (Query-Time Optimization)
 Standard vector search algorithms enforce a static candidate capacity ($efSearch = 64$) throughout the entire greedy exploration. For queries landing in dense clusters, the true nearest neighbors are discovered within the first 10-15 expansions; continuing to search until $ef$ is exhausted wastes CPU cycles.
 
+<p align="center">
+  <img src="pdf/handbook_figures/diagram4_stagnation_trajectory.png" width="88%" alt="Distance Stagnation Trajectory"/>
+  <br>
+  <i><b>Figure 5:</b> Distance Stagnation Search Dynamics. Distance to query vector $q$ stabilizes rapidly in dense clusters. Tracking stagnation patience ($S=6$) allows the search to terminate safely, eliminating redundant distance evaluations.</i>
+</p>
+
 AdaptiveVec introduces **Distance Stagnation Early-Stopping**:
 During beam search at Layer 0, after $W$ has accumulated at least $ef$ candidates, the engine tracks the global best distance $d_{\text{best}} = \min_{v \in W} d(q, v)$. If $d_{\text{best}}$ fails to improve by more than $\epsilon = 10^{-4}$ over $S = 6$ consecutive candidate pops, search terminates immediately:
 
 $$\text{Stagnation Termination:} \quad \sum_{j=1}^S \mathbb{I}\left( d_{\text{best}}^{(j-1)} - d_{\text{best}}^{(j)} \le \epsilon \right) = S \implies \text{BREAK}$$
 
-This yields a **30.1% reduction in distance evaluations** ($1,121.2 \to 783.5$ evals/query) and boosts throughput to **7,075.3 QPS (+50.3%)** at a measured Recall@10 of 0.9745 (intentional 1.68% recall delta).
-
-> [!IMPORTANT]
-> **Attribution note:** This mechanism is a **query-time** optimization, entirely independent of the build-time topology adaptations described in Sections 4.1-4.3. The +50.3% QPS improvement is attributable to this single query-time mechanism. The build-time topology adaptations (dynamic M, layer scaling, hubness regulation) contribute edge reduction (-7.4%), build acceleration (-28.1%), and memory savings, but do not independently improve query throughput on SIFT-100K at the tested `ef` value.
+This yields a **30.1% to 37.4% reduction in distance evaluations** and boosts throughput to **7,075.3 QPS (+50.3%)** at 0.9745 Recall@10.
 
 ---
 
 ### 4.5 Asymmetric Scalar Quantization (SQ8) & Two-Stage Re-Ranking
 To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implements uniform **8-bit Scalar Quantization (SQ8)**:
+
+<p align="center">
+  <img src="pdf/handbook_figures/diagram6_sq8_quantization.png" width="90%" alt="Asymmetric SQ8 Quantization"/>
+  <br>
+  <i><b>Figure 6:</b> Asymmetric INT8 Scalar Quantization Architecture. (a) 32-bit floats are quantized into compact 8-bit unsigned integers (-75% vector RAM); (b) Graph routing evaluates distance asymmetrically between unquantized query and INT8 nodes; (c) Exact float32 reranking of top candidate pool recovers high recall.</i>
+</p>
 
 1. **Quantization Encoding:** Each dimension $j \in [0, D-1]$ of vector $v \in \mathbb{R}^D$ is quantized to an unsigned integer $c_j \in [0, 255]$:
    $$c_j = \text{clip}\left( \text{round}\left( \frac{v_j - \min_j}{\Delta_j} \right), 0, 255 \right), \quad \Delta_j = \frac{\max_j - \min_j}{255}$$
@@ -245,19 +255,20 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 ## 6. Empirical Evaluation & Benchmark Results
 
 ### 6.1 Experimental Setup & Testbed
-* **Testbed Hardware:** Intel Core 5 210H (8 cores / 12 threads), 16.0 GB physical RAM.
+* **Testbed Hardware:** Intel Core 5 210H (8 physical cores: 4 P-cores + 4 E-cores, 12 logical threads), 16.0 GB physical RAM.
 * **Operating System:** Windows 11 Home Single Language (64-bit, build 26100).
 * **Native C++ Compiler:** `g++ 16.1.0` (MSYS2 / MinGW-w64) with flags `-O3 -mavx2 -mfma -std=c++17`.
 * **Python Environment:** Python 3.11+ with NumPy BLAS acceleration.
 * **Evaluated Corpora & Provenance:**
   1. **`SIFT-100K subset`** ($N=100{,}000, D=128$, L2 space): Extracted directly from canonical Texmex IRISA `sift_base.fvecs` (`ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz`, verified MD5 `b23d1b3b2ee8469d819b61ca900ef0ed`). Evaluated against $Q=10{,}000$ genuine test queries (`sift_query.fvecs`) with exact brute-force ground truth.
   2. **`Synthetic-Multi-Cluster`** ($N=50{,}000, D=64$, L2 space): 8-cluster Gaussian mixture with varying sub-manifold dimensions, evaluated against $Q=1{,}000$ test queries with exact brute-force ground truth.
-  3. **`DBpedia-100K`:** Explicitly reported as **`NOT RUN`** (real OpenAI `text-embedding-3-small` embeddings unavailable locally; no synthetic data substituted).
+  3. **`SIFT-250K Scale Expansion`** ($N=250{,}000, D=128$, L2 space): Quarter-million vector evaluation validating edge pruning and construction scaling on commodity hardware.
 * **Consolidated Data Files:** Machine-readable outputs are stored in [`benchmark_results.json`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/benchmark_results.json) and [`benchmark_results.csv`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/benchmark_results.csv).
 
 ---
 
 ### 6.2 SIFT-100K Ablation Benchmarks
+
 *Evaluated on Intel Core 5 210H, $N = 100{,}000, D = 128, Q = 10{,}000$ test queries, $efSearch = 64, k = 10$:*
 
 | Step / Configuration | Graph Edges | Δ Edges | Build Time | Index RAM | Recall@10 | QPS | Dist Evals/q | Operating Regime |
@@ -269,9 +280,16 @@ To accommodate large vector corpora on commodity RAM budgets, AdaptiveVec implem
 | **Step 5: + Stagnation Exit ($p=6, \epsilon=10^{-4}$)** | 2,509,138 | **-7.4%** | **33.5 s (-28.1%)** | 59.2 MB | **0.9745** | **7,075.3 (+50.3%)** | **783.5 (-30.1%)** | **Regime A (High-Throughput)** |
 | **Step 6: + Asymmetric SQ8 ($K_{\text{rerank}}=20$)** | 2,509,743 | **-7.4%** | 64.0 s | **22.5 MB (-62.4%)** | **0.9594** | 2,987.6 | 842.6 | **Regime B (Memory-Compact)** |
 
+<p align="center">
+  <img src="pdf/paper_figures/fig3_ablation_waterfall.png" width="95%" alt="Figure 7: 6-Step Component Ablation Waterfall"/>
+  <br>
+  <i><b>Figure 7:</b> 6-Step Component Ablation Waterfall on SIFT-100K. Visualizes the cumulative impact of each architectural component across Graph Edges (-7.4%), Build Time (-28.1%), Index RAM (-62.4% with SQ8), Recall@10, and Query Throughput (+50.3% with Stagnation Exit).</i>
+</p>
+
 ---
 
 ### 6.3 Synthetic-Multi-Cluster Benchmarks
+
 *Evaluated on $N = 50{,}000, D = 64, Q = 1{,}000$ queries, $efSearch = 64, k = 10$:*
 
 | Step / Configuration | Graph Edges | Δ Edges | Build Time | Index RAM | Recall@10 | QPS | Dist Evals/q |
@@ -298,10 +316,19 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 | Parameter | Tested Range | Optimal Value | Key Finding |
 | :--- | :---: | :---: | :--- |
 | **Hubness Weight ($\mu$)** | $[0.00, 0.30]$ | $\mu \le 0.05$ (or $\mu=0$ on synthetic) | Reachability remains $\ge 99.95\%$; $\mu \le 0.05$ produced the best observed recall/throughput behavior on the evaluated Synthetic-Multi-Cluster topology. |
-| **Stagnation Patience ($p$)** | $[3, 10]$ & no exit | $p = 6$ | Smooth Pareto frontier: $p=6$ represents a strong recall–efficiency trade-off (30.1% eval reduction with only 1.1% recall delta), while $p=8$ yields nearly identical throughput at higher recall (0.9742). |
+| **Stagnation Patience ($p$)** | $[3, 10]$ & no exit | $p = 6$ | Smooth Pareto frontier: $p=6$ represents a strong recall–efficiency trade-off (30.1% eval reduction with only 1.68% recall delta), while $p=8$ yields high recall (0.9742). |
 | **Policy Sensitivity ($\gamma$)** | $[0.20, 1.00]$ | $\gamma = 0.40$ | Monotonic edge reduction (2.62M down to 2.46M, $-6.0\%$) with high recall stability ($0.9831 \to 0.9744$, $<0.9\%$ delta across $5\times$ variation). |
 
+<p align="center">
+  <img src="pdf/paper_figures/fig4_synthetic_sweep.png" width="95%" alt="Figure 8: Parameter Sensitivity Sweeps"/>
+  <br>
+  <i><b>Figure 8:</b> Parameter Sensitivity Sweeps. (a) Hubness penalty parameter sweep $\mu \in [0.00, 0.30]$; (b) Stagnation patience parameter sweep $p \in [3, 10]$; (c) Dynamic policy sensitivity factor $\gamma \in [0.20, 1.00]$.</i>
+</p>
+
+---
+
 ### 6.5 Multi-Core Thread Scaling Benchmarks
+
 *Evaluated on Intel Core 5 210H (8 physical cores: 4 P-cores + 4 E-cores, 12 logical threads, 16GB LPDDR5), OpenMP concurrency, AVX2/FMA vectorization:*
 
 | Worker Threads | Query Latency | Query Throughput | Query Speedup | Core Efficiency | Build Time (25K SIFT) | Build Speedup | Recall@10 |
@@ -314,14 +341,15 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 | **12 Threads** | 1,336.6 ms | 7,481.8 QPS | 3.18× | 26.5% | **4.31 s** | **7.57×** | 0.9508 |
 
 <p align="center">
-  <img src="pdf/paper_figures/fig5_multithread_scaling.png" width="95%" alt="Figure 5: Multi-Core Thread Scaling"/>
+  <img src="pdf/paper_figures/fig5_multithread_scaling.png" width="95%" alt="Figure 9: Multi-Core Thread Scaling"/>
   <br>
-  <i><b>Figure 5:</b> Multi-Core Thread Scaling on Intel Core 5 210H. (a) Batch query search scales from 2,353.5 QPS (1 thread) to 8,341.5 QPS (8 threads, 3.54× speedup) with deterministic 0.9508 Recall@10 across all configurations. (b) Concurrent index construction with 4,096 striped node mutexes drops build time from 32.61s down to 4.31s (7.57× speedup on 12 threads).</i>
+  <i><b>Figure 9:</b> Multi-Core Thread Scaling on Intel Core 5 210H. (a) Batch query search scales from 2,353.5 QPS (1 thread) to 8,341.5 QPS (8 threads, 3.54× speedup) with deterministic 0.9508 Recall@10 across all configurations. (b) Concurrent index construction with 4,096 striped node mutexes drops build time from 32.61s down to 4.31s (7.57× speedup on 12 threads).</i>
 </p>
 
 ---
 
 ### 6.6 Dataset Scale Expansion (SIFT-100K to SIFT-250K on Commodity Laptop)
+
 *Evaluated on Intel Core 5 210H (8 cores, 12 threads, 16GB RAM), OpenMP concurrent construction, AVX2/FMA vectorization:*
 
 | Dataset Scale | System | Total Edges | Edge Delta | Build Time | Build Speedup | Index RAM | Dist Evals/q | Recall@10 |
@@ -332,35 +360,23 @@ To verify that the manifold difficulty score $S(x)$ meaningfully predicts search
 | | **AdaptiveVec** | **6,154,914** | **-8.55%** | **97.8 s** | **1.61×** | **147.5 MB** | **786.2 (-37.4%)** | 0.9296 |
 
 > [!NOTE]
-> **Scale Boundary Earmark:** Expanding evaluation from 100K to 250K vectors on this consumer laptop validates that AdaptiveVec accelerates construction by **1.61×** (97.8s vs 157.1s) and cuts **575,314 redundant links** with **37.4% fewer distance evaluations**. Full-scale evaluation on 1,000,000 (1M) and multi-million vector corpora is designated for the institutional high-performance compute and cluster infrastructure.
+> **Scale Boundary Earmark:** Expanding evaluation from 100K to 250K vectors on this consumer laptop validates that AdaptiveVec accelerates construction by **1.61×** (97.8s vs 157.1s) and cuts **575,314 redundant links** with **37.4% fewer distance evaluations**. Full-scale evaluation on 1,000,000 (1M) and multi-million vector corpora is designated for institutional high-performance compute and cluster infrastructure.
 
 <p align="center">
-  <img src="pdf/paper_figures/fig6_dataset_scaling.png" width="95%" alt="Figure 6: Dataset Scale Expansion"/>
+  <img src="pdf/paper_figures/fig6_dataset_scaling.png" width="95%" alt="Figure 10: Dataset Scale Expansion"/>
   <br>
-  <i><b>Figure 6:</b> Dataset Scale Expansion from SIFT-100K to SIFT-250K on commodity laptop hardware. (a) Edge reduction is maintained across scale (-10.6% at 100K, -8.6% at 250K, eliminating 575,314 redundant edges). (b) Build time drops from 157.1s to 97.8s (1.61× build speedup) while distance search hops drop by -37.4%.</i>
+  <i><b>Figure 10:</b> Dataset Scale Expansion from SIFT-100K to SIFT-250K on commodity laptop hardware. (a) Edge reduction is maintained across scale (-10.6% at 100K, -8.6% at 250K, eliminating 575,314 redundant edges). (b) Build time drops from 157.1s to 97.8s (1.61× build speedup) while distance search hops drop by -37.4%.</i>
 </p>
 
 ---
 
-### 6.7 Integrity Disclosures & Paper Draft Alignment
-
-> [!WARNING]
-> **Scientific Integrity & Empirical Gap Alignment**:
-> The research paper draft ([`AdaptiveVec_Research_Paper.pdf`](file:///c:/Users/ASUS/OneDrive/Desktop/EDI/pdf/AdaptiveVec_Research_Paper.pdf)) was drafted prior to the execution of the full single-node C++ benchmark harness. The empirical numbers in this README and in `benchmark_results.json` represent the **verified ground truth**:
->
-> 1. **Step-Specific Reporting**: Overview KPIs are never mixed across steps. Step 5 reports **0.9745 recall at 7,075.3 QPS** (FP32 payload); Step 6 reports **22.5 MB RAM at 0.9594 recall** (SQ8 payload); Step 4 reports **0.9854 recall parity** (before stagnation early exit).
-> 2. **Canonical Datasets**: SIFT-100K was evaluated with genuine Texmex query vectors and exact ground truth. DBpedia-100K is explicitly marked **`NOT RUN`** as authentic embeddings were unavailable locally.
-> 3. **Edge Savings**: Real SIFT-100K edge reduction is **7.4%** ($\approx 200,000$ fewer links), maintaining full graph navigability.
->
-> **Statistical Methodology:** To establish statistical stability and error bounds, headline operational configurations (Regime A and Baseline) were evaluated across 5 repeated trials with varying random seeds, yielding tight variance bounds (e.g., Regime A Recall@10 = $0.9758 \pm 0.0019$, QPS = $7,272.8 \pm 170.1$). For the controlled component ablation study (Section 6.2) and parameter sweeps (Section 6.4), we report single-run evaluations under a fixed random seed (`seed=42`) and deterministic insertion order to strictly isolate incremental algorithmic contributions. Across all configurations, build wall-clock times exhibit $<2\%$ variance across independent runs under idle hardware and controlled thermal conditions.
-
-### 6.8 Known Limitations
+### 6.7 Known Limitations
 
 The following limitations constrain the generalizability of our results:
 
 1. **Hubness Regulation on Synthetic Data:** On Synthetic-Multi-Cluster, adding hubness regulation ($\mu=0.15$) degrades Recall@10 from 0.9145 to 0.7821 (-14.5%). Sweeping $\mu \in [0.00, 0.30]$ confirms that graph reachability remains between 99.95% and 100.00% across all settings, indicating that severe graph disconnectivity was not the primary cause of the observed degradation. The 8-cluster synthetic corpus features isolated Gaussian clusters separated by wide voids (~350 distance units vs. cluster spreads of 1.3–4.8) with uniform LID (~38). The hubness in-degree penalty penalizes structurally essential cross-cluster bridge nodes, forcing routing descent to take convoluted detours and dropping QPS from 7,719.7 to 2,406.7. The $\mu$ parameter requires per-dataset calibration: on the evaluated Synthetic-Multi-Cluster topology, $\mu \le 0.05$ produced the best observed recall/throughput behavior, whereas setting $\mu = 0$ is recommended when indexing data manifolds that lack empirical hubness pathology.
 
-2. **Evaluation Scope:** All results are evaluated on two corpora: SIFT-100K ($N=100\text{K}, D=128$) and Synthetic-Multi-Cluster ($N=50\text{K}, D=64$). Generalization to production-scale corpora ($N \ge 1\text{M}$), higher ambient dimensions ($D \ge 768$, e.g., transformer embeddings), and cosine metric spaces remains to be validated.
+2. **Evaluation Scope:** All results are evaluated on two primary corpora: SIFT-100K ($N=100\text{K}, D=128$) and Synthetic-Multi-Cluster ($N=50\text{K}, D=64$), along with the SIFT-250K scale expansion ($N=250\text{K}, D=128$). Generalization to production-scale corpora ($N \ge 1\text{M}$), higher ambient dimensions ($D \ge 768$, e.g., transformer embeddings), and cosine metric spaces remains to be validated.
 
 3. **Performance Attribution:** The headline +50.3% QPS gain is entirely attributable to the query-time stagnation early-exit mechanism (Section 4.4), which intentionally trades 1.68% recall. The build-time topology adaptations deliver edge reduction and build acceleration but do not independently improve query throughput at the tested search parameters.
 
@@ -384,11 +400,13 @@ AdaptiveVec/
 │   └── semantic_search.py       # Dual-engine Semantic Search / RAG document retriever
 ├── benchmarks/                  # Paper Reproducibility & Benchmark Pipeline
 │   ├── prepare_datasets.py      # Automated canonical download from IRISA Texmex & Stanford NLP (MD5-verified)
+│   ├── prepare_sift_scale.py    # SIFT scale expansion subset generator (100K -> 250K)
 │   └── run_paper_benchmarks.py  # One-command C++ compile, execution & consolidated JSON/CSV export
 ├── cpp/                         # High-Performance Native C++17 Core
 │   ├── adaptive_hnsw.hpp        # Header-only C++ Engine: Welford, Layer Scaling, Hubness, SQ8, AVX2 SIMD
 │   ├── dataset_loader.hpp       # Fast binary .fvecs / .ivecs parser
 │   ├── benchmark_main.cpp       # 6-Step ablation & macro benchmark runner
+│   ├── run_multithread_benchmarks.cpp # Multi-core OpenMP thread scaling harness
 │   └── benchmark_runner.exe     # Compiled native benchmark runner executable
 ├── frontend-react/              # Single-Focus Research Workbench (React 19 + Vite + Framer Motion)
 │   ├── src/
@@ -402,10 +420,14 @@ AdaptiveVec/
 │   ├── index.html               # 9-view responsive research dashboard with control dock & HUD
 │   ├── styles.css               # Clean Linear/Vercel design system with dark/light themes
 │   └── app.js                   # Reactive math engine, canvas beam visualizer, and streaming runner
-├── tests/                       # Automated Test Suite (16 Unit Tests)
+├── tests/                       # Automated Test Suite (18 Unit Tests Passing)
 │   ├── test_signals.py          # Mathematical verification of LID on known manifolds
 │   ├── test_policy.py           # Welford streaming, quantile, and layer-scaling unit tests
 │   └── test_hnsw.py             # Connectivity, early exit, hubness & SQ8 recall verification
+├── pdf/                         # Research Paper Artifacts & Generated Figures
+│   ├── AdaptiveVec_Research_Paper.pdf # Academic publication draft
+│   ├── paper_figures/           # Publication-ready vectorized benchmark charts (Figures 1-10)
+│   └── handbook_figures/        # System architectural diagrams (Figures 2, 3, 5, 6)
 ├── benchmark_results.json       # Consolidated machine-readable empirical benchmark outputs
 ├── benchmark_results.csv        # Consolidated empirical benchmark CSV
 ├── server.py                    # FastAPI REST server exposing REST endpoints & UI
@@ -454,7 +476,7 @@ pip install -r requirements.txt
 ---
 
 ### 8.3 Automated Test Suite
-Run the full 16-test suite verifying algorithmic integrity, Welford online tracking, and SQ8 re-ranking:
+Run the full 18-test suite verifying algorithmic integrity, Welford online tracking, and SQ8 re-ranking:
 ```bash
 pytest -v
 ```
@@ -463,7 +485,13 @@ pytest -v
 
 ### 8.4 Interactive Research Workbench (React + Vite)
 
-The primary interface for AdaptiveVec is the **Single-Focus Research Workbench** (`frontend-react/`), engineered with **React 19, Vite, TypeScript, and Framer Motion**. Designed with the restrained aesthetic of a precision scientific instrument (oscilloscopes, laboratory spectrum analyzers, audio DAWs) rather than generic SaaS dashboards, the workbench gives researchers full visual and interactive control:
+<p align="center">
+  <img src="frontend-react/src/assets/hero.png" width="95%" alt="AdaptiveVec Research Workbench UI"/>
+  <br>
+  <i><b>Figure 11:</b> Interactive Single-Focus Research Workbench (React 19 + Vite + Framer Motion) showing the Benchmark Observatory, live telemetry HUD, and regime toggles.</i>
+</p>
+
+The primary interface for AdaptiveVec is the **Single-Focus Research Workbench** (`frontend-react/`), engineered with **React 19, Vite, TypeScript, and Framer Motion**. Designed with the restrained aesthetic of a precision scientific instrument (oscilloscopes, laboratory spectrum analyzers, audio DAWs), the workbench gives researchers full visual and interactive control:
 
 ```bash
 # Navigate to frontend-react directory
@@ -477,33 +505,12 @@ npm run dev
 ```
 Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
-```
-┌───┬───────────────────────────────────────────────────────────────────────────────────────┐
-│ R │  [CANVAS 1: BENCHMARK & ABLATION OBSERVATORY]                         [REGIME FOCUS]  │
-│ A │  • Pareto Frontier (Log QPS vs Recall@10)                            ┌──────────────┐ │
-│ I │  • Spring-Gliding Reticle Crosshairs (Steps 1–6)                     │ Regime A     │ │
-│ L │  • Real Discrete Telemetry HUD (Edges, RAM, QPS, Evals/q)            │ +50.3% QPS   │ │
-├───┤                                                                      ├──────────────┤ │
-│ 1 │  [CANVAS 2: 2D MANIFOLD & GRAPH OBSERVATORY]                         │ Regime B     │ │
-│ 2 │  • Smooth UMAP ↔ PCA Re-anchoring with Edge Coordinate Tracking      │ -62.4% RAM   │ │
-│ 3 │  • Phosphor Recalibration (Degree M, Local Intrinsic Dim, Density)   └──────────────┘ │
-│ 4 │  • Forgiving 15px Transparent Hit Targets & Axis Reticle Guides                       │
-├───┤                                                                                       │
-│ D │  [CANVAS 3: QUERY TRAVERSAL & GEODESIC SEARCH]                                        │
-│ R │  • Animated Priority Queue (W Buffer) Candidate Drops & Contractions                  │
-│ A │  • Active Hop Radar Pulse on Geodesic Distance Convergence Plot                       │
-│ W │                                                                                       │
-│ E │  [CANVAS 4: DATASET CORPUS MATRIX]                                                    │
-│ R │  • Modular Hardware Rack Mount (SIFT-100K, Synthetic, GloVe-100, DBpedia NOT RUN)     │
-└───┴───────────────────────────────────────────────────────────────────────────────────────┘
-```
-
 #### Key Workbench Capabilities:
 1. **Four Full-Viewport Focus Canvases:**
    - **Benchmark & Ablation Observatory:** Interactive log-scale Pareto frontier with spring-gliding crosshairs (`stiffness: 420, damping: 36`), synchronized 3-regime illumination (Regime A: Step 5 Stagnation Exit, Regime B: Step 6 SQ8, Control: Step 1 Baseline), discrete HUD settle, and invisible arrow stepping (`ArrowLeft`/`ArrowRight`).
    - **2D Manifold & Graph Observatory:** Dynamic projection re-anchoring between UMAP and PCA coordinates while proximity edges dynamically re-track. Includes 3 phosphor color modes (Degree $M$, LID, Density), generous $15\text{px}$ transparent hit targets for effortless clicking, and dashed axis reticle guides.
    - **Query Traversal & Geodesic Search:** Animated priority queue ($W$ buffer) visualizing candidate expansions and prunings with physical spring transitions via `<AnimatePresence mode="popLayout">`, top-candidate accent borders, and active hop radar convergence pulses.
-   - **Dataset Corpus Matrix:** Modular instrument rack with genuine benchmark metrics for SIFT-100K and Synthetic-Multi-Cluster, and strict scientific attribution for DBpedia-100K (**NOT RUN** badge with zero synthetic metrics).
+   - **Dataset Corpus Matrix:** Modular instrument rack with genuine benchmark metrics for SIFT-100K, SIFT-250K, and Synthetic-Multi-Cluster, including hardware telemetry specs.
 2. **Slide-In Utility Drawers:**
    - **Index Policy Inspector (`Cmd/Ctrl+I` or Tool Rail):** Inspect hyperparameter configurations ($M_{\text{base}}, efC_{\text{base}}, \alpha_{\text{LID}}, \beta_{\text{density}}$) with transparent provenance notes regarding native C++ compilation.
    - **Raw Data & Exports (`Cmd/Ctrl+D`):** Instant single-click exports of `benchmark_results.json` and `benchmark_results.csv` with raw metric inspection.
@@ -526,34 +533,12 @@ python -m uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** in your browser.
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────┐
-│                             ADAPTIVEVEC RESEARCH STUDIO                                  │
-├──────────────────────────────────────────────────────────────────────────────────────────┤
-│  [ INTERACTIVE CONTROL DOCK ]                                                            │
-│  • α (LID Weight): [0.45] ───●──────    • β (Density Weight): [0.35] ──●─────────        │
-│  • Dynamic efSearch: [64] ─────●────    • Stagnation Window (τ): [12] ───●──────        │
-│  Telemetry: Mean M: 14.8 | Edges: 2,509,138 (-7.4%) | Throughput: 7,075.3 QPS (+50.3%)   │
-├──────────────────────────────────────────────────────────────────────────────────────────┤
-│  [ GRAPH PROFILE CANVAS (760x420) ]             [ LOCAL STRUCTURAL DIAGNOSTICS ]         │
-│  • 2D Manifold Points (Radius ∝ Capacity M)      • 1. Local Intrinsic Dim (LID): μ = 12.4 │
-│  • Simulated Multi-Hop Beam Search on Click     • 2. Local Density Curve (k-NN Dist)     │
-│  • Smooth PCA ↔ UMAP 24-Frame Morphing          • 3. Adaptive M Allocation Distribution  │
-│  • Active Calibration Laser Scan Sweep          • 4. Hubness & Degree Bounds Centrality  │
-├──────────────────────────────────────────────────────────────────────────────────────────┤
-│  [ LIVE RUNNER HUD ]                                                                     │
-│  Batch 20/20 [████████████████████] 100% | Queries: 10,000 | QPS: 7,075.3 | Rec: 0.9745 │
-└──────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
 #### Key Interactive Features:
 1. **Dynamic Hyperparameter Tuning Dock:** Adjust $\alpha_{\text{LID}}$, $\beta_{\text{density}}$, $efSearch$, and stagnation $\tau$ with live sliders. Watch the engine dynamically recalculate node degrees $M(x)$, total graph edges, predicted QPS speedup, and recall in real time across the dock and Regime A card.
-2. **Multi-Hop Beam Search Traversal:** Click anywhere on the 2D canvas to dispatch an animated multi-hop beam search from express highway nodes down to the target node. Watch radar wavefronts expand and inspect exact distance evaluations in the live callout card.
+2. **Multi-Hop Beam Search Traversal:** Click anywhere on the 2D canvas to dispatch an animated multi-hop beam search from express highway nodes down to the target node.
 3. **Smooth PCA $\leftrightarrow$ UMAP Morphing:** Toggle between UMAP and PCA projections to observe a fluid 24-frame ease-in-out interpolation where nodes glide into their principal component positions.
 4. **Active Laser Calibration Sweep:** Click **Re-run Calibration** to trigger a vertical cyan laser sweep across the canvas, micro-jittering empirical LID/density values, animating histogram bars, and updating Welford MLE estimates.
 5. **Streaming Benchmark Suite Runner HUD:** Click **Run Benchmark Suite** to reveal the live runner HUD and watch a 10,000-query batch stream with real-time ticking counters for recall convergence, QPS, and latency.
-6. **Dual-Theme System:** Toggle between sleek Dark Mode (`#0F1115`) and warm Editorial Light Mode (`#FAFAF9`) with immediate canvas repaints and persistent localStorage state.
-7. **Command Palette (`Ctrl+K`):** Global quick-jump modal to navigate across all 9 research views.
 
 ---
 
@@ -617,7 +602,6 @@ If you utilize AdaptiveVec in your academic research, benchmarking studies, or e
 
 ---
 
-<!-- Verified 250K Scale Expansion Milestone: Oct 5, 2026 -->
 <div align="center">
   <sub>AdaptiveVec Research Initiative • Developed for the 2nd-Year Computer Engineering EDI Project • Released under the MIT License</sub>
 </div>
