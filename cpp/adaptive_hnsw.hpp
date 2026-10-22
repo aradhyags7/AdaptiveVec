@@ -566,6 +566,10 @@ public:
     std::vector<uint32_t> in_degrees;
     uint64_t total_in_degrees = 0;
     
+    // Frontier 2: Dynamic Streaming Node Deletions & Tombstone Tracking
+    std::vector<uint8_t> deleted;
+    std::atomic<size_t> num_deleted{0};
+    
     // Online Streaming Welford Trackers
     StreamingStatsTracker density_tracker;
     StreamingStatsTracker lid_tracker;
@@ -583,6 +587,14 @@ public:
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
         : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), quantizer_sq4(dimension), node_locks(NUM_NODE_LOCKS) {
         m_l = 1.0 / std::log(policy.m_base > 1 ? policy.m_base : 2);
+    }
+
+    inline bool is_deleted(tableint id) const {
+        return id < deleted.size() && deleted[id] != 0;
+    }
+
+    inline size_t get_active_count() const {
+        return num_elements > num_deleted.load() ? (num_elements - num_deleted.load()) : 0;
     }
     
     inline dist_t get_distance(const float* a, const float* b) const {
@@ -859,6 +871,7 @@ public:
         }
         
         in_degrees.push_back(0);
+        deleted.push_back(0);
         
         if (q_idx == 0) {
             enter_point = 0;
@@ -1029,6 +1042,7 @@ public:
             node_params[i] = NodeParams{policy.m_base, policy.m_base, 2 * policy.m_base, policy.ef_c_base, 0.0f, 0.0f, 0.0f};
         }
         in_degrees.resize(n_vectors, 0);
+        deleted.resize(n_vectors, 0);
 
         // Pre-generate levels and ensure graphs layers exist
         int expected_max_level = max_level;
@@ -1189,11 +1203,337 @@ public:
         for (size_t i = 0; i < n_vectors; ++i) total += in_degrees[i];
         total_in_degrees = total;
     }
+
+    /**
+     * Frontier 2: Dynamic Streaming Node Deletions & Localized Graph Healing
+     */
+    void migrate_entry_point() {
+        for (int lc = max_level; lc >= 0; --lc) {
+            if (lc >= (int)graphs.size()) continue;
+            tableint best_candidate = 0;
+            bool found = false;
+            size_t max_deg = 0;
+
+            for (tableint u = 0; u < graphs[lc].size(); ++u) {
+                if (!is_deleted(u) && !graphs[lc][u].empty()) {
+                    if (!found || graphs[lc][u].size() > max_deg) {
+                        best_candidate = u;
+                        max_deg = graphs[lc][u].size();
+                        found = true;
+                    }
+                }
+            }
+            if (found) {
+                enter_point = best_candidate;
+                max_level = lc;
+                return;
+            }
+        }
+
+        for (tableint u = 0; u < num_elements; ++u) {
+            if (!is_deleted(u)) {
+                enter_point = u;
+                max_level = 0;
+                return;
+            }
+        }
+
+        max_level = -1;
+        enter_point = 0;
+    }
+
+    void heal_neighborhood(tableint v) {
+        if (v >= num_elements) return;
+        int v_level = (v < node_levels.size()) ? node_levels[v] : 0;
+
+        for (int lc = v_level; lc >= 0; --lc) {
+            if (lc >= (int)graphs.size() || v >= graphs[lc].size()) continue;
+
+            // Collect surviving neighbors of v
+            std::vector<tableint> v_surviving_neighbors;
+            {
+                std::lock_guard<std::mutex> lk_v(node_locks[v % NUM_NODE_LOCKS]);
+                for (tableint nb : graphs[lc][v]) {
+                    if (!is_deleted(nb)) {
+                        v_surviving_neighbors.push_back(nb);
+                    }
+                }
+            }
+
+            // Sever (u -> v) from each neighbor u and heal with candidates from v's surviving neighbors
+            for (tableint u : v_surviving_neighbors) {
+                if (is_deleted(u)) continue;
+
+                std::vector<tableint> added_reps;
+                {
+                    std::lock_guard<std::mutex> lk_u(node_locks[u % NUM_NODE_LOCKS]);
+                    auto& u_adj = graphs[lc][u];
+                    auto it = std::find(u_adj.begin(), u_adj.end(), v);
+                    if (it != u_adj.end()) {
+                        u_adj.erase(it);
+                        if (lc == 0) {
+                            if (in_degrees[v] > 0) in_degrees[v]--;
+                            if (in_degrees[u] > 0) in_degrees[u]--;
+                        }
+
+                        // Candidate replacements for u: other surviving neighbors of v
+                        std::vector<Candidate> repair_cands;
+                        const float* u_vec = get_vector(u);
+                        for (tableint cand : v_surviving_neighbors) {
+                            if (cand != u && !is_deleted(cand) && std::find(u_adj.begin(), u_adj.end(), cand) == u_adj.end()) {
+                                repair_cands.push_back({get_distance(u_vec, get_vector(cand)), cand});
+                            }
+                        }
+
+                        if (!repair_cands.empty()) {
+                            std::sort(repair_cands.begin(), repair_cands.end());
+                            int u_limit = (u < node_params.size())
+                                ? node_params[u].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                                : policy.m_base * 2;
+                            
+                            // Reconnect u with up to 3 best candidates up to u_limit
+                            int max_to_add = std::min(3, (int)repair_cands.size());
+                            for (int ci = 0; ci < max_to_add; ++ci) {
+                                if ((int)u_adj.size() >= u_limit) break;
+                                tableint rep_id = repair_cands[ci].id;
+                                u_adj.push_back(rep_id);
+                                added_reps.push_back(rep_id);
+                                if (lc == 0) {
+                                    in_degrees[rep_id]++;
+                                    in_degrees[u]++;
+                                    total_in_degrees += 2;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Add reciprocal edges for added replacements
+                for (tableint best_rep : added_reps) {
+                    if (best_rep != u && !is_deleted(best_rep)) {
+                        std::lock_guard<std::mutex> lk_rep(node_locks[best_rep % NUM_NODE_LOCKS]);
+                        auto& rep_adj = graphs[lc][best_rep];
+                        if (std::find(rep_adj.begin(), rep_adj.end(), u) == rep_adj.end()) {
+                            int rep_limit = (best_rep < node_params.size())
+                                ? node_params[best_rep].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                                : policy.m_base * 2;
+                            if ((int)rep_adj.size() < rep_limit) {
+                                rep_adj.push_back(u);
+                                if (lc == 0) {
+                                    in_degrees[u]++;
+                                    in_degrees[best_rep]++;
+                                    total_in_degrees += 2;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mutual neighbor bridging between surviving neighbors of v
+            if (v_surviving_neighbors.size() >= 2) {
+                for (size_t i = 0; i < v_surviving_neighbors.size(); ++i) {
+                    tableint w1 = v_surviving_neighbors[i];
+                    if (is_deleted(w1)) continue;
+
+                    for (size_t j = i + 1; j < v_surviving_neighbors.size(); ++j) {
+                        tableint w2 = v_surviving_neighbors[j];
+                        if (is_deleted(w2)) continue;
+
+                        int w1_limit = (w1 < node_params.size())
+                            ? node_params[w1].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                            : policy.m_base * 2;
+                        int w2_limit = (w2 < node_params.size())
+                            ? node_params[w2].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                            : policy.m_base * 2;
+
+                        // Check w1 -> w2
+                        {
+                            std::lock_guard<std::mutex> lk1(node_locks[w1 % NUM_NODE_LOCKS]);
+                            if ((int)graphs[lc][w1].size() < w1_limit) {
+                                if (std::find(graphs[lc][w1].begin(), graphs[lc][w1].end(), w2) == graphs[lc][w1].end()) {
+                                    graphs[lc][w1].push_back(w2);
+                                    if (lc == 0) { in_degrees[w2]++; in_degrees[w1]++; total_in_degrees += 2; }
+                                }
+                            }
+                        }
+                        // Check w2 -> w1
+                        {
+                            std::lock_guard<std::mutex> lk2(node_locks[w2 % NUM_NODE_LOCKS]);
+                            if ((int)graphs[lc][w2].size() < w2_limit) {
+                                if (std::find(graphs[lc][w2].begin(), graphs[lc][w2].end(), w1) == graphs[lc][w2].end()) {
+                                    graphs[lc][w2].push_back(w1);
+                                    if (lc == 0) { in_degrees[w1]++; in_degrees[w2]++; total_in_degrees += 2; }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Maintain outgoing links from v to only surviving neighbors (soft transit bridge)
+            {
+                std::lock_guard<std::mutex> lk_v(node_locks[v % NUM_NODE_LOCKS]);
+                graphs[lc][v] = v_surviving_neighbors;
+            }
+        }
+    }
+
+    bool mark_deleted(tableint id, bool heal = true) {
+        if (id >= num_elements || is_deleted(id)) {
+            return false;
+        }
+
+        {
+            std::lock_guard<std::mutex> lk(node_locks[id % NUM_NODE_LOCKS]);
+            deleted[id] = 1;
+            num_deleted.fetch_add(1, std::memory_order_relaxed);
+        }
+
+        if (heal) {
+            heal_neighborhood(id);
+        }
+
+        if (id == enter_point) {
+            std::lock_guard<std::mutex> lk(entry_point_mutex);
+            if (id == enter_point) {
+                migrate_entry_point();
+            }
+        }
+
+        return true;
+    }
+
+    size_t batch_delete(const std::vector<tableint>& ids, bool heal = true) {
+        size_t count = 0;
+        for (tableint id : ids) {
+            if (mark_deleted(id, heal)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    void compact() {
+        if (num_deleted.load() == 0) return;
+
+        std::vector<tableint> id_map(num_elements, (tableint)-1);
+        tableint new_count = 0;
+        for (tableint i = 0; i < num_elements; ++i) {
+            if (!is_deleted(i)) {
+                id_map[i] = new_count++;
+            }
+        }
+
+        if (new_count == 0) {
+            data.clear();
+            quantized_data.clear();
+            quantized_data_sq4.clear();
+            graphs.clear();
+            node_levels.clear();
+            node_params.clear();
+            in_degrees.clear();
+            deleted.clear();
+            num_elements = 0;
+            num_deleted = 0;
+            max_level = -1;
+            enter_point = 0;
+            return;
+        }
+
+        // Compact vector data
+        std::vector<float> new_data(new_count * dim);
+        for (tableint i = 0; i < num_elements; ++i) {
+            if (id_map[i] != (tableint)-1) {
+                std::memcpy(&new_data[id_map[i] * dim], &data[i * dim], dim * sizeof(float));
+            }
+        }
+        data = std::move(new_data);
+
+        // Compact quantized data
+        if (policy.enable_sq8 && !quantized_data.empty()) {
+            std::vector<uint8_t> new_qdata(new_count * dim);
+            for (tableint i = 0; i < num_elements; ++i) {
+                if (id_map[i] != (tableint)-1) {
+                    std::memcpy(&new_qdata[id_map[i] * dim], &quantized_data[i * dim], dim * sizeof(uint8_t));
+                }
+            }
+            quantized_data = std::move(new_qdata);
+        }
+
+        if (policy.enable_sq4 && !quantized_data_sq4.empty()) {
+            size_t packed_dim = (dim + 1) / 2;
+            std::vector<uint8_t> new_qdata4(new_count * packed_dim);
+            for (tableint i = 0; i < num_elements; ++i) {
+                if (id_map[i] != (tableint)-1) {
+                    std::memcpy(&new_qdata4[id_map[i] * packed_dim], &quantized_data_sq4[i * packed_dim], packed_dim * sizeof(uint8_t));
+                }
+            }
+            quantized_data_sq4 = std::move(new_qdata4);
+        }
+
+        // Compact node levels and node params
+        std::vector<int> new_levels(new_count);
+        std::vector<NodeParams> new_params(new_count);
+        for (tableint i = 0; i < num_elements; ++i) {
+            if (id_map[i] != (tableint)-1) {
+                new_levels[id_map[i]] = node_levels[i];
+                new_params[id_map[i]] = node_params[i];
+            }
+        }
+        node_levels = std::move(new_levels);
+        node_params = std::move(new_params);
+
+        // Compact graphs and re-map node IDs
+        std::vector<std::vector<std::vector<tableint>>> new_graphs(graphs.size());
+        for (size_t l = 0; l < graphs.size(); ++l) {
+            new_graphs[l].resize(new_count);
+            for (tableint i = 0; i < graphs[l].size() && i < num_elements; ++i) {
+                if (id_map[i] != (tableint)-1) {
+                    tableint new_u = id_map[i];
+                    for (tableint v : graphs[l][i]) {
+                        if (v < num_elements && id_map[v] != (tableint)-1) {
+                            new_graphs[l][new_u].push_back(id_map[v]);
+                        }
+                    }
+                }
+            }
+        }
+        graphs = std::move(new_graphs);
+
+        num_elements = new_count;
+        num_deleted = 0;
+        deleted.assign(new_count, 0);
+
+        in_degrees.assign(new_count, 0);
+        uint64_t total = 0;
+        if (!graphs.empty()) {
+            for (tableint u = 0; u < new_count; ++u) {
+                for (tableint v : graphs[0][u]) {
+                    if (v < new_count) in_degrees[v]++;
+                }
+            }
+            for (tableint u = 0; u < new_count; ++u) total += in_degrees[u];
+        }
+        total_in_degrees = total;
+
+        if (enter_point < id_map.size() && id_map[enter_point] != (tableint)-1) {
+            enter_point = id_map[enter_point];
+        } else {
+            migrate_entry_point();
+        }
+    }
     
     std::vector<Candidate> search(const float* query, int k, int ef) const {
-        if (num_elements == 0) return {};
+        if (num_elements == 0 || get_active_count() == 0) return {};
         
         tableint curr_ep = enter_point;
+        if (is_deleted(curr_ep)) {
+            const_cast<AdaptiveHNSWIndex*>(this)->migrate_entry_point();
+            curr_ep = enter_point;
+            if (is_deleted(curr_ep)) return {};
+        }
+
         bool use_asym_sq8 = policy.enable_sq8 && quantizer.is_trained;
         bool use_asym_sq4 = policy.enable_sq4 && quantizer_sq4.is_trained;
         bool use_asym = use_asym_sq8 || use_asym_sq4;
@@ -1218,23 +1558,44 @@ public:
             target_ef = std::max(policy.dynamic_ef_min, 
                         std::min((int)std::round((float)ef * factor), policy.dynamic_ef_max));
         }
+
+        // Expand candidate beam if tombstones are present
+        int effective_ef = target_ef;
+        if (num_deleted.load() > 0 && num_elements > 0) {
+            float tombstone_ratio = (float)num_deleted.load() / (float)num_elements;
+            effective_ef = target_ef + (int)((float)target_ef * tombstone_ratio);
+            effective_ef = std::min(effective_ef, target_ef * 2);
+        }
         
         int rerank_factor = use_asym_sq4 ? policy.sq4_rerank_factor : (use_asym_sq8 ? policy.sq8_rerank_factor : 1);
-        int search_beam = use_asym ? std::max(rerank_factor * k, target_ef) : target_ef;
+        int search_beam = use_asym ? std::max(rerank_factor * k, effective_ef) : effective_ef;
         auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym_sq8, false, use_asym_sq4);
         
         if (use_asym) {
-            // Two-stage re-ranking with exact float32 distance
+            // Two-stage re-ranking with exact float32 distance, excluding deleted nodes
+            std::vector<Candidate> active_w;
+            active_w.reserve(w.size());
             for (auto& cand : w) {
-                cand.dist = get_distance(query, get_vector(cand.id));
+                if (!is_deleted(cand.id)) {
+                    cand.dist = get_distance(query, get_vector(cand.id));
+                    active_w.push_back(cand);
+                }
             }
-            std::sort(w.begin(), w.end());
+            std::sort(active_w.begin(), active_w.end());
+            if ((int)active_w.size() > k) active_w.resize(k);
+            return active_w;
         }
         
-        if ((int)w.size() > k) {
-            w.resize(k);
+        // Filter out deleted nodes
+        std::vector<Candidate> final_results;
+        final_results.reserve(k);
+        for (const auto& cand : w) {
+            if (!is_deleted(cand.id)) {
+                final_results.push_back(cand);
+                if ((int)final_results.size() >= k) break;
+            }
         }
-        return w;
+        return final_results;
     }
     
     /**

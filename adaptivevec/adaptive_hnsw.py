@@ -121,6 +121,9 @@ class AdaptiveHNSW:
         self.node_params: Dict[int, NodeParameters] = {}
         self.node_signals: Dict[int, Dict[str, float]] = {}
         
+        # Frontier 2: Dynamic Streaming Node Deletions & Tombstones
+        self.deleted: Set[int] = set()
+        
         self.enter_point: Optional[int] = None
         self.max_level: int = -1
         
@@ -416,6 +419,177 @@ class AdaptiveHNSW:
             
         return q_idx
 
+    def is_deleted(self, node_id: int) -> bool:
+        """Checks if a node has been marked deleted."""
+        return node_id in self.deleted
+
+    def delete(self, node_id: int, heal: bool = True) -> bool:
+        """
+        Frontier 2: Deletes a node by setting a tombstone and optionally performing
+        localized graph healing to reconnect severed predecessor paths.
+        """
+        if node_id >= len(self.data) or node_id in self.deleted:
+            return False
+            
+        self.deleted.add(node_id)
+        
+        if heal:
+            self.heal_neighborhood(node_id)
+            
+        if self.enter_point == node_id:
+            self._migrate_enter_point()
+            
+        return True
+
+    def _migrate_enter_point(self) -> None:
+        """Re-homes the index entry point to an active non-deleted node."""
+        for lc in range(self.max_level, -1, -1):
+            if lc >= len(self.graphs):
+                continue
+            candidates = [u for u in self.graphs[lc].keys() if u not in self.deleted and len(self.graphs[lc][u]) > 0]
+            if candidates:
+                best_ep = max(candidates, key=lambda u: len(self.graphs[lc][u]))
+                self.enter_point = best_ep
+                self.max_level = lc
+                return
+                
+        for u in range(len(self.data)):
+            if u not in self.deleted:
+                self.enter_point = u
+                self.max_level = 0
+                return
+                
+        self.enter_point = None
+        self.max_level = -1
+
+    def heal_neighborhood(self, v: int) -> None:
+        """
+        Frontier 2: Localized Graph Healing.
+        Re-wires severed incoming edges to v's surviving neighbors, connects mutual
+        neighbors to prevent topological voids, and cleans v's edge lists.
+        """
+        v_level = self.node_levels.get(v, 0)
+        for lc in range(v_level, -1, -1):
+            if lc >= len(self.graphs) or v not in self.graphs[lc]:
+                continue
+                
+            v_neighbors = [nb for nb in self.graphs[lc][v] if nb not in self.deleted]
+            
+            # Sever u -> v and reconnect u to a surviving neighbor of v
+            for u in v_neighbors:
+                if u in self.deleted or u not in self.graphs[lc]:
+                    continue
+                if v in self.graphs[lc][u]:
+                    self.graphs[lc][u].remove(v)
+                    if lc == 0:
+                        self.in_degrees[v] = max(0, self.in_degrees.get(v, 0) - 1)
+                        self.in_degrees[u] = max(0, self.in_degrees.get(u, 0) - 1)
+                        self.total_in_degrees = max(0, self.total_in_degrees - 2)
+                        
+                    repair_cands = [nb for nb in v_neighbors if nb != u and nb not in self.graphs[lc][u]]
+                    if repair_cands:
+                        best_rep = min(repair_cands, key=lambda nb: self._distance(self.data[u], self.data[nb]))
+                        self.graphs[lc][u].append(best_rep)
+                        if lc == 0:
+                            self.in_degrees[best_rep] = self.in_degrees.get(best_rep, 0) + 1
+                            self.in_degrees[u] = self.in_degrees.get(u, 0) + 1
+                            self.total_in_degrees += 2
+                            
+                        # Reciprocal link best_rep -> u if capacity allows
+                        if best_rep in self.graphs[lc] and u not in self.graphs[lc][best_rep]:
+                            rep_limit = self.node_params.get(best_rep, NodeParameters(self.policy.config.m_base, self.policy.config.m_base, 2 * self.policy.config.m_base, self.policy.config.ef_construction_base, 0.0, 0.0, 0.0)).get_m_max_for_layer(lc)
+                            if len(self.graphs[lc][best_rep]) < rep_limit:
+                                self.graphs[lc][best_rep].append(u)
+                                if lc == 0:
+                                    self.in_degrees[u] = self.in_degrees.get(u, 0) + 1
+                                    self.in_degrees[best_rep] = self.in_degrees.get(best_rep, 0) + 1
+                                    self.total_in_degrees += 2
+                                    
+            # Mutual bridging between surviving neighbors of v
+            if len(v_neighbors) >= 2:
+                for i in range(len(v_neighbors)):
+                    w1 = v_neighbors[i]
+                    if w1 in self.deleted or w1 not in self.graphs[lc]:
+                        continue
+                    w1_limit = self.node_params.get(w1, NodeParameters(self.policy.config.m_base, self.policy.config.m_base, 2 * self.policy.config.m_base, self.policy.config.ef_construction_base, 0.0, 0.0, 0.0)).get_m_max_for_layer(lc)
+                    for j in range(i + 1, len(v_neighbors)):
+                        w2 = v_neighbors[j]
+                        if w2 in self.deleted or w2 not in self.graphs[lc]:
+                            continue
+                        w2_limit = self.node_params.get(w2, NodeParameters(self.policy.config.m_base, self.policy.config.m_base, 2 * self.policy.config.m_base, self.policy.config.ef_construction_base, 0.0, 0.0, 0.0)).get_m_max_for_layer(lc)
+                        
+                        if len(self.graphs[lc][w1]) < w1_limit and w2 not in self.graphs[lc][w1]:
+                            self.graphs[lc][w1].append(w2)
+                            if lc == 0:
+                                self.in_degrees[w2] = self.in_degrees.get(w2, 0) + 1
+                                self.in_degrees[w1] = self.in_degrees.get(w1, 0) + 1
+                                self.total_in_degrees += 2
+                        if len(self.graphs[lc][w2]) < w2_limit and w1 not in self.graphs[lc][w2]:
+                            self.graphs[lc][w2].append(w1)
+                            if lc == 0:
+                                self.in_degrees[w1] = self.in_degrees.get(w1, 0) + 1
+                                self.in_degrees[w2] = self.in_degrees.get(w2, 0) + 1
+                                self.total_in_degrees += 2
+                                
+            # Maintain outgoing links from v to only surviving neighbors (soft transit bridge)
+            self.graphs[lc][v] = v_neighbors
+
+    def compact(self) -> Dict[str, Any]:
+        """
+        Reclaims tombstoned slots, maps surviving nodes to contiguous indices,
+        and eliminates memory fragmentation.
+        """
+        if not self.deleted:
+            return {"compacted_nodes": len(self.data), "removed_tombstones": 0}
+            
+        old_count = len(self.data)
+        id_map: Dict[int, int] = {}
+        new_count = 0
+        for old_id in range(old_count):
+            if old_id not in self.deleted:
+                id_map[old_id] = new_count
+                new_count += 1
+                
+        new_data = [self.data[old_id] for old_id in range(old_count) if old_id in id_map]
+        new_quantized = [self.quantized_data[old_id] for old_id in range(old_count) if old_id in id_map] if self.quantized_data else []
+        new_node_levels = {id_map[old_id]: self.node_levels[old_id] for old_id in id_map if old_id in self.node_levels}
+        new_node_params = {id_map[old_id]: self.node_params[old_id] for old_id in id_map if old_id in self.node_params}
+        new_node_signals = {id_map[old_id]: self.node_signals[old_id] for old_id in id_map if old_id in self.node_signals}
+        
+        new_graphs = []
+        for lc, graph in enumerate(self.graphs):
+            new_graph = {}
+            for old_u, neighbors in graph.items():
+                if old_u in id_map:
+                    new_u = id_map[old_u]
+                    new_neighbors = [id_map[nb] for nb in neighbors if nb in id_map]
+                    new_graph[new_u] = new_neighbors
+            new_graphs.append(new_graph)
+            
+        self.data = new_data
+        self.quantized_data = new_quantized
+        self.node_levels = new_node_levels
+        self.node_params = new_node_params
+        self.node_signals = new_node_signals
+        self.graphs = new_graphs
+        
+        num_removed = len(self.deleted)
+        self.deleted.clear()
+        
+        self.in_degrees.clear()
+        self.total_in_degrees = 0
+        if self.graphs:
+            for u, neighbors in self.graphs[0].items():
+                self.in_degrees[u] = len(neighbors)
+                self.total_in_degrees += len(neighbors)
+                
+        if self.enter_point is not None and self.enter_point in id_map:
+            self.enter_point = id_map[self.enter_point]
+        else:
+            self._migrate_enter_point()
+            
+        return {"compacted_nodes": new_count, "removed_tombstones": num_removed}
+
     def search(
         self,
         query: np.ndarray,
@@ -429,6 +603,11 @@ class AdaptiveHNSW:
         """
         if self.enter_point is None or len(self.data) == 0:
             return ([], {}) if record_trace else []
+            
+        if self.enter_point in self.deleted:
+            self._migrate_enter_point()
+            if self.enter_point is None:
+                return ([], {}) if record_trace else []
             
         query = np.ascontiguousarray(query, dtype=np.float32)
         use_early_exit = self.early_exit if early_exit is None else early_exit
@@ -445,7 +624,7 @@ class AdaptiveHNSW:
                 w = self._search_layer(query, [curr_ep], ef=1, lc=lc, record_trace=False)
             curr_ep = w[0][1]
             
-        # Determine search ef
+        # Determine search ef, expanding if tombstones are present
         if ef is not None:
             ef_val = ef
         elif self.adaptive_search_ef and curr_ep in self.node_params:
@@ -455,6 +634,10 @@ class AdaptiveHNSW:
             ef_val = int(np.clip(base_ef * (1.0 + 0.3 * ep_score), k, base_ef * 2))
         else:
             ef_val = max(k, self.policy.config.ef_construction_base // 2)
+
+        if self.deleted and len(self.data) > 0:
+            tombstone_boost = int(ef_val * (len(self.deleted) / len(self.data)))
+            ef_val = min(ef_val * 2, ef_val + tombstone_boost)
             
         if record_trace:
             w, trace = self._search_layer(
@@ -480,18 +663,19 @@ class AdaptiveHNSW:
                 stagnation_epsilon=self.stagnation_epsilon
             )
             
-        top_k = w[:k]
-            
         if self.quantize:
-            # Two-stage re-ranking: evaluate exact float32 distance for top candidate beam
+            # Two-stage re-ranking: evaluate exact float32 distance for top candidate beam excluding deleted
             rerank_count = max(k * 2, min(len(w), 30))
-            rerank_candidates = w[:rerank_count]
+            rerank_candidates = [cand for cand in w if cand[1] not in self.deleted][:rerank_count]
             exact_results = []
             for _, node in rerank_candidates:
                 exact_d = self.dist_fn(query, self.data[node])
                 exact_results.append((exact_d, node))
             exact_results.sort(key=lambda x: x[0])
             top_k = exact_results[:k]
+        else:
+            # Filter out deleted nodes
+            top_k = [cand for cand in w if cand[1] not in self.deleted][:k]
         
         if record_trace:
             dist_evals = sum(1 for s in all_traces if s.get("action") in ("enter", "explore"))
@@ -531,12 +715,16 @@ class AdaptiveHNSW:
         densities = [s["density"] for s in self.node_signals.values()] if self.node_signals else [0]
         assigned_ms = [p.m for p in self.node_params.values()] if self.node_params else [0]
         
+        active_nodes = total_nodes - len(self.deleted)
         return {
             "total_nodes": total_nodes,
+            "active_nodes": active_nodes,
+            "tombstones": len(self.deleted),
+            "tombstone_ratio": float(len(self.deleted) / total_nodes) if total_nodes > 0 else 0.0,
             "dim": self.dim,
             "max_level": self.max_level,
             "total_edges": total_edges,
-            "avg_edges_per_node": total_edges / total_nodes,
+            "avg_edges_per_node": total_edges / max(1, active_nodes),
             "edges_per_layer": edges_per_layer,
             "edge_memory_bytes": edge_memory_bytes,
             "vector_memory_bytes": vector_memory_bytes,

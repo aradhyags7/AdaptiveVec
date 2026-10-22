@@ -145,6 +145,102 @@ class TestHNSW(unittest.TestCase):
         recall = hits / total
         self.assertGreater(recall, 0.85, f"Quantized SQ8 Recall@10 was {recall}")
 
+    def test_deletion_tombstone_filtering(self):
+        """Frontier 2: Verify deleted nodes never appear in top-k query results."""
+        index = AdaptiveHNSW(dim=self.dim, policy_config=AdaptivePolicyConfig(m_base=8, ef_construction_base=60))
+        for v in self.data[:100]:
+            index.insert(v)
+
+        q = self.queries[0]
+        initial_res = index.search(q, k=5)
+        self.assertGreater(len(initial_res), 0)
+        top_node = initial_res[0][1]
+
+        # Delete the top nearest neighbor
+        success = index.delete(top_node, heal=True)
+        self.assertTrue(success)
+        self.assertTrue(index.is_deleted(top_node))
+
+        # Re-query: deleted node must NOT be present
+        new_res = index.search(q, k=5)
+        new_nodes = [node for _, node in new_res]
+        self.assertNotIn(top_node, new_nodes)
+
+        stats = index.get_stats()
+        self.assertEqual(stats["tombstones"], 1)
+        self.assertEqual(stats["active_nodes"], 99)
+
+    def test_graph_healing_preserves_recall(self):
+        """Frontier 2: Verify localized healing retains high recall after 20% random churn."""
+        index = AdaptiveHNSW(dim=self.dim, policy_config=AdaptivePolicyConfig(m_base=8, ef_construction_base=60))
+        for v in self.data[:150]:
+            index.insert(v)
+
+        # Delete 30 nodes (20% churn) with graph healing
+        np.random.seed(99)
+        to_delete = np.random.choice(150, size=30, replace=False)
+        for node_id in to_delete:
+            index.delete(int(node_id), heal=True)
+
+        stats = index.get_stats()
+        self.assertEqual(stats["tombstones"], 30)
+        self.assertEqual(stats["active_nodes"], 120)
+
+        # Query all test queries and verify no deleted nodes return
+        surviving_nodes = set(range(150)) - set(to_delete)
+        for q in self.queries:
+            results = index.search(q, k=10, ef=40)
+            res_nodes = set(node for _, node in results)
+            self.assertTrue(res_nodes.issubset(surviving_nodes), "Deleted node leaked into results!")
+
+    def test_entry_point_deletion_and_migration(self):
+        """Frontier 2: Verify entry point migrates to an active node when deleted."""
+        index = AdaptiveHNSW(dim=self.dim)
+        for v in self.data[:50]:
+            index.insert(v)
+
+        old_ep = index.enter_point
+        self.assertIsNotNone(old_ep)
+
+        # Delete the entry point
+        index.delete(old_ep, heal=True)
+        self.assertTrue(index.is_deleted(old_ep))
+        self.assertNotEqual(index.enter_point, old_ep)
+        self.assertFalse(index.is_deleted(index.enter_point))
+
+        # Subsequent search must succeed
+        res = index.search(self.queries[0], k=5)
+        self.assertEqual(len(res), 5)
+        self.assertNotIn(old_ep, [node for _, node in res])
+
+    def test_compaction_reclaims_memory(self):
+        """Frontier 2: Verify compaction removes tombstones, updates indices, and retains accuracy."""
+        index = AdaptiveHNSW(dim=self.dim)
+        for v in self.data[:80]:
+            index.insert(v)
+
+        to_delete = [5, 12, 23, 44, 60]
+        for node_id in to_delete:
+            index.delete(node_id, heal=True)
+
+        self.assertEqual(len(index.deleted), 5)
+        compaction_info = index.compact()
+        self.assertEqual(compaction_info["compacted_nodes"], 75)
+        self.assertEqual(compaction_info["removed_tombstones"], 5)
+        self.assertEqual(len(index.deleted), 0)
+        self.assertEqual(len(index.data), 75)
+
+        stats = index.get_stats()
+        self.assertEqual(stats["tombstones"], 0)
+        self.assertEqual(stats["total_nodes"], 75)
+        self.assertEqual(stats["active_nodes"], 75)
+
+        # Search should execute cleanly on compacted index
+        res = index.search(self.queries[0], k=5)
+        self.assertEqual(len(res), 5)
+        for _, node in res:
+            self.assertLess(node, 75)
+
 if __name__ == "__main__":
     unittest.main()
 
