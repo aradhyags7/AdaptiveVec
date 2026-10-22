@@ -1134,8 +1134,9 @@ public:
                             std::unordered_set<tableint> kept(pruned.begin(), pruned.end());
                             for (tableint old_cand : graphs[lc][neighbor]) {
                                 if (kept.find(old_cand) == kept.end()) {
-                                    __atomic_fetch_sub(&in_degrees[old_cand], 1, __ATOMIC_RELAXED);
-                                    __atomic_fetch_sub(&in_degrees[neighbor], 1, __ATOMIC_RELAXED);
+                                    if (in_degrees[old_cand] > 0) {
+                                        __atomic_fetch_sub(&in_degrees[old_cand], 1, __ATOMIC_RELAXED);
+                                    }
                                 }
                             }
                         }
@@ -1155,14 +1156,37 @@ public:
             }
         }
 
-        // Recompute exact total_in_degrees in parallel
-        uint64_t total = 0;
+        // Recompute exact in-degrees in parallel directly from layer 0 graph
+        std::fill(in_degrees.begin(), in_degrees.end(), 0);
         #if defined(_OPENMP)
-        #pragma omp parallel for reduction(+:total)
-        #endif
-        for (size_t i = 0; i < n_vectors; ++i) {
-            total += in_degrees[i];
+        #pragma omp parallel
+        {
+            std::vector<uint32_t> local_in(n_vectors, 0);
+            #pragma omp for schedule(static)
+            for (size_t u = 0; u < n_vectors; ++u) {
+                if (!graphs[0].empty() && u < graphs[0].size()) {
+                    for (tableint v : graphs[0][u]) {
+                        if (v < n_vectors) local_in[v]++;
+                    }
+                }
+            }
+            #pragma omp critical
+            {
+                for (size_t i = 0; i < n_vectors; ++i) {
+                    in_degrees[i] += local_in[i];
+                }
+            }
         }
+        #else
+        for (size_t u = 0; u < n_vectors; ++u) {
+            for (tableint v : graphs[0][u]) {
+                if (v < n_vectors) in_degrees[v]++;
+            }
+        }
+        #endif
+
+        uint64_t total = 0;
+        for (size_t i = 0; i < n_vectors; ++i) total += in_degrees[i];
         total_in_degrees = total;
     }
     
