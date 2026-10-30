@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdaptiveVec: Project Defense & Conference Presentation</title>
+  <style>
+    :root {
+      --bg: #090b10;
+      --card-bg: #121620;
+      --card-border: #222938;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #c97d4a;
+      --accent-glow: #e89b6c;
+      --emerald: #10b981;
+      --cyan: #06b6d4;
+      --purple: #a855f7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      height: 48px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      background: #0d111a;
+      font-size: 13px;
+    }
+    .brand { font-weight: 700; color: var(--accent-glow); display: flex; align-items: center; gap: 8px; }
+    .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .slide-counter { color: var(--text-muted); font-family: monospace; }
+
+    /* Slide Stage */
+    .stage {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+    }
+
+    .slide {
+      position: absolute;
+      width: 92%;
+      max-width: 1200px;
+      height: 85vh;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 40px 50px;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      transform: scale(0.98);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .slide-header {
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 16px;
+    }
+    .slide-tag {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .slide-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .slide-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: center;
+      overflow: hidden;
+    }
+    .slide-body.full-width {
+      grid-template-columns: 1fr;
+    }
+
+    .bullets {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .bullet-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .bullet-icon {
+      color: var(--accent);
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .stat-card {
+      background: #090c12;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .stat-val {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--emerald);
+      font-family: monospace;
+    }
+    .stat-lbl {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .figure-preview {
+      width: 100%;
+      height: 100%;
+      max-height: 480px;
+      object-fit: contain;
+      background: #080a0e;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    /* Bottom Control Strip */
+    .bottom-bar {
+      height: 52px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--card-border);
+      background: #0d111a;
+      font-size: 13px;
+    }
+    .nav-btn {
+      background: #1e2638;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+    .nav-btn:hover { background: var(--accent); border-color: var(--accent-glow); }
+    .kbd-hint { color: var(--text-muted); font-size: 12px; }
+    kbd { background: #1a2233; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Telemetry Header -->
+  <div class="top-bar">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      AdaptiveVec &bull; Conference & Capstone Defense
+    </div>
+    <div class="slide-counter" id="counter">SLIDE 1 / 10</div>
+  </div>
+
+  <!-- Stage -->
+  <div class="stage">
+
+    <!-- Slide 1: Title & Overview -->
+    <div class="slide active">
+      <div class="slide-header">
+        <div class="slide-tag">Systems & Machine Learning Research</div>
+        <div class="slide-title">AdaptiveVec: A Density- and Dimension-Aware Proximity Graph Index for Resource-Constrained Vector Retrieval</div>
+        <div class="slide-subtitle">Aradhya Shinde &bull; Department of Computer Engineering &bull; Systems & ML Research Laboratory</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>The Problem:</strong> Hierarchical Navigable Small World (HNSW) proximity graphs enforce rigid, uniform hyper-parameters (M=16, efC=200) across non-homogeneous embedding manifolds.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>The Pathology:</strong> In dense clusters, uniform allocation wastes memory on redundant links. In sparse boundary zones, nodes starve and suffer hubness bottleneck disconnects.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>The Solution:</strong> AdaptiveVec harvests Local Intrinsic Dimensionality (LID) and Local Density directly from standard greedy routing paths at <strong>&lt;0.8% overhead</strong>, dynamically tailoring graph topology and search beams.</div>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-val">+50.3% QPS</div>
+            <div class="stat-lbl">Query Throughput Surge</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">-81.7% RAM</div>
+            <div class="stat-lbl">Index Memory Compression</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">54.6K QPS</div>
+            <div class="stat-lbl">Peak 384D Transformer Speed</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">46.0× Faster</div>
+            <div class="stat-lbl">Streaming Compaction Speedup</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 2: The Pathology of Uniform Allocation -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Problem Analysis & Motivation</div>
+        <div class="slide-title">The Pathology of Uniform Parameter Allocation</div>
+        <div class="slide-subtitle">Why standard HNSW fails to optimize commodity hardware and edge deployments</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Redundant Edge Bloat:</strong> Dense lower-dimensional subspaces do not need 16 or 32 links per node. Storing co-linear parallel links wastes 48%–62% of graph RAM with zero recall benefit.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Topological Starvation & Hubness:</strong> High-dimensional boundary points lack sufficient routing diversity. A small fraction of "hub" vertices absorb an exorbitant number of traversal paths, creating traffic bottlenecks.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>The Memory Bus Barrier:</strong> Vector search is memory-bandwidth bound. On commodity laptops and edge instances (constrained to 16GB RAM), fetching uncompressed 512-byte float32 vectors saturates DDR bus lines.</div>
+          </div>
+        </div>
+        <div>
+          <img src="../pdf/paper_figures/fig2_hubness_distribution.png" class="figure-preview" alt="Hubness Distribution">
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 3: Online Manifold Geometry Probing -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Algorithmic Innovation</div>
+        <div class="slide-title">Online Zero-Clustering Manifold Probing (&lt;0.8% Overhead)</div>
+        <div class="slide-subtitle">Eliminating offline k-means passes via single-pass greedy traversal profiling</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Greedy Path Harvesting:</strong> During insertion descent, distance queries to candidate neighbors are already computed. AdaptiveVec extracts local expansion statistics directly from this path with <strong>zero additional distance evaluations</strong>.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Local Intrinsic Dimensionality (LID):</strong> Evaluated via Maximum Likelihood Estimation (MLE) over the k-nearest traversal horizons:
+            <br><em>LID(x) = - ( (1/k) * &Sigma; ln(r_i / r_max) )<sup>-1</sup></em></div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Streaming Online Welford Tracking:</strong> Single-pass variance and mean tracking in O(1) space and time standardizes geometric signals into normalized difficulty scores S(x) across non-stationary vector ingestion streams.</div>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-val">&lt;0.8%</div>
+            <div class="stat-lbl">Probing Overhead</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">+0.7489</div>
+            <div class="stat-lbl">Spearman &rho; Correlation</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">O(1)</div>
+            <div class="stat-lbl">Streaming Memory Space</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">0 Passes</div>
+            <div class="stat-lbl">Offline Clustering Passes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 4: Architectural Mechanics -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">System Architecture</div>
+        <div class="slide-title">Layer-Decoupled Dynamic Allocation & Hubness Regulation</div>
+        <div class="slide-subtitle">Modulating node capacity while preserving multi-scale navigation reachability</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Dynamic Degree Quota M(x):</strong> Nodes in low-LID dense regions receive M=8 links (-50% edge memory). High-LID boundary nodes receive M=24 links, protecting graph reachability.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Layer-Decoupled Link Scaling (&lambda;=0.75):</strong> Higher layers serve purely for logarithmic coarse routing. Geometrically decaying express degrees cuts construction time by <strong>28.1%</strong> with zero recall penalty.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Hubness-Aware In-Degree Regulation:</strong> Evaluates Relative Neighborhood Graph (RNG) candidate links with an in-degree penalty:
+            <br><em>d'(u, v) = d(u, v) * (1 + &mu; * deg(v) / M_base)</em>
+            <br>Slashing in-degree variance by <strong>54.9%</strong>.</div>
+          </div>
+        </div>
+        <div>
+          <img src="../pdf/paper_figures/fig3_ablation_waterfall.png" class="figure-preview" alt="Ablation Waterfall">
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 5: Distance Stagnation Early Exit -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Query-Time Acceleration</div>
+        <div class="slide-title">Distance Stagnation Early Exit: +50.3% Throughput Surge</div>
+        <div class="slide-subtitle">Detecting asymptotic search convergence to eliminate futile candidate evaluations</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>The Stagnation Phenomenon:</strong> In proximity graph beam search, the true nearest neighbor is discovered early in the beam traversal; remaining hops produce negligible metric distance improvements (&Delta; &lt; 10<sup>-4</sup>).</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Online Patience Window (p=6):</strong> If the best candidate distance fails to improve by &epsilon; for p consecutive iterations, search terminates early.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Empirical SIFT-100K Benchmark:</strong> Query distance evaluations plummet from 1,121.2 down to 783.5 hops (-30.1%), driving throughput from <strong>4,708.1 QPS to 7,075.3 QPS (+50.3%)</strong> at 0.9745 Recall@10.</div>
+          </div>
+        </div>
+        <div>
+          <img src="../pdf/paper_figures/fig1_pareto.png" class="figure-preview" alt="SIFT-100K Pareto Frontier">
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 6: Dual-Stage Scalar Quantization -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Hardware & Memory Engineering</div>
+        <div class="slide-title">Ultra-Edge 4-Bit Scalar Quantization (SQ4) with AVX2 SIMD</div>
+        <div class="slide-subtitle">Sub-byte nibble packing with branchless register unpacking and float32 re-ranking</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>8× Vector Compression:</strong> 128-dimensional vectors compress from 512 bytes down to 64 bytes. Total index RAM collapses from 58.8 MB down to <strong>16.1 MB (-72.7%)</strong>.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>L1 Cache Line Alignment:</strong> 64-byte compressed vectors match the CPU L1 data cache line exactly (64B = 1 cache line), increasing effective cache residency by 4×.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Sub-Byte AVX2 Kernel:</strong> Loads 8 packed bytes into 16 dimensions via <code>_mm_loadl_epi64</code>, separating high/low nibbles via <code>_mm_srli_epi16</code> and <code>0x0F</code> masking, avoiding full scalar decompression.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Search Throughput:</strong> Reaches <strong>19,167.5 QPS</strong> (ef=32) and <strong>10,809.8 QPS</strong> (ef=64) with two-stage exact re-ranking.</div>
+          </div>
+        </div>
+        <div>
+          <img src="../pdf/paper_figures/fig13_sq4_compression.png" class="figure-preview" alt="SQ4 Compression">
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 7: High-Dimensional Transformer Embeddings -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Frontier 4 Evaluation</div>
+        <div class="slide-title">High-Dimensional Transformer Embeddings (384D NLP)</div>
+        <div class="slide-subtitle">Evaluating 57,893 multi-domain vectors generated by sentence-transformers/all-MiniLM-L6-v2</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>5 Diverse Semantic Domains:</strong> SciFact (science), NFCorpus (biomedical), ArguAna (counter-arguments), Webmasters (systems), Android (software).</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>81.7% Total Index RAM Reduction:</strong> Compresses 384D vectors from 1,536 bytes to 192 bytes, slashing total index memory from 91.2 MB to <strong>16.7 MB</strong>.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>54,624.8 QPS Throughput (+86.2% Speedup):</strong> AVX2 nibble traversal delivers 160.2 &mu;s median latency with 0.9219 peak recall.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Dynamic efSearch (&kappa;=0.60):</strong> Successfully lifts recall by +1.73% across disparate domains with zero latency penalty.</div>
+          </div>
+        </div>
+        <div>
+          <img src="../pdf/paper_figures/fig14_transformer_384d_benchmark.png" class="figure-preview" alt="Transformer 384D Benchmark">
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 8: Dynamic Streaming Deletions & Healing -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Frontier 2 Evaluation</div>
+        <div class="slide-title">Dynamic Streaming Deletions & Localized Graph Healing</div>
+        <div class="slide-subtitle">Sustaining recall under heavy churn with 46× faster zero-downtime compaction</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>The Problem of Streaming Churn:</strong> Naive tombstones leave severed links and dead routing traps. Scratch rebuilding locks the database for seconds.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Localized Healing (54–73 &mu;s/del):</strong> Severs predecessor links, rewires u to surviving neighbors via RNG heuristics, and preserves soft transit bridges.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>+1.13% Absolute Recall Advantage:</strong> At 50% churn, AdaptiveVec maintains 0.9723 Recall@10 vs. 0.9610 for naive tombstones.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>62.1 ms Zero-Downtime Compaction:</strong> Rebuilds contiguous vector buffers and re-maps adjacency IDs in 62.1 ms—<strong>46.0× faster than rebuilding (2,858.2 ms)</strong>—halving RAM (-50.3%) and accelerating throughput to 7,159.3 QPS (+71.7%).</div>
+          </div>
+        </div>
+        <div>
+          <img src="../pdf/paper_figures/fig15_streaming_deletions.png" class="figure-preview" alt="Streaming Deletions">
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 9: Concurrency & Hardware Concurrency -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Hardware Engineering</div>
+        <div class="slide-title">Multi-Core Scalability & Striped Mutex Concurrency</div>
+        <div class="slide-subtitle">Evaluated on Intel Core 5 210H (8 physical cores / 12 OpenMP threads, AVX2/FMA)</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Striped Mutex Concurrency:</strong> Graph edge rewiring synchronizes across 4,096 striped mutexes (<code>node_locks</code>), preventing race conditions without coarse global locks.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>7.57× Construction Speedup:</strong> Multi-threaded parallel ingestion drops build time from 32.61s down to 4.31s on 12 threads.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Search Concurrency:</strong> Query batch search scales from 2,353.5 QPS (1 thread) to <strong>8,341.5 QPS</strong> (8 threads) with deterministic 0.9508 Recall@10.</div>
+          </div>
+        </div>
+        <div>
+          <img src="../pdf/paper_figures/fig5_multithread_scaling.png" class="figure-preview" alt="Multi-threaded Scaling">
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 10: Conclusion & Deliverables -->
+    <div class="slide">
+      <div class="slide-header">
+        <div class="slide-tag">Summary & Defense Conclusion</div>
+        <div class="slide-title">AdaptiveVec: Conclusion & Key Takeaways</div>
+        <div class="slide-subtitle">A new efficiency Pareto frontier for proximity graph search on commodity hardware</div>
+      </div>
+      <div class="slide-body">
+        <div class="bullets">
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>Core Breakthrough:</strong> Proving that static, uniform hyper-parameterization in proximity graphs is sub-optimal on real manifolds.</div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>The 4 Pillars Delivered:</strong>
+              <br>&bull; +50.3% QPS via stagnation early-exit
+              <br>&bull; -72.7% to -81.7% RAM via 4-bit sub-byte SQ4
+              <br>&bull; +35.1% QPS at zero recall drop via dynamic efSearch
+              <br>&bull; 46.0× faster compaction under continuous streaming deletions
+            </div>
+          </div>
+          <div class="bullet-item">
+            <span class="bullet-icon">&#10148;</span>
+            <div><strong>100% Verified Artifacts:</strong> 26/26 unit tests passing, IEEE conference paper draft, 10 publication figures, compiled C++ AVX2 engine, and interactive React 19 Workbench.</div>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-val">26 / 26</div>
+            <div class="stat-lbl">Tests Passing (100%)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">10 Figures</div>
+            <div class="stat-lbl">Publication Visualizations</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">5 Corpora</div>
+            <div class="stat-lbl">Empirically Evaluated</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">MIT</div>
+            <div class="stat-lbl">Open-Source Research</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Bar -->
+  <div class="bottom-bar">
+    <div class="kbd-hint">Navigation: <kbd>&larr;</kbd> Previous &bull; <kbd>&rarr;</kbd> Next &bull; <kbd>Space</kbd> Advance</div>
+    <div>
+      <button class="nav-btn" onclick="prevSlide()">&larr; Prev</button>
+      <button class="nav-btn" onclick="nextSlide()" style="margin-left: 8px;">Next &rarr;</button>
+    </div>
+  </div>
+
+  <script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const counter = document.getElementById('counter');
+
+    function updateSlide(index) {
+      slides[currentSlide].classList.remove('active');
+      currentSlide = (index + slides.length) % slides.length;
+      slides[currentSlide].classList.add('active');
+      counter.textContent = `SLIDE ${currentSlide + 1} / ${slides.length}`;
+    }
+
+    function nextSlide() { updateSlide(currentSlide + 1); }
+    function prevSlide() { updateSlide(currentSlide - 1); }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      }
+    });
+  </script>
+</body>
+</html>
