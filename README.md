@@ -10,7 +10,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-19_Workbench-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Test Suite](https://img.shields.io/badge/Test_Suite-25%20Passing-brightgreen?style=for-the-badge)]()
+[![Test Suite](https://img.shields.io/badge/Test_Suite-26%20Passing-brightgreen?style=for-the-badge)]()
 [![Hardware Tier](https://img.shields.io/badge/Target-Commodity%20Laptops%20%26%20Edge%20VMs-blueviolet?style=for-the-badge)]()
 
 <p align="center">
@@ -556,7 +556,7 @@ AdaptiveVec/
 │   ├── index.html               # 9-view responsive research dashboard with control dock & HUD
 │   ├── styles.css               # Clean Linear/Vercel design system with dark/light themes
 │   └── app.js                   # Reactive math engine, canvas beam visualizer, and streaming runner
-├── tests/                       # Automated Test Suite (25 Unit Tests Passing)
+├── tests/                       # Automated Test Suite (26 Unit Tests Passing)
 │   ├── test_signals.py          # Mathematical verification of LID on known manifolds
 │   ├── test_policy.py           # Welford streaming, quantile, and layer-scaling unit tests
 │   ├── test_hnsw.py             # Connectivity, early exit, hubness, SQ8 recall, deletions & compaction
@@ -613,7 +613,7 @@ pip install -r requirements.txt
 ---
 
 ### 8.3 Automated Test Suite
-Run the full 25-test suite verifying algorithmic integrity, Welford online tracking, SQ8/SQ4 quantization, streaming deletions, localized graph healing, and compaction:
+Run the full 26-test suite verifying algorithmic integrity, Welford online tracking, SQ8/SQ4 quantization, streaming deletions, localized graph healing, compaction, and REST APIs:
 ```bash
 pytest -v
 ```
