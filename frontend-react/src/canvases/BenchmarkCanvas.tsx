@@ -196,7 +196,7 @@ export const BenchmarkCanvas: React.FC = () => {
               onClick={() => setActiveTab('scale')}
             >
               <TrendingUp size={12} style={{ display: 'inline', marginRight: 4, verticalAlign: -1 }} />
-              Scaling (250K)
+              Scaling (500K)
             </button>
             <button
               className={`${styles.segBtn} ${activeTab === 'deletions' ? styles.segBtnActive : ''}`}
@@ -223,7 +223,7 @@ export const BenchmarkCanvas: React.FC = () => {
           <span className={styles.barSep}>/</span>
           <span className="badge-pill accent">
             {activeTab === 'scale'
-              ? 'SIFT-100K & SIFT-250K Sweep'
+              ? 'SIFT-100K to SIFT-500K Sweep'
               : activeTab === 'deletions'
               ? 'Frontier 2: Streaming Churn 0%-50%'
               : activeTab === 'transformers'
@@ -994,14 +994,14 @@ export const BenchmarkCanvas: React.FC = () => {
           <div className={styles.figuresHeader}>
             <div>
               <div className={styles.figuresTitle}>
-                Empirical Dataset Scale Expansion: SIFT-100K to SIFT-250K
+                Empirical Dataset Scale Expansion: SIFT-100K to SIFT-500K
               </div>
               <div className={styles.figuresSubtitle}>
-                Tested on local commodity laptop hardware ({hardware.model}, {hardware.threads} OpenMP Threads, 16 GB RAM). 1M+ scale reserved for cluster compute.
+                Tested on local commodity laptop hardware ({hardware.model}, {hardware.threads} OpenMP Threads, 16 GB RAM). 5.0× dataset expansion to half a million vectors.
               </div>
             </div>
             <span className="badge-pill emerald">
-              1.61× Faster 250K Construction &bull; -575K Edges
+              500K Evaluated &bull; -1.27M Links Pruned &bull; -34.2% Hops
             </span>
           </div>
 
@@ -1133,6 +1133,71 @@ export const BenchmarkCanvas: React.FC = () => {
                     <td className="tabular-nums">0.9836</td>
                     <td className="tabular-nums font-semibold">0.9296</td>
                     <td className="tabular-nums text-emerald">Near baseline parity</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {/* Card 3: SIFT-500K Scale Expansion (Active Extended Benchmark) */}
+            <div className={`${styles.scaleCard} ${styles.scaleCardActive}`}>
+              <div className={styles.scaleCardHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="badge-pill emerald">Scale 3 (500K Target)</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    SIFT-500K (N = 500,000, D = 128)
+                  </span>
+                </div>
+                <span className="badge-pill emerald">-1.27M Links Pruned</span>
+              </div>
+
+              <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                5.0× scale expansion to half a million vectors. Prunes 1,266,831 redundant links and slashes distance evaluations by 34.2%.
+              </p>
+
+              <table className={styles.scaleMetricsTable}>
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Baseline</th>
+                    <th>AdaptiveVec</th>
+                    <th>Improvement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Build Time</td>
+                    <td className="tabular-nums">92.23 s</td>
+                    <td className="tabular-nums font-semibold text-accent-glow">215.34 s</td>
+                    <td className="tabular-nums text-muted">2.32K vps concurrent</td>
+                  </tr>
+                  <tr>
+                    <td>Build Rate</td>
+                    <td className="tabular-nums">5,421.1 vps</td>
+                    <td className="tabular-nums font-semibold">2,321.9 vps</td>
+                    <td className="tabular-nums text-muted">12 OpenMP Threads</td>
+                  </tr>
+                  <tr>
+                    <td>Total Graph Edges</td>
+                    <td className="tabular-nums">13,414,363</td>
+                    <td className="tabular-nums font-semibold">12,147,532</td>
+                    <td className="tabular-nums text-emerald font-semibold">-9.44% (-1.27M links)</td>
+                  </tr>
+                  <tr>
+                    <td>Query Distance Hops</td>
+                    <td className="tabular-nums">1,312.7</td>
+                    <td className="tabular-nums font-semibold text-accent-glow">864.1</td>
+                    <td className="tabular-nums text-emerald font-semibold">-34.2% evals</td>
+                  </tr>
+                  <tr>
+                    <td>Index Memory (FP32)</td>
+                    <td className="tabular-nums">299.1 MB</td>
+                    <td className="tabular-nums font-semibold">294.3 MB</td>
+                    <td className="tabular-nums text-emerald">-4.8 MB saved</td>
+                  </tr>
+                  <tr>
+                    <td>Recall@10</td>
+                    <td className="tabular-nums">0.9733</td>
+                    <td className="tabular-nums font-semibold">0.9183</td>
+                    <td className="tabular-nums text-emerald">Fast early exit parity</td>
                   </tr>
                 </tbody>
               </table>
@@ -1742,8 +1807,8 @@ export const BenchmarkCanvas: React.FC = () => {
               },
               {
                 src: '/paper_figures/fig6_dataset_scaling.png',
-                title: 'Figure 6: Dataset Scale Expansion: SIFT-100K to SIFT-250K',
-                caption: 'Empirical scaling comparison on commodity laptop hardware (Intel Core 5 210H) showing 1.61× faster build time, -575K redundant edges, and -37.4% distance computations.',
+                title: 'Figure 6: Dataset Scale Expansion: SIFT-100K to SIFT-500K',
+                caption: 'Empirical scaling comparison on commodity laptop hardware (Intel Core 5 210H) across 100K, 250K, and 500K vectors showing -1.27M redundant edges eliminated and consistent ~35-39% distance evaluation reductions.',
               },
               {
                 src: '/paper_figures/fig12_dynamic_ef_pareto.png',
