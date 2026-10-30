@@ -90,6 +90,12 @@ def main():
     tex_file = ROOT_DIR / "pdf" / "paper.tex"
     all_passed &= report_item("IEEE LaTeX Source", tex_file.exists() and tex_file.stat().st_size > 30000, f"{tex_file.name} formatted with IEEEtran standards")
 
+    bib_file = ROOT_DIR / "pdf" / "references.bib"
+    all_passed &= report_item("BibTeX References", bib_file.exists() and bib_file.stat().st_size > 1000, f"{bib_file.name} formatted with standard BibTeX entries")
+
+    slides_file = ROOT_DIR / "slides" / "index.html"
+    all_passed &= report_item("Defense Slide Deck", slides_file.exists(), f"10-slide interactive conference deck in slides/index.html")
+
     figures_dir = ROOT_DIR / "pdf" / "paper_figures"
     expected_figures = [
         "fig1_pareto.png", "fig2_hubness_distribution.png", "fig3_ablation_waterfall.png",
@@ -117,8 +123,9 @@ def main():
         print(f"  {DIM}Total audit duration: {elapsed:.2f} seconds{RESET}")
         print(f"\n  {BOLD}Next Steps for Presentation & Defense:{RESET}")
         print(f"    1. Launch Workbench:  {CYAN}uvicorn server:app --reload{RESET} and {CYAN}cd frontend-react && npm run dev{RESET}")
-        print(f"    2. Inspect PDF Paper: {CYAN}pdf/AdaptiveVec_Research_Paper.pdf{RESET}")
-        print(f"    3. Push/Tag Release:  {CYAN}git tag -a v1.0.0-submission -m 'Formal Conference Submission'{RESET}\n")
+        print(f"    2. Open Defense Deck: {CYAN}slides/index.html{RESET} (Interactive browser slides)")
+        print(f"    3. Inspect PDF Paper: {CYAN}pdf/AdaptiveVec_Research_Paper.pdf{RESET}")
+        print(f"    4. Push/Tag Release:  {CYAN}git tag -a v1.0.0-submission -m 'Formal Conference Submission'{RESET}\n")
         return 0
     else:
         print(f"  {RED}{BOLD}[X] [INCOMPLETE] One or more verification checks failed.{RESET}\n")
