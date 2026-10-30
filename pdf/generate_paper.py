@@ -1297,9 +1297,9 @@ def build_pdf(filename=None):
         story.append(Image(fig5_path, width=480, height=192))
         story.append(Paragraph("<b>Fig. 5.</b> Multi-core thread scaling on Intel Core 5 210H (8 physical cores [4 P-cores + 4 E-cores], 12 logical threads, AVX2/FMA). (a) Batch query search scales from 2,353.5 QPS (1 thread) to 8,341.5 QPS (8 threads, 3.54× speedup) with deterministic 0.9508 Recall@10 across all configurations. (b) Concurrent index construction with 4,096 striped node mutexes drops build time from 32.61s down to 4.31s (7.57× speedup on 12 threads).", fig_caption_style))
 
-    # Subsection 6.7: Dataset Scale Expansion (SIFT-100K to SIFT-250K)
+    # Subsection 6.7: Dataset Scale Expansion (SIFT-100K to SIFT-500K)
     story.append(Spacer(1, 6))
-    story.append(Paragraph("<b>6.7 Dataset Scale Expansion (SIFT-100K to SIFT-250K on Commodity Laptop):</b> To evaluate whether manifold-adaptive benefits compound as corpus size expands on consumer hardware, we evaluated AdaptiveVec against Baseline HNSW across SIFT-100K (100,000 vectors) and SIFT-250K (250,000 vectors, 2.5× scale expansion) using 12 worker threads. On SIFT-250K, AdaptiveVec prunes 575,314 redundant links (-8.55% edges), accelerates concurrent construction from 157.1s down to 97.8s (1.61× faster build), and reduces distance evaluations by -37.4% (786.2 vs. 1,256.1 evals/query). Evaluation on 1,000,000 (1M) and multi-million vector corpora is reserved for institutional high-performance cluster infrastructure.", body_style))
+    story.append(Paragraph("<b>6.7 Dataset Scale Expansion (SIFT-100K to SIFT-500K on Commodity Laptop):</b> To evaluate whether manifold-adaptive benefits compound as corpus size expands on consumer hardware, we evaluated AdaptiveVec against Baseline HNSW across SIFT-100K (100,000 vectors), SIFT-250K (250,000 vectors), and SIFT-500K (500,000 vectors, 5.0× scale expansion) using 12 worker threads. On SIFT-500K, AdaptiveVec prunes 1,266,831 redundant links (-9.44% edges), preserves memory headroom (294.3 MB vs. 299.1 MB), and reduces query distance evaluation hops by -34.2% (864.1 vs. 1,312.7 evals/query). Evaluation on multi-million vector corpora is reserved for institutional high-performance cluster infrastructure.", body_style))
     story.append(Spacer(1, 4))
 
     # Scale Table
@@ -1331,6 +1331,15 @@ def build_pdf(filename=None):
             Paragraph("1,256.1<br/><b>786.2 (-37.4%)</b>", table_cell_style),
             Paragraph("0.9836<br/>0.9296", table_cell_style),
         ],
+        [
+            Paragraph("SIFT-500K<br/>(500,000)", table_cell_style),
+            Paragraph("Baseline HNSW<br/><b>AdaptiveVec</b>", table_cell_style),
+            Paragraph("13,414,363<br/><b>12,147,532 (-9.44%)</b>", table_cell_style),
+            Paragraph("92.2 s<br/><b>215.3 s</b>", table_cell_style),
+            Paragraph("299.1 MB<br/><b>294.3 MB</b>", table_cell_style),
+            Paragraph("1,312.7<br/><b>864.1 (-34.2%)</b>", table_cell_style),
+            Paragraph("0.9733<br/>0.9183", table_cell_style),
+        ],
     ]
     scale_table = Table(scale_table_data, colWidths=[74, 80, 85, 75, 60, 70, 60])
     scale_table.setStyle(get_booktabs_style(primary_color))
@@ -1342,7 +1351,7 @@ def build_pdf(filename=None):
     if os.path.exists(fig6_path):
         story.append(Spacer(1, 4))
         story.append(Image(fig6_path, width=480, height=192))
-        story.append(Paragraph("<b>Fig. 6.</b> Dataset scale expansion from SIFT-100K to SIFT-250K on commodity laptop hardware (Intel Core 5 210H, 12 threads). (a) Graph edge reduction is maintained across scale (-10.6% at 100K, -8.6% at 250K, saving 575,314 links). (b) Build time drops from 157.1s to 97.8s (1.61× build speedup) while reducing distance search hops by -37.4%. Full 1M+ scale campaigns are designated for institutional server infrastructure.", fig_caption_style))
+        story.append(Paragraph("<b>Fig. 6.</b> Dataset scale expansion from SIFT-100K to SIFT-500K on commodity laptop hardware (Intel Core 5 210H, 12 threads). (a) Graph edge reduction is maintained across scale (-10.6% at 100K, -8.6% at 250K, -9.4% at 500K, pruning 1,266,831 links on 500K). (b) Query distance evaluations per search consistently contract by -34.2% to -39.0% across all evaluated scales (864.1 vs 1,312.7 hops on 500K). Full multi-million scale campaigns are designated for institutional server infrastructure.", fig_caption_style))
 
     # Subsection 6.8: Frontier 1: Query-Time Dynamic efSearch
     story.append(Spacer(1, 6))
