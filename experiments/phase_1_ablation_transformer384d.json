@@ -1,0 +1,398 @@
+{
+  "dataset": "transformer384d",
+  "base_count": 57893,
+  "dim": 384,
+  "query_count": 1000,
+  "configurations": [
+    {
+      "name": "Canonical HNSW",
+      "build_time_s": 10.3894,
+      "total_edges": 1570175,
+      "layer0_edges": 1508586,
+      "upper_edges": 61589,
+      "steady_state_ws_mb": 198.656,
+      "private_mb": 196.027,
+      "peak_ws_mb": 201.043,
+      "owned_capacity_mb": 100.659,
+      "avg_bridge_score": 0,
+      "bridge_preservation_ratio": 1,
+      "sweep": [
+        {
+          "ef": 16,
+          "recall10": 0.859,
+          "mt_qps": 15737.6,
+          "st_qps": 7147.96,
+          "lat_mean_us": 139.9,
+          "lat_p50_us": 127.8,
+          "lat_p95_us": 239.4,
+          "lat_p99_us": 398.9
+        },
+        {
+          "ef": 32,
+          "recall10": 0.9031,
+          "mt_qps": 4770.53,
+          "st_qps": 3197.22,
+          "lat_mean_us": 312.772,
+          "lat_p50_us": 282.3,
+          "lat_p95_us": 600.8,
+          "lat_p99_us": 840.6
+        },
+        {
+          "ef": 64,
+          "recall10": 0.9301,
+          "mt_qps": 3764.12,
+          "st_qps": 2378.66,
+          "lat_mean_us": 420.405,
+          "lat_p50_us": 371.1,
+          "lat_p95_us": 825.5,
+          "lat_p99_us": 1418.1
+        },
+        {
+          "ef": 128,
+          "recall10": 0.9599,
+          "mt_qps": 3127.54,
+          "st_qps": 905.02,
+          "lat_mean_us": 1104.95,
+          "lat_p50_us": 829.7,
+          "lat_p95_us": 2054.2,
+          "lat_p99_us": 8818.6
+        },
+        {
+          "ef": 256,
+          "recall10": 0.9788,
+          "mt_qps": 2116.22,
+          "st_qps": 641.47,
+          "lat_mean_us": 1558.92,
+          "lat_p50_us": 1204.8,
+          "lat_p95_us": 3973,
+          "lat_p99_us": 7456.6
+        }
+      ]
+    },
+    {
+      "name": "Adaptive without Hubness Regulation",
+      "build_time_s": 19.6867,
+      "total_edges": 1567487,
+      "layer0_edges": 1510076,
+      "upper_edges": 57411,
+      "steady_state_ws_mb": 202.668,
+      "private_mb": 198.957,
+      "peak_ws_mb": 205.293,
+      "owned_capacity_mb": 101.967,
+      "avg_bridge_score": 0,
+      "bridge_preservation_ratio": 1,
+      "sweep": [
+        {
+          "ef": 16,
+          "recall10": 0.8753,
+          "mt_qps": 12859.9,
+          "st_qps": 8356.89,
+          "lat_mean_us": 119.662,
+          "lat_p50_us": 106.4,
+          "lat_p95_us": 217.9,
+          "lat_p99_us": 320.7
+        },
+        {
+          "ef": 32,
+          "recall10": 0.922,
+          "mt_qps": 9720.36,
+          "st_qps": 5676,
+          "lat_mean_us": 176.18,
+          "lat_p50_us": 160.3,
+          "lat_p95_us": 320.7,
+          "lat_p99_us": 445.5
+        },
+        {
+          "ef": 64,
+          "recall10": 0.9499,
+          "mt_qps": 7029.66,
+          "st_qps": 3727.54,
+          "lat_mean_us": 268.274,
+          "lat_p50_us": 248.1,
+          "lat_p95_us": 490.6,
+          "lat_p99_us": 658
+        },
+        {
+          "ef": 128,
+          "recall10": 0.9679,
+          "mt_qps": 5209.18,
+          "st_qps": 2394.41,
+          "lat_mean_us": 417.639,
+          "lat_p50_us": 375.4,
+          "lat_p95_us": 778.8,
+          "lat_p99_us": 1076.8
+        },
+        {
+          "ef": 256,
+          "recall10": 0.9745,
+          "mt_qps": 3531.71,
+          "st_qps": 1547.32,
+          "lat_mean_us": 646.279,
+          "lat_p50_us": 585.6,
+          "lat_p95_us": 1232.2,
+          "lat_p99_us": 1576.2
+        }
+      ]
+    },
+    {
+      "name": "Original Hubness Regulation (mu=0.15)",
+      "build_time_s": 22.0223,
+      "total_edges": 1484826,
+      "layer0_edges": 1428229,
+      "upper_edges": 56597,
+      "steady_state_ws_mb": 201.695,
+      "private_mb": 197.754,
+      "peak_ws_mb": 205.293,
+      "owned_capacity_mb": 101.486,
+      "avg_bridge_score": 0,
+      "bridge_preservation_ratio": 1,
+      "sweep": [
+        {
+          "ef": 16,
+          "recall10": 0.8067,
+          "mt_qps": 38932.8,
+          "st_qps": 14420.9,
+          "lat_mean_us": 69.344,
+          "lat_p50_us": 58.8,
+          "lat_p95_us": 134.8,
+          "lat_p99_us": 307.1
+        },
+        {
+          "ef": 32,
+          "recall10": 0.8528,
+          "mt_qps": 28222.2,
+          "st_qps": 8491.23,
+          "lat_mean_us": 117.769,
+          "lat_p50_us": 107.2,
+          "lat_p95_us": 223.2,
+          "lat_p99_us": 306.3
+        },
+        {
+          "ef": 64,
+          "recall10": 0.8846,
+          "mt_qps": 20339,
+          "st_qps": 6844.66,
+          "lat_mean_us": 146.099,
+          "lat_p50_us": 126.9,
+          "lat_p95_us": 289.9,
+          "lat_p99_us": 396
+        },
+        {
+          "ef": 128,
+          "recall10": 0.9153,
+          "mt_qps": 15387.1,
+          "st_qps": 4437.88,
+          "lat_mean_us": 225.333,
+          "lat_p50_us": 194.9,
+          "lat_p95_us": 467.6,
+          "lat_p99_us": 637.3
+        },
+        {
+          "ef": 256,
+          "recall10": 0.9377,
+          "mt_qps": 11145,
+          "st_qps": 2950.56,
+          "lat_mean_us": 338.918,
+          "lat_p50_us": 293,
+          "lat_p95_us": 689.2,
+          "lat_p99_us": 972.9
+        }
+      ]
+    },
+    {
+      "name": "Calibrated Hubness Regulation (mu=0.03)",
+      "build_time_s": 7.73553,
+      "total_edges": 1490190,
+      "layer0_edges": 1433347,
+      "upper_edges": 56843,
+      "steady_state_ws_mb": 201.641,
+      "private_mb": 197.684,
+      "peak_ws_mb": 205.293,
+      "owned_capacity_mb": 101.51,
+      "avg_bridge_score": 0,
+      "bridge_preservation_ratio": 1,
+      "sweep": [
+        {
+          "ef": 16,
+          "recall10": 0.8164,
+          "mt_qps": 34640.3,
+          "st_qps": 25501.8,
+          "lat_mean_us": 39.2129,
+          "lat_p50_us": 35.5,
+          "lat_p95_us": 69.4,
+          "lat_p99_us": 96.7
+        },
+        {
+          "ef": 32,
+          "recall10": 0.8637,
+          "mt_qps": 43598.3,
+          "st_qps": 15777.8,
+          "lat_mean_us": 63.3802,
+          "lat_p50_us": 57.7,
+          "lat_p95_us": 119.8,
+          "lat_p99_us": 157.4
+        },
+        {
+          "ef": 64,
+          "recall10": 0.8968,
+          "mt_qps": 23467.5,
+          "st_qps": 9767.76,
+          "lat_mean_us": 102.378,
+          "lat_p50_us": 91.6,
+          "lat_p95_us": 203.4,
+          "lat_p99_us": 278.6
+        },
+        {
+          "ef": 128,
+          "recall10": 0.9217,
+          "mt_qps": 8653.09,
+          "st_qps": 5891.43,
+          "lat_mean_us": 169.738,
+          "lat_p50_us": 146.1,
+          "lat_p95_us": 348.2,
+          "lat_p99_us": 484.7
+        },
+        {
+          "ef": 256,
+          "recall10": 0.9419,
+          "mt_qps": 10597.7,
+          "st_qps": 3510.84,
+          "lat_mean_us": 284.832,
+          "lat_p50_us": 243.3,
+          "lat_p95_us": 604,
+          "lat_p99_us": 817.9
+        }
+      ]
+    },
+    {
+      "name": "Bridge-Aware Hubness Regulation (mu=0.15, B)",
+      "build_time_s": 7.81636,
+      "total_edges": 1488819,
+      "layer0_edges": 1432025,
+      "upper_edges": 56794,
+      "steady_state_ws_mb": 202.551,
+      "private_mb": 199.051,
+      "peak_ws_mb": 205.293,
+      "owned_capacity_mb": 101.498,
+      "avg_bridge_score": 0.755711,
+      "bridge_preservation_ratio": 1.00866,
+      "sweep": [
+        {
+          "ef": 16,
+          "recall10": 0.8073,
+          "mt_qps": 24519.4,
+          "st_qps": 21382.3,
+          "lat_mean_us": 46.7676,
+          "lat_p50_us": 41.3,
+          "lat_p95_us": 81.9,
+          "lat_p99_us": 120.6
+        },
+        {
+          "ef": 32,
+          "recall10": 0.852,
+          "mt_qps": 18115.1,
+          "st_qps": 11561.7,
+          "lat_mean_us": 86.4925,
+          "lat_p50_us": 66.4,
+          "lat_p95_us": 173.8,
+          "lat_p99_us": 552
+        },
+        {
+          "ef": 64,
+          "recall10": 0.8889,
+          "mt_qps": 11308.4,
+          "st_qps": 7186.91,
+          "lat_mean_us": 139.142,
+          "lat_p50_us": 112.1,
+          "lat_p95_us": 293,
+          "lat_p99_us": 688.2
+        },
+        {
+          "ef": 128,
+          "recall10": 0.9167,
+          "mt_qps": 10473.8,
+          "st_qps": 4178.19,
+          "lat_mean_us": 239.338,
+          "lat_p50_us": 183.3,
+          "lat_p95_us": 541.9,
+          "lat_p99_us": 1024.3
+        },
+        {
+          "ef": 256,
+          "recall10": 0.9408,
+          "mt_qps": 11723.1,
+          "st_qps": 3838.18,
+          "lat_mean_us": 260.54,
+          "lat_p50_us": 226.7,
+          "lat_p95_us": 533.9,
+          "lat_p99_us": 752.8
+        }
+      ]
+    },
+    {
+      "name": "Bridge-Aware Calibrated (mu=0.03, B)",
+      "build_time_s": 11.0203,
+      "total_edges": 1522272,
+      "layer0_edges": 1464849,
+      "upper_edges": 57423,
+      "steady_state_ws_mb": 203.113,
+      "private_mb": 199.648,
+      "peak_ws_mb": 205.352,
+      "owned_capacity_mb": 101.686,
+      "avg_bridge_score": 0.844196,
+      "bridge_preservation_ratio": 1.00267,
+      "sweep": [
+        {
+          "ef": 16,
+          "recall10": 0.8475,
+          "mt_qps": 18569.4,
+          "st_qps": 12099.7,
+          "lat_mean_us": 82.6467,
+          "lat_p50_us": 67.5,
+          "lat_p95_us": 136.9,
+          "lat_p99_us": 248.6
+        },
+        {
+          "ef": 32,
+          "recall10": 0.8965,
+          "mt_qps": 19842.5,
+          "st_qps": 6704.52,
+          "lat_mean_us": 149.153,
+          "lat_p50_us": 134.6,
+          "lat_p95_us": 270.5,
+          "lat_p99_us": 399.5
+        },
+        {
+          "ef": 64,
+          "recall10": 0.9248,
+          "mt_qps": 16894.4,
+          "st_qps": 4426.24,
+          "lat_mean_us": 225.925,
+          "lat_p50_us": 197,
+          "lat_p95_us": 451,
+          "lat_p99_us": 669.4
+        },
+        {
+          "ef": 128,
+          "recall10": 0.9522,
+          "mt_qps": 11220.8,
+          "st_qps": 2860.77,
+          "lat_mean_us": 349.557,
+          "lat_p50_us": 304.4,
+          "lat_p95_us": 697.1,
+          "lat_p99_us": 1037.6
+        },
+        {
+          "ef": 256,
+          "recall10": 0.9664,
+          "mt_qps": 6893.87,
+          "st_qps": 1609.9,
+          "lat_mean_us": 621.156,
+          "lat_p50_us": 512.9,
+          "lat_p95_us": 1220.7,
+          "lat_p99_us": 2582.5
+        }
+      ]
+    }
+  ]
+}

@@ -57,7 +57,10 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def_readwrite("keep_raw_vectors", &PolicyConfig::keep_raw_vectors)
         .def_readwrite("enable_rerank", &PolicyConfig::enable_rerank)
         .def_readwrite("global_seed", &PolicyConfig::global_seed)
-        .def_readwrite("use_deterministic_level_hash", &PolicyConfig::use_deterministic_level_hash);
+        .def_readwrite("use_deterministic_level_hash", &PolicyConfig::use_deterministic_level_hash)
+        .def_readwrite("enable_bridge_aware", &PolicyConfig::enable_bridge_aware)
+        .def_readwrite("bridge_alpha", &PolicyConfig::bridge_alpha)
+        .def_readwrite("bridge_estimator", &PolicyConfig::bridge_estimator);
 
     // MemoryBreakdown struct
     py::class_<MemoryBreakdown>(m, "MemoryBreakdown")
@@ -72,7 +75,8 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def_readonly("allocator_overhead_bytes", &MemoryBreakdown::allocator_overhead_bytes)
         .def_readonly("total_owned_bytes", &MemoryBreakdown::total_owned_bytes)
         .def_readonly("process_working_set_bytes", &MemoryBreakdown::process_working_set_bytes)
-        .def_readonly("peak_process_working_set_bytes", &MemoryBreakdown::peak_process_working_set_bytes);
+        .def_readonly("peak_process_working_set_bytes", &MemoryBreakdown::peak_process_working_set_bytes)
+        .def_readonly("process_private_bytes", &MemoryBreakdown::process_private_bytes);
 
     // Candidate struct
     py::class_<Candidate>(m, "Candidate")
@@ -142,6 +146,11 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def("get_layer0_edges", &AdaptiveHNSWIndex::get_layer0_edges, "Return layer 0 edges")
         .def("get_upper_layer_edges", &AdaptiveHNSWIndex::get_upper_layer_edges, "Return upper layer edges")
         .def("get_active_count", &AdaptiveHNSWIndex::get_active_count, "Return count of active non-deleted vectors")
+        .def("get_bridge_score", &AdaptiveHNSWIndex::get_bridge_score, py::arg("node_id"), "Return bridge score B(v) for node")
+        .def("get_bridge_scores", &AdaptiveHNSWIndex::get_bridge_scores, "Return all bridge scores")
+        .def("get_average_bridge_score", &AdaptiveHNSWIndex::get_average_bridge_score, "Return average bridge score across active nodes")
+        .def("get_bridge_preservation_ratio", &AdaptiveHNSWIndex::get_bridge_preservation_ratio, py::arg("threshold") = 0.5f, "Return connectivity preservation ratio for bridge nodes")
+        .def("update_bridge_scores", &AdaptiveHNSWIndex::update_bridge_scores, "Recompute bridge scores for all nodes")
         .def_readonly("num_elements", &AdaptiveHNSWIndex::num_elements)
         .def_readonly("dim", &AdaptiveHNSWIndex::dim)
         .def_readwrite("policy", &AdaptiveHNSWIndex::policy);

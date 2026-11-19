@@ -60,23 +60,26 @@ enum class PolicyType {
 struct ProcessMemoryMetrics {
     size_t working_set_bytes = 0;
     size_t peak_working_set_bytes = 0;
+    size_t private_bytes = 0;
 };
 
 inline ProcessMemoryMetrics get_process_memory_metrics() {
     ProcessMemoryMetrics m;
 #if defined(_WIN32) || defined(_WIN64)
-    PROCESS_MEMORY_COUNTERS pmc;
-    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
         m.working_set_bytes = pmc.WorkingSetSize;
         m.peak_working_set_bytes = pmc.PeakWorkingSetSize;
+        m.private_bytes = pmc.PrivateUsage;
     }
 #elif defined(__linux__)
     FILE* f = fopen("/proc/self/statm", "r");
     if (f) {
-        long rss = 0;
-        if (fscanf(f, "%*s%ld", &rss) == 1) {
+        long rss = 0, data = 0;
+        if (fscanf(f, "%*s%ld%*s%*s%*s%ld", &rss, &data) >= 1) {
             long page_size = sysconf(_SC_PAGESIZE);
             m.working_set_bytes = rss * page_size;
+            m.private_bytes = data * page_size;
         }
         fclose(f);
     }
@@ -100,6 +103,7 @@ struct MemoryBreakdown {
     size_t total_owned_bytes = 0;
     size_t process_working_set_bytes = 0;
     size_t peak_process_working_set_bytes = 0;
+    size_t process_private_bytes = 0;
 };
 
 struct PolicyConfig {
@@ -136,6 +140,11 @@ struct PolicyConfig {
     float ada_ef_epsilon = 1e-4f;
     int sq8_rerank_factor = 2; // K = 2 * k
     int sq4_rerank_factor = 3; // K = 3 * k (Frontier 3 Sub-Byte)
+    
+    // Stage 2: Bridge-Aware Hubness Regulation
+    bool enable_bridge_aware = false; // Disabled by default
+    float bridge_alpha = 1.0f;        // Attenuation strength of bridge score B(v)
+    int bridge_estimator = 0;         // 0: Clustering Coeff, 1: Directional Dispersion, 2: Density Contrast
     
     // Online tracking state
     bool use_streaming_welford = true;
@@ -681,6 +690,7 @@ public:
     // Hubness regulation: layer-0 in-degree tracking
     std::vector<uint32_t> in_degrees;
     std::atomic<uint64_t> total_in_degrees{0}; // Atomic synchronization to prevent data races
+    std::vector<float> bridge_scores;          // Stage 2: Structural bridge scores B(v) in [0, 1]
     
     // Frontier 2: Dynamic Streaming Node Deletions & Tombstone Tracking
     std::vector<uint8_t> deleted;
@@ -1002,7 +1012,141 @@ public:
         return result;
     }
     
-    // Algorithm 4: SELECT-NEIGHBORS-HEURISTIC with Hubness-Aware In-Degree Regulation
+    // Stage 2: Structural Bridge Estimation
+    float compute_bridge_score(tableint u) const {
+        if (graphs.empty() || u >= graphs[0].size()) return 0.0f;
+        const auto& neighbors = graphs[0][u];
+        size_t k = neighbors.size();
+        if (k < 2) return 0.0f;
+        
+        if (policy.bridge_estimator == 1) {
+            // Estimator 1: Directional Dispersion of Displacement Vectors
+            // Transit bridges connecting separate clusters exhibit opposing neighbor directions.
+            const float* u_vec = get_vector(u);
+            size_t sample_k = std::min(k, (size_t)8);
+            float min_cos = 1.0f;
+            for (size_t i = 0; i < sample_k; ++i) {
+                tableint ni = neighbors[(i * k) / sample_k];
+                if (ni >= num_elements) continue;
+                const float* vi = get_vector(ni);
+                for (size_t j = i + 1; j < sample_k; ++j) {
+                    tableint nj = neighbors[(j * k) / sample_k];
+                    if (nj >= num_elements) continue;
+                    const float* vj = get_vector(nj);
+                    float dot = 0.0f, n1_sq = 0.0f, n2_sq = 0.0f;
+                    for (size_t d = 0; d < dim; ++d) {
+                        float d1 = vi[d] - u_vec[d];
+                        float d2 = vj[d] - u_vec[d];
+                        dot += d1 * d2;
+                        n1_sq += d1 * d1;
+                        n2_sq += d2 * d2;
+                    }
+                    float denom = std::sqrt(n1_sq * n2_sq);
+                    if (denom > 1e-8f) {
+                        float cos_sim = dot / denom;
+                        if (cos_sim < min_cos) min_cos = cos_sim;
+                    }
+                }
+            }
+            return std::max(0.0f, std::min(1.0f, (1.0f - min_cos) * 0.5f));
+        } else if (policy.bridge_estimator == 2) {
+            // Estimator 2: Local Density Contrast
+            // Bridge nodes reside in sparse interstitial corridors linking dense clusters.
+            float u_dens = (u < node_params.size()) ? node_params[u].density : 1.0f;
+            float sum_dens = 0.0f;
+            size_t sample_k = std::min(k, (size_t)8);
+            for (size_t i = 0; i < sample_k; ++i) {
+                tableint ni = neighbors[(i * k) / sample_k];
+                sum_dens += (ni < node_params.size()) ? node_params[ni].density : 1.0f;
+            }
+            float mean_nbr_dens = sum_dens / static_cast<float>(sample_k);
+            if (mean_nbr_dens > 1e-6f && u_dens < mean_nbr_dens) {
+                return std::min(1.0f, (mean_nbr_dens - u_dens) / mean_nbr_dens);
+            }
+            return 0.0f;
+        } else {
+            // Default Estimator 0: Local Neighborhood Clustering Coefficient C(u)
+            // Bridges connect disjoint clusters -> neighbors are not connected to each other (C(u) -> 0).
+            // Intra-cluster hubs have high interconnected neighbors (C(u) -> 1).
+            // Bridge score B(u) = 1.0 - C(u).
+            size_t sample_k = std::min(k, (size_t)8);
+            size_t pairs_checked = 0;
+            size_t edges_found = 0;
+            
+            for (size_t i = 0; i < sample_k; ++i) {
+                tableint n1 = neighbors[(i * k) / sample_k];
+                if (n1 >= graphs[0].size()) continue;
+                const auto& n1_list = graphs[0][n1];
+                for (size_t j = i + 1; j < sample_k; ++j) {
+                    tableint n2 = neighbors[(j * k) / sample_k];
+                    pairs_checked++;
+                    if (std::find(n1_list.begin(), n1_list.end(), n2) != n1_list.end()) {
+                        edges_found++;
+                    }
+                }
+            }
+            
+            if (pairs_checked == 0) return 0.0f;
+            float clustering_coeff = static_cast<float>(edges_found) / static_cast<float>(pairs_checked);
+            return std::max(0.0f, std::min(1.0f, 1.0f - clustering_coeff));
+        }
+    }
+
+    void update_bridge_scores() {
+        if (!policy.enable_bridge_aware || graphs.empty()) return;
+        size_t n = std::min(num_elements, graphs[0].size());
+        bridge_scores.resize(n, 0.0f);
+        #pragma omp parallel for schedule(dynamic, 1024)
+        for (size_t i = 0; i < n; ++i) {
+            if (!is_deleted((tableint)i)) {
+                bridge_scores[i] = compute_bridge_score((tableint)i);
+            } else {
+                bridge_scores[i] = 0.0f;
+            }
+        }
+    }
+
+    float get_bridge_score(tableint id) const {
+        return (id < bridge_scores.size()) ? bridge_scores[id] : 0.0f;
+    }
+
+    const std::vector<float>& get_bridge_scores() const {
+        return bridge_scores;
+    }
+
+    float get_average_bridge_score() const {
+        if (bridge_scores.empty()) return 0.0f;
+        double sum = 0.0;
+        size_t cnt = 0;
+        for (size_t i = 0; i < bridge_scores.size(); ++i) {
+            if (!is_deleted((tableint)i)) {
+                sum += bridge_scores[i];
+                cnt++;
+            }
+        }
+        return cnt > 0 ? static_cast<float>(sum / cnt) : 0.0f;
+    }
+
+    float get_bridge_preservation_ratio(float bridge_threshold = 0.5f) const {
+        if (bridge_scores.empty() || graphs.empty()) return 1.0f;
+        size_t bridge_nodes = 0;
+        size_t bridge_edges = 0;
+        size_t n = std::min(bridge_scores.size(), graphs[0].size());
+        for (size_t i = 0; i < n; ++i) {
+            if (!is_deleted((tableint)i) && bridge_scores[i] >= bridge_threshold) {
+                bridge_nodes++;
+                bridge_edges += graphs[0][i].size();
+            }
+        }
+        if (bridge_nodes == 0) return 1.0f;
+        float avg_bridge_deg = static_cast<float>(bridge_edges) / static_cast<float>(bridge_nodes);
+        float avg_all_deg = (total_in_degrees.load() > 0 && num_elements > 0)
+            ? (static_cast<float>(total_in_degrees.load()) / static_cast<float>(num_elements))
+            : static_cast<float>(policy.m_base);
+        return avg_bridge_deg / std::max(1.0f, avg_all_deg);
+    }
+    
+    // Algorithm 4: SELECT-NEIGHBORS-HEURISTIC with Bridge-Aware Hubness Regulation
     std::vector<tableint> select_neighbors_heuristic(
         const float* /* query */,
         const std::vector<Candidate>& candidates,
@@ -1032,9 +1176,14 @@ public:
                 dist_t dist_c_r = get_distance_sq(c_vec, get_vector(r_id));
                 
                 // Hubness Regulation: Penalize high-degree hubs from shadowing diverse neighbors
+                // Stage 2: Bridge-Aware attenuation: d_eff = d * [1 + mu * H(v) * (1 - alpha * B(v))]
                 if (policy.enable_hubness_regulation && lc == 0 && !in_degrees.empty()) {
                     float deg_r = (r_id < in_degrees.size()) ? (float)in_degrees[r_id] : 0.0f;
-                    dist_c_r *= (1.0f + policy.hubness_mu * (deg_r / mean_deg));
+                    float h_r = deg_r / mean_deg;
+                    float b_r = (policy.enable_bridge_aware && r_id < bridge_scores.size()) ? bridge_scores[r_id] : 0.0f;
+                    float penalty = 1.0f + policy.hubness_mu * h_r * (1.0f - policy.bridge_alpha * b_r);
+                    if (penalty < 1.0f) penalty = 1.0f;
+                    dist_c_r *= (penalty * penalty);
                 }
                 
                 if (dist_c_r < c.dist) {
@@ -1087,6 +1236,7 @@ public:
         
         in_degrees.push_back(0);
         deleted.push_back(0);
+        bridge_scores.push_back(0.0f);
         
         if (q_idx == 0) {
             enter_point = 0;
@@ -1190,6 +1340,10 @@ public:
             if (!w.empty()) curr_ep = w[0].id;
         }
         
+        if (policy.enable_bridge_aware) {
+            bridge_scores[q_idx] = compute_bridge_score(q_idx);
+        }
+        
         if (q_level > max_level) {
             max_level = q_level;
             enter_point = q_idx;
@@ -1258,6 +1412,7 @@ public:
             node_params[i] = NodeParams{policy.m_base, policy.m_base, 2 * policy.m_base, policy.ef_c_base, 0.0f, 0.0f, 0.0f};
         }
         in_degrees.resize(n_vectors, 0);
+        bridge_scores.resize(n_vectors, 0.0f);
         deleted.resize(n_vectors, 0);
 
         // Pre-generate levels and ensure graphs layers exist
@@ -1274,8 +1429,11 @@ public:
             if (graphs[l].size() < n_vectors) {
                 graphs[l].resize(n_vectors);
             }
+            int r_cap = (l == 0) ? (policy.m_base * 2 + 4) : (policy.m_base + 4);
             for (size_t i = 0; i < n_vectors; ++i) {
-                graphs[l][i].reserve(64);
+                if (l == 0 || node_levels[i] >= (int)l) {
+                    graphs[l][i].reserve(r_cap);
+                }
             }
         }
 
@@ -1377,6 +1535,10 @@ public:
                 if (!w.empty()) curr_ep = w[0].id;
             }
 
+            if (policy.enable_bridge_aware) {
+                bridge_scores[q_idx] = compute_bridge_score((tableint)q_idx);
+            }
+
             if (q_level > max_level) {
                 std::lock_guard<std::mutex> lk(entry_point_mutex);
                 if (q_level > max_level) {
@@ -1418,6 +1580,16 @@ public:
         uint64_t total = 0;
         for (size_t i = 0; i < n_vectors; ++i) total += in_degrees[i];
         total_in_degrees = total;
+
+        // Finalize bridge scores across all nodes if bridge awareness is active
+        if (policy.enable_bridge_aware) {
+            #if defined(_OPENMP)
+            #pragma omp parallel for schedule(dynamic, 1024)
+            #endif
+            for (size_t i = 0; i < n_vectors; ++i) {
+                bridge_scores[i] = compute_bridge_score((tableint)i);
+            }
+        }
     }
 
     /**
@@ -1662,6 +1834,7 @@ public:
             node_levels.clear();
             node_params.clear();
             in_degrees.clear();
+            bridge_scores.clear();
             deleted.clear();
             num_elements = 0;
             num_deleted = 0;
@@ -1735,6 +1908,7 @@ public:
         deleted.assign(new_count, 0);
 
         in_degrees.assign(new_count, 0);
+        bridge_scores.assign(new_count, 0.0f);
         uint64_t total = 0;
         if (!graphs.empty()) {
             for (tableint u = 0; u < new_count; ++u) {
@@ -1745,6 +1919,9 @@ public:
             for (tableint u = 0; u < new_count; ++u) total += in_degrees[u];
         }
         total_in_degrees = total;
+        if (policy.enable_bridge_aware) {
+            update_bridge_scores();
+        }
 
         if (enter_point < id_map.size() && id_map[enter_point] != (tableint)-1) {
             enter_point = id_map[enter_point];
@@ -1982,7 +2159,8 @@ public:
             node_levels.capacity() * sizeof(int) +
             node_params.capacity() * sizeof(NodeParams) +
             in_degrees.capacity() * sizeof(uint32_t) +
-            deleted.capacity() * sizeof(uint8_t);
+            deleted.capacity() * sizeof(uint8_t) +
+            bridge_scores.capacity() * sizeof(float);
             
         // 6. Quantization parameters
         mb.quantization_params_bytes = 
@@ -2004,10 +2182,11 @@ public:
             mb.quantization_params_bytes +
             mb.synchronization_bytes;
             
-        // 10. Process working set from OS
+        // 10. Process working set and private bytes from OS
         ProcessMemoryMetrics pmm = get_process_memory_metrics();
         mb.process_working_set_bytes = pmm.working_set_bytes;
         mb.peak_process_working_set_bytes = pmm.peak_working_set_bytes;
+        mb.process_private_bytes = pmm.private_bytes;
         
         return mb;
     }

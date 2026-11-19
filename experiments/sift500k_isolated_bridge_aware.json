@@ -1,0 +1,64 @@
+{
+  "engine": "adaptivevec_bridge_aware",
+  "n_samples": 500000,
+  "dim": 128,
+  "build_time_sec": 147.934,
+  "total_edges": 12575862,
+  "initial_working_set_mb": 5.25391,
+  "initial_private_mb": 1.03906,
+  "dataset_loaded_working_set_mb": 250.59,
+  "peak_construction_working_set_mb": 727.594,
+  "steady_state_working_set_mb": 460.527,
+  "steady_state_private_mb": 458.211,
+  "allocated_capacity_mb": 410.348,
+  "resident_fp32_mb": 244.141,
+  "graph_adjacency_mb": 146.624,
+  "per_node_metadata_mb": 19.5503,
+  "evaluations": [
+    {
+      "ef_search": 16,
+      "recall_at_10": 0.8154,
+      "qps": 13596.6,
+      "latency_mean_us": 107.047,
+      "latency_p50_us": 101.8,
+      "latency_p95_us": 164.1,
+      "latency_p99_us": 244.7
+    },
+    {
+      "ef_search": 32,
+      "recall_at_10": 0.9145,
+      "qps": 10523.2,
+      "latency_mean_us": 155.948,
+      "latency_p50_us": 151.6,
+      "latency_p95_us": 224.7,
+      "latency_p99_us": 298.4
+    },
+    {
+      "ef_search": 64,
+      "recall_at_10": 0.9676,
+      "qps": 7542.42,
+      "latency_mean_us": 266.515,
+      "latency_p50_us": 250,
+      "latency_p95_us": 424.9,
+      "latency_p99_us": 812.5
+    },
+    {
+      "ef_search": 128,
+      "recall_at_10": 0.9885,
+      "qps": 4881.92,
+      "latency_mean_us": 548.856,
+      "latency_p50_us": 439.5,
+      "latency_p95_us": 815.9,
+      "latency_p99_us": 5271.4
+    },
+    {
+      "ef_search": 256,
+      "recall_at_10": 0.9958,
+      "qps": 2990.37,
+      "latency_mean_us": 668.288,
+      "latency_p50_us": 653.7,
+      "latency_p95_us": 1066.3,
+      "latency_p99_us": 1332.2
+    }
+  ]
+}

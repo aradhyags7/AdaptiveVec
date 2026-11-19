@@ -332,9 +332,73 @@ void test_boundary_conditions() {
     TEST_ASSERT(res_large_k.size() == 21, "Search with k > N must return exactly N elements");
 }
 
+// 9. Bridge-Aware Hubness Regulation & Structural Bridge Estimation
+void test_bridge_aware_hubness_regulation() {
+    const size_t dim = 16;
+    PolicyConfig policy;
+    policy.enable_hubness_regulation = true;
+    policy.enable_bridge_aware = true;
+    policy.hubness_mu = 0.15f;
+    policy.bridge_alpha = 1.0f;
+    policy.bridge_estimator = 0; // Clustering coefficient
+
+    AdaptiveHNSWIndex index(dim, SpaceType::L2, true, policy);
+
+    // Create 2 distinct clusters: Cluster 1 around -4.0, Cluster 2 around +4.0
+    // And 10 transit bridge points near 0.0
+    std::mt19937 rng(42);
+    std::normal_distribution<float> noise(0.0f, 0.2f);
+
+    std::vector<float> data;
+    // 50 points in Cluster 1
+    for (int i = 0; i < 50; ++i) {
+        for (size_t d = 0; d < dim; ++d) {
+            data.push_back(-4.0f + noise(rng));
+        }
+    }
+    // 10 bridge points
+    for (int i = 0; i < 10; ++i) {
+        for (size_t d = 0; d < dim; ++d) {
+            data.push_back(0.0f + noise(rng));
+        }
+    }
+    // 50 points in Cluster 2
+    for (int i = 0; i < 50; ++i) {
+        for (size_t d = 0; d < dim; ++d) {
+            data.push_back(4.0f + noise(rng));
+        }
+    }
+
+    size_t total_points = 110;
+    index.batch_insert(data.data(), total_points, 2);
+
+    TEST_ASSERT(index.num_elements == total_points, "Total points mismatch");
+    
+    // Check bridge scores
+    float avg_b = index.get_average_bridge_score();
+    TEST_ASSERT(avg_b >= 0.0f && avg_b <= 1.0f, "Average bridge score out of [0, 1]");
+
+    // Verify bridge preservation ratio
+    float b_ratio = index.get_bridge_preservation_ratio(0.3f);
+    TEST_ASSERT(b_ratio > 0.0f, "Bridge preservation ratio must be > 0");
+
+    // Perform queries near Cluster 1, Cluster 2, and Bridge
+    std::vector<float> q1(dim, -4.0f);
+    auto res1 = index.search(q1.data(), 5, 32);
+    TEST_ASSERT(!res1.empty() && res1[0].id < 50, "Nearest neighbor for Cluster 1 query should be in Cluster 1");
+
+    std::vector<float> q2(dim, 4.0f);
+    auto res2 = index.search(q2.data(), 5, 32);
+    TEST_ASSERT(!res2.empty() && res2[0].id >= 60, "Nearest neighbor for Cluster 2 query should be in Cluster 2");
+
+    std::vector<float> q_bridge(dim, 0.0f);
+    auto res_bridge = index.search(q_bridge.data(), 5, 32);
+    TEST_ASSERT(!res_bridge.empty() && res_bridge[0].id >= 50 && res_bridge[0].id < 60, "Nearest neighbor for bridge query should be in bridge set");
+}
+
 int main() {
     std::cout << "=================================================================" << std::endl;
-    std::cout << "          AdaptiveVec Phase 0 Native C++ Unit Test Suite         " << std::endl;
+    std::cout << "          AdaptiveVec Phase 1 Native C++ Unit Test Suite         " << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     RUN_TEST(test_metrics_parity_scalar_vs_simd);
@@ -345,9 +409,10 @@ int main() {
     RUN_TEST(test_concurrency_correctness);
     RUN_TEST(test_memory_breakdown);
     RUN_TEST(test_boundary_conditions);
+    RUN_TEST(test_bridge_aware_hubness_regulation);
 
     std::cout << "\n=================================================================" << std::endl;
-    std::cout << " ALL " << g_tests_passed << "/" << g_tests_total << " PHASE 0 C++ TESTS PASSED SUCCESSFULLY!" << std::endl;
+    std::cout << " ALL " << g_tests_passed << "/" << g_tests_total << " PHASE 1 C++ TESTS PASSED SUCCESSFULLY!" << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     return 0;

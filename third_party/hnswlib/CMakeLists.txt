@@ -1,0 +1,281 @@
+cmake_minimum_required(VERSION 3.0...3.26)
+
+project(hnswlib
+    LANGUAGES CXX)
+
+include(GNUInstallDirs)
+include(CheckCXXCompilerFlag)
+
+# These example/test targets catch exceptions, so exceptions should always be
+# enabled building these files even if they are disabled in other targets.
+# We check that each target included in this list is a real target.
+set(HNSWLIB_TARGETS_REQUIRING_EXCEPTIONS
+    example_mt_filter
+    example_mt_replace_deleted
+    example_mt_search
+    multiThread_replace_test
+    test_updates)
+
+set(EXAMPLE_NAMES
+    example_epsilon_search
+    example_filter
+    example_mt_filter
+    example_mt_replace_deleted
+    example_mt_search
+    example_multivector_search
+    example_replace_deleted
+    example_search
+    )
+
+set(TEST_NAMES
+    epsilon_search_test
+    multiThread_replace_test
+    multiThreadLoad_test
+    multivector_search_test
+    no_exceptions_api_test
+    resize_test
+    searchKnnCloserFirst_test
+    searchKnnWithFilter_test
+    )
+
+function(add_cxx_flags)
+    foreach(flag IN LISTS ARGN)
+        string(APPEND CMAKE_CXX_FLAGS " ${flag}")
+    endforeach()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
+endfunction()
+
+macro(add_cxx_flag_if_supported flag)
+    unset(TMP_FLAG_SUPPORTED CACHE)
+    check_cxx_compiler_flag("${flag}" TMP_FLAG_SUPPORTED)
+    if(TMP_FLAG_SUPPORTED)
+        add_cxx_flags("${flag}")
+        message(STATUS "Enabled flag: ${flag}")
+    endif()
+endmacro()
+
+macro(add_first_supported_cxx_flag)
+    foreach(candidate_flag IN ITEMS ${ARGN})
+        unset(TMP_FLAG_SUPPORTED CACHE)
+        check_cxx_compiler_flag("${candidate_flag}" TMP_FLAG_SUPPORTED)
+        if(TMP_FLAG_SUPPORTED)
+            add_cxx_flags("${candidate_flag}")
+            message(STATUS "Selected flag: ${candidate_flag}")
+            break()
+        endif()
+    endforeach()
+endmacro()
+
+# Adds an example or test target. The target name parameter is followed by
+# the list of source files. Automatically links with the hnswlib library.
+# Also decides whether to enable exceptions when building the target.
+# If HNSWLIB_ENABLE_EXCEPTIONS is ON, exceptions are always enabled.
+# If HNSWLIB_ENABLE_EXCEPTIONS is OFF, exceptions are only enabled for the
+# specific targets listed in HNSWLIB_TARGETS_REQUIRING_EXCEPTIONS.
+function(add_example_or_test TARGET_NAME ...)
+    add_executable(${ARGV})
+    target_link_libraries(${TARGET_NAME} hnswlib)
+    list(FIND HNSWLIB_TARGETS_REQUIRING_EXCEPTIONS "${TARGET_NAME}" found_at_index)
+    if(found_at_index GREATER -1)
+        if(NOT HNSWLIB_ENABLE_EXCEPTIONS)
+            message("Enabling exceptions for target ${TARGET_NAME} as a special case")
+        endif()
+        set(should_enable_exceptions ON)
+    else()
+        set(should_enable_exceptions "${HNSWLIB_ENABLE_EXCEPTIONS}")
+    endif()
+    if(should_enable_exceptions)
+        target_compile_options("${TARGET_NAME}" PUBLIC ${ENABLE_EXCEPTIONS_FLAGS})
+    else()
+        target_compile_options("${TARGET_NAME}" PUBLIC ${DISABLE_EXCEPTIONS_FLAGS})
+    endif()
+    if(NOT ${TARGET_NAME} MATCHES "^(main|test_updates)$")
+        # test_updates is not included here as a ctest-enabled test because it
+        # requires generating test data using update_gen_data.py, which requires
+        # installing numpy, which should probably be done in a virtual
+        # environment. Also test_updates needs to be invoked twice: without
+        # arguments, and with one "update" argument. This is currently handled
+        # in the GitHub Actions build.yml file.
+        add_test(
+            NAME ${TARGET_NAME}
+            COMMAND ${TARGET_NAME}
+        )
+    endif()
+endfunction()
+
+
+option(HNSWLIB_ENABLE_EXCEPTIONS "Whether to enable exceptions in hnswlib" ON)
+if(HNSWLIB_ENABLE_EXCEPTIONS)
+    message("Exceptions are enabled using HNSWLIB_ENABLE_EXCEPTIONS=ON (default)")
+else()
+    message("Exceptions are disabled using HNSWLIB_ENABLE_EXCEPTIONS=OFF")
+endif()
+option(ENABLE_ASAN "Whether to enable AddressSanitizer" OFF)
+option(ENABLE_UBSAN "Whether to enable UndefinedBehaviorSanitizer" OFF)
+option(ENABLE_TSAN "Whether to enable ThreadSanitizer" OFF)
+option(ENABLE_MSAN "Whether to enable MemorySanitizer" OFF)
+
+set(CMAKE_CXX_STANDARD 11)
+
+add_library(hnswlib INTERFACE)
+add_library(hnswlib::hnswlib ALIAS hnswlib)
+
+target_include_directories(hnswlib INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
+# Install
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/hnswlib
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+install(TARGETS hnswlib
+    EXPORT hnswlibTargets)
+
+install(EXPORT hnswlibTargets
+    FILE hnswlibConfig.cmake
+    NAMESPACE hnswlib::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hnswlib)
+
+# Examples and tests
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    option(HNSWLIB_EXAMPLES "Build examples and tests." ON)
+else()
+    option(HNSWLIB_EXAMPLES "Build examples and tests." OFF)
+endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(ENABLE_EXCEPTIONS_FLAGS /EHsc)
+    set(DISABLE_EXCEPTIONS_FLAGS /GR- /D_HAS_EXCEPTIONS=0)
+else()
+    set(ENABLE_EXCEPTIONS_FLAGS -fexceptions)
+    set(DISABLE_EXCEPTIONS_FLAGS -fno-exceptions)
+endif()
+
+# RelWithDebInfo assertions apply only when this repo is the top-level
+# project. Forcing the cache from an add_subdirectory() would mutate the
+# parent build.
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    foreach(NDEBUG_FLAG_STR IN ITEMS "/DNDEBUG" "/D NDEBUG" "-DNDEBUG")
+        string(REPLACE "${NDEBUG_FLAG_STR}" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO
+               "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+    endforeach()
+    string(STRIP "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" CMAKE_CXX_FLAGS_RELWITHDEBINFO)
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}"
+        CACHE STRING "Flags for RelWithDebInfo configuration." FORCE)
+endif()
+
+# Do not wipe or FORCE-write CMAKE_CXX_FLAGS. That erased caller-supplied
+# flags even when HNSWLIB_EXAMPLES=OFF (add_subdirectory consumers).
+
+if(HNSWLIB_EXAMPLES)
+    message("Building examples and tests")
+    message("System architecture: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+    enable_testing()
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # We enable optimizations in all build types, even in Debug.
+        add_cxx_flags(-O3 -ffast-math -openmp -ftree-vectorize)
+        add_first_supported_cxx_flag(-march=native -mcpu=apple-m1)
+
+        # Avoiding this compilation error in CI/CD:
+        # invalid feature combination: +avx10.1-256; will be promoted to
+        # avx10.1-512 [-Werror,-Winvalid-feature-combination]
+        add_cxx_flag_if_supported(-Wno-invalid-feature-combination)
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # We enable optimizations in all build types, even in Debug.
+        add_cxx_flags(-Ofast -w -fopenmp -ftree-vectorize -ftree-vectorizer-verbose=0)
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "ppc|powerpc")
+            add_cxx_flags(-mtune=native)
+            message("set -mtune=native flag")
+        else()
+            add_cxx_flags(-march=native)
+            message("set -march=native flag")
+        endif()
+        if(NOT APPLE)
+            add_cxx_flags(-lrt)
+        endif()
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        if (NOT HNSWLIB_ENABLE_EXCEPTIONS)
+            # Do not enable exceptions by default. We will enable them on a
+            # case by case basis when needed.
+            foreach(config IN ITEMS Debug Release RelWithDebInfo MinSizeRel)
+                string(TOUPPER ${config} config_upper)
+                set(FLAGS_VAR "CMAKE_CXX_FLAGS_${config_upper}")
+                string(REPLACE "/EHsc" "" ${FLAGS_VAR} "${${FLAGS_VAR}}")
+                set(${FLAGS_VAR} "${${FLAGS_VAR}}" CACHE STRING
+                    "Flags for ${config} configuration." FORCE)
+            endforeach()
+        endif()
+        add_cxx_flags(/O2 /W1 /openmp)
+    endif()
+    add_cxx_flags(-DHAVE_CXX0X)
+
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # Clang/GCC specific flags.
+        add_cxx_flags(-fpic)
+        if(ENABLE_ASAN)
+            add_cxx_flags(-fsanitize=address)
+        endif()
+        if(ENABLE_UBSAN)
+            add_cxx_flags(-fsanitize=undefined)
+        endif()
+        if(ENABLE_TSAN)
+            add_cxx_flags(-fsanitize=thread)
+        endif()
+        if(ENABLE_MSAN)
+            add_cxx_flags(-fsanitize=memory)
+        endif()
+        if(ENABLE_ASAN OR ENABLE_UBSAN)
+            add_cxx_flags(-DHNSWLIB_USE_PREFETCH=0)
+        endif()
+
+        add_cxx_flags(-Wall -Wextra -Wpedantic -Werror)
+
+        # Unused functions in header files might still be used by other code
+        # including those header files.
+        add_cxx_flags(-Wno-unused-function)
+
+        # Unused parameters are OK.
+        add_cxx_flags(-Wno-unused-parameter)
+
+        # TODO: re-enable and fix comparisons of integers of different
+        # signedness. Not using -Wno-error=sign-compare here, because that will
+        # produce a lot of warnings.
+        add_cxx_flags(-Wno-sign-compare)
+
+        if(CMAKE_BUILD_TYPE MATCHES "^(Release|MinSizeRel)$")
+            # For build types that disable assertions some variables might look
+            # like they are not being used. RelWithDebugInfo is not included in
+            # this list because we specifically enable assertions for that
+            # build type.
+            add_cxx_flags(-Wno-unused-variable)
+            add_cxx_flags(-Wno-unused-but-set-variable)
+        endif()
+    endif()
+
+    foreach(example_name IN LISTS EXAMPLE_NAMES)
+        add_example_or_test("${example_name}" "examples/cpp/${example_name}.cpp")
+    endforeach()
+
+    foreach(test_name IN LISTS TEST_NAMES)
+        add_example_or_test("${test_name}" "tests/cpp/${test_name}.cpp")
+    endforeach()
+
+    # This test deviates from the above pattern of naming test executables.
+    add_example_or_test(test_updates tests/cpp/updates_test.cpp)
+
+    # For historical reasons, the "main" program links with sift_1b.cpp.
+    add_example_or_test(main tests/cpp/main.cpp tests/cpp/sift_1b.cpp)
+
+    foreach(target_name IN LISTS HNSWLIB_TARGETS_REQUIRING_EXCEPTIONS)
+        if(NOT TARGET ${target_name})
+            message(FATAL_ERROR
+                    "Target '${target_name}' included in "
+                    "HNSWLIB_TARGETS_REQUIRING_EXCEPTIONS does not exist. "
+                    "Please check if this is a typo.")
+        endif()
+    endforeach()
+endif()
+
+# Do not persist CMAKE_CXX_FLAGS into the CMake cache. A FORCE write from
+# this directory would overwrite the parent project's (or the user's
+# -DCMAKE_CXX_FLAGS=) value, including when examples are disabled.
