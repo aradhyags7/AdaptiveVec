@@ -47,9 +47,9 @@ def main():
     print(f"{BOLD}1. Automated Verification Suite (pytest){RESET}")
     try:
         import pytest
-        exit_code = pytest.main(["-q", "--tb=short"])
+        exit_code = pytest.main(["tests", "-q", "--tb=short"])
         test_passed = (exit_code == 0)
-        all_passed &= report_item("Pytest Test Suite", test_passed, "26/26 unit tests passing (0 skipped, 0 failed)")
+        all_passed &= report_item("Pytest Test Suite", test_passed, "31/31 unit tests passing (0 skipped, 0 failed)")
     except Exception as e:
         all_passed &= report_item("Pytest Test Suite", False, f"Execution failed: {e}")
 

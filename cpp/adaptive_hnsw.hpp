@@ -26,9 +26,18 @@
 #include <cstring>
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 #include <thread>
 #if defined(_OPENMP)
 #include <omp.h>
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+#include <windows.h>
+#include <psapi.h>
+#elif defined(__linux__)
+#include <sys/resource.h>
+#include <unistd.h>
 #endif
 
 namespace adaptivevec {
@@ -46,6 +55,51 @@ enum class PolicyType {
     Quantile,
     LidOnly,
     DensityOnly
+};
+
+struct ProcessMemoryMetrics {
+    size_t working_set_bytes = 0;
+    size_t peak_working_set_bytes = 0;
+};
+
+inline ProcessMemoryMetrics get_process_memory_metrics() {
+    ProcessMemoryMetrics m;
+#if defined(_WIN32) || defined(_WIN64)
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+        m.working_set_bytes = pmc.WorkingSetSize;
+        m.peak_working_set_bytes = pmc.PeakWorkingSetSize;
+    }
+#elif defined(__linux__)
+    FILE* f = fopen("/proc/self/statm", "r");
+    if (f) {
+        long rss = 0;
+        if (fscanf(f, "%*s%ld", &rss) == 1) {
+            long page_size = sysconf(_SC_PAGESIZE);
+            m.working_set_bytes = rss * page_size;
+        }
+        fclose(f);
+    }
+    struct rusage ru;
+    if (getrusage(RUSAGE_SELF, &ru) == 0) {
+        m.peak_working_set_bytes = ru.ru_maxrss * 1024;
+    }
+#endif
+    return m;
+}
+
+struct MemoryBreakdown {
+    size_t logical_compressed_bytes = 0;
+    size_t allocated_quantized_capacity_bytes = 0;
+    size_t resident_fp32_bytes = 0;
+    size_t graph_adjacency_bytes = 0;
+    size_t per_node_metadata_bytes = 0;
+    size_t quantization_params_bytes = 0;
+    size_t synchronization_bytes = 0;
+    size_t allocator_overhead_bytes = 0;
+    size_t total_owned_bytes = 0;
+    size_t process_working_set_bytes = 0;
+    size_t peak_process_working_set_bytes = 0;
 };
 
 struct PolicyConfig {
@@ -89,6 +143,12 @@ struct PolicyConfig {
     float density_std = 1.0f;
     float lid_mean = 4.0f;
     float lid_std = 2.0f;
+    
+    // P0: Foundational Correctness and Storage Controls
+    bool keep_raw_vectors = true;         // False for Configuration A (pure quantized storage)
+    bool enable_rerank = true;            // Re-rank top candidates with FP32
+    uint64_t global_seed = 1337;          // Deterministic seed for level generation
+    bool use_deterministic_level_hash = true; // Use SplitMix64 hash on (seed, node_id)
 };
 
 struct NodeParams {
@@ -564,7 +624,7 @@ public:
     
     // Hubness regulation: layer-0 in-degree tracking
     std::vector<uint32_t> in_degrees;
-    uint64_t total_in_degrees = 0;
+    std::atomic<uint64_t> total_in_degrees{0}; // Atomic synchronization to prevent data races
     
     // Frontier 2: Dynamic Streaming Node Deletions & Tombstone Tracking
     std::vector<uint8_t> deleted;
@@ -577,12 +637,14 @@ public:
     tableint enter_point = 0;
     int max_level = -1;
     double m_l;
+    uint64_t global_seed = 1337;
     
     static constexpr size_t NUM_NODE_LOCKS = 4096;
     mutable std::vector<std::mutex> node_locks;
     mutable std::atomic<uint64_t> total_dist_computations{0};
     mutable std::mutex entry_point_mutex;
     mutable std::mutex tracker_mutex;
+    mutable std::shared_mutex index_lifecycle_rw_mutex; // Global reader-writer lock for compaction safety
     
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
         : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), quantizer_sq4(dimension), node_locks(NUM_NODE_LOCKS) {
@@ -630,6 +692,45 @@ public:
         }
     }
 
+    void quantize_vectors(bool sq8 = true, bool sq4 = false) {
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+        if (sq8) {
+            if (!quantizer.is_trained && num_elements > 0 && !data.empty()) {
+                quantizer.train(data.data(), std::min((size_t)10000, num_elements));
+            }
+            quantized_data.resize(num_elements * dim);
+            #if defined(_OPENMP)
+            #pragma omp parallel for schedule(static)
+            #endif
+            for (size_t i = 0; i < num_elements; ++i) {
+                quantizer.encode(&data[i * dim], &quantized_data[i * dim]);
+            }
+            policy.enable_sq8 = true;
+        }
+        if (sq4) {
+            if (!quantizer_sq4.is_trained && num_elements > 0 && !data.empty()) {
+                quantizer_sq4.train(data.data(), std::min((size_t)10000, num_elements));
+            }
+            size_t packed_dim = (dim + 1) / 2;
+            quantized_data_sq4.resize(num_elements * packed_dim);
+            #if defined(_OPENMP)
+            #pragma omp parallel for schedule(static)
+            #endif
+            for (size_t i = 0; i < num_elements; ++i) {
+                quantizer_sq4.encode(&data[i * dim], &quantized_data_sq4[i * packed_dim]);
+            }
+            policy.enable_sq4 = true;
+        }
+    }
+
+    void drop_raw_vectors() {
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+        data.clear();
+        data.shrink_to_fit();
+        policy.keep_raw_vectors = false;
+        policy.enable_rerank = false;
+    }
+
     void calibrate(const float* sample_data, size_t sample_count, int k = 15) {
         if (sample_count < 10) return;
         std::vector<float> sample_densities;
@@ -667,12 +768,44 @@ public:
         }
     }
 
+    inline static uint64_t splitmix64(uint64_t x) {
+        x += 0x9e3779b97f4a7c15ULL;
+        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9ULL;
+        x = (x ^ (x >> 27)) * 0x94d049bb133111ebULL;
+        return x ^ (x >> 31);
+    }
+
+    int generate_node_level(tableint node_id) const {
+        if (policy.use_deterministic_level_hash) {
+            uint64_t h = splitmix64(global_seed ^ (static_cast<uint64_t>(node_id) + 0x517cc1b727220a95ULL));
+            // 53-bit precision double in (0, 1]
+            double r = (static_cast<double>(h >> 11) + 1.0) / 9007199254740992.0;
+            return static_cast<int>(-std::log(r) * m_l);
+        } else {
+            std::mt19937_64 rng(global_seed + node_id);
+            std::uniform_real_distribution<double> dis(0.0, 1.0);
+            double r = dis(rng);
+            while (r == 0.0) r = dis(rng);
+            return static_cast<int>(-std::log(r) * m_l);
+        }
+    }
+
     int generate_random_level() {
-        static thread_local std::mt19937 gen(1337);
-        std::uniform_real_distribution<double> dis(0.0, 1.0);
-        double r = dis(gen);
-        while (r == 0.0) r = dis(gen);
-        return (int)(-std::log(r) * m_l);
+        return generate_node_level((tableint)num_elements);
+    }
+
+    uint64_t get_graph_fingerprint() const {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
+        uint64_t h = 0x123456789abcdef0ULL;
+        for (size_t l = 0; l < graphs.size(); ++l) {
+            for (tableint i = 0; i < graphs[l].size(); ++i) {
+                h ^= splitmix64(h + ((uint64_t)l << 32) + i);
+                for (tableint nb : graphs[l][i]) {
+                    h = splitmix64(h ^ ((uint64_t)nb + 0x9e3779b97f4a7c15ULL));
+                }
+            }
+        }
+        return h;
     }
     
     // Algorithm 2: SEARCH-LAYER with hardware cache prefetching and optional stagnation early exit
@@ -847,8 +980,11 @@ public:
     }
     
     tableint insert(const float* vec) {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         tableint q_idx = (tableint)num_elements++;
-        data.insert(data.end(), vec, vec + dim);
+        if (policy.keep_raw_vectors) {
+            data.insert(data.end(), vec, vec + dim);
+        }
         
         if (policy.enable_sq8) {
             if (!quantizer.is_trained) {
@@ -883,7 +1019,7 @@ public:
             return 0;
         }
         
-        int q_level = generate_random_level();
+        int q_level = generate_node_level(q_idx);
         node_levels.push_back(q_level);
         
         if (q_level >= (int)graphs.size()) {
@@ -988,6 +1124,7 @@ public:
      * Parallelizes vector insertion across worker threads using striped node locking.
      */
     void batch_insert(const float* vectors, size_t n_vectors, int num_threads = 0) {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         if (n_vectors == 0) return;
         
         if (num_threads <= 0) {
@@ -1047,7 +1184,7 @@ public:
         // Pre-generate levels and ensure graphs layers exist
         int expected_max_level = max_level;
         for (size_t i = start_idx; i < n_vectors; ++i) {
-            int lvl = generate_random_level();
+            int lvl = generate_node_level(static_cast<tableint>(i));
             node_levels[i] = lvl;
             if (lvl > expected_max_level) expected_max_level = lvl;
         }
@@ -1272,8 +1409,8 @@ public:
                     if (it != u_adj.end()) {
                         u_adj.erase(it);
                         if (lc == 0) {
-                            if (in_degrees[v] > 0) in_degrees[v]--;
-                            if (in_degrees[u] > 0) in_degrees[u]--;
+                            __atomic_fetch_sub(&in_degrees[v], 1, __ATOMIC_RELAXED);
+                            __atomic_fetch_sub(&in_degrees[u], 1, __ATOMIC_RELAXED);
                         }
 
                         // Candidate replacements for u: other surviving neighbors of v
@@ -1299,9 +1436,9 @@ public:
                                 u_adj.push_back(rep_id);
                                 added_reps.push_back(rep_id);
                                 if (lc == 0) {
-                                    in_degrees[rep_id]++;
-                                    in_degrees[u]++;
-                                    total_in_degrees += 2;
+                                    __atomic_fetch_add(&in_degrees[rep_id], 1, __ATOMIC_RELAXED);
+                                    __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
+                                    total_in_degrees.fetch_add(2, std::memory_order_relaxed);
                                 }
                             }
                         }
@@ -1320,9 +1457,9 @@ public:
                             if ((int)rep_adj.size() < rep_limit) {
                                 rep_adj.push_back(u);
                                 if (lc == 0) {
-                                    in_degrees[u]++;
-                                    in_degrees[best_rep]++;
-                                    total_in_degrees += 2;
+                                    __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
+                                    __atomic_fetch_add(&in_degrees[best_rep], 1, __ATOMIC_RELAXED);
+                                    total_in_degrees.fetch_add(2, std::memory_order_relaxed);
                                 }
                             }
                         }
@@ -1353,7 +1490,11 @@ public:
                             if ((int)graphs[lc][w1].size() < w1_limit) {
                                 if (std::find(graphs[lc][w1].begin(), graphs[lc][w1].end(), w2) == graphs[lc][w1].end()) {
                                     graphs[lc][w1].push_back(w2);
-                                    if (lc == 0) { in_degrees[w2]++; in_degrees[w1]++; total_in_degrees += 2; }
+                                    if (lc == 0) {
+                                        __atomic_fetch_add(&in_degrees[w2], 1, __ATOMIC_RELAXED);
+                                        __atomic_fetch_add(&in_degrees[w1], 1, __ATOMIC_RELAXED);
+                                        total_in_degrees.fetch_add(2, std::memory_order_relaxed);
+                                    }
                                 }
                             }
                         }
@@ -1363,7 +1504,11 @@ public:
                             if ((int)graphs[lc][w2].size() < w2_limit) {
                                 if (std::find(graphs[lc][w2].begin(), graphs[lc][w2].end(), w1) == graphs[lc][w2].end()) {
                                     graphs[lc][w2].push_back(w1);
-                                    if (lc == 0) { in_degrees[w1]++; in_degrees[w2]++; total_in_degrees += 2; }
+                                    if (lc == 0) {
+                                        __atomic_fetch_add(&in_degrees[w1], 1, __ATOMIC_RELAXED);
+                                        __atomic_fetch_add(&in_degrees[w2], 1, __ATOMIC_RELAXED);
+                                        total_in_degrees.fetch_add(2, std::memory_order_relaxed);
+                                    }
                                 }
                             }
                         }
@@ -1404,6 +1549,10 @@ public:
         return true;
     }
 
+    inline bool delete_vector(tableint id, bool heal = true) {
+        return mark_deleted(id, heal);
+    }
+
     size_t batch_delete(const std::vector<tableint>& ids, bool heal = true) {
         size_t count = 0;
         for (tableint id : ids) {
@@ -1415,6 +1564,7 @@ public:
     }
 
     void compact() {
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex); // Synchronized blocking compaction
         if (num_deleted.load() == 0) return;
 
         std::vector<tableint> id_map(num_elements, (tableint)-1);
@@ -1525,6 +1675,7 @@ public:
     }
     
     std::vector<Candidate> search(const float* query, int k, int ef) const {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         if (num_elements == 0 || get_active_count() == 0) return {};
         
         tableint curr_ep = enter_point;
@@ -1572,18 +1723,31 @@ public:
         auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym_sq8, false, use_asym_sq4);
         
         if (use_asym) {
-            // Two-stage re-ranking with exact float32 distance, excluding deleted nodes
-            std::vector<Candidate> active_w;
-            active_w.reserve(w.size());
-            for (auto& cand : w) {
-                if (!is_deleted(cand.id)) {
-                    cand.dist = get_distance(query, get_vector(cand.id));
-                    active_w.push_back(cand);
+            if (policy.enable_rerank && !data.empty()) {
+                // Two-stage re-ranking with exact float32 distance, excluding deleted nodes (Configuration B)
+                std::vector<Candidate> active_w;
+                active_w.reserve(w.size());
+                for (auto& cand : w) {
+                    if (!is_deleted(cand.id)) {
+                        cand.dist = get_distance(query, get_vector(cand.id));
+                        active_w.push_back(cand);
+                    }
                 }
+                std::sort(active_w.begin(), active_w.end());
+                if ((int)active_w.size() > k) active_w.resize(k);
+                return active_w;
+            } else {
+                // Pure quantized search without FP32 re-ranking (Configuration A)
+                std::vector<Candidate> active_w;
+                active_w.reserve(std::min((size_t)k, w.size()));
+                for (const auto& cand : w) {
+                    if (!is_deleted(cand.id)) {
+                        active_w.push_back(cand);
+                        if ((int)active_w.size() >= k) break;
+                    }
+                }
+                return active_w;
             }
-            std::sort(active_w.begin(), active_w.end());
-            if ((int)active_w.size() > k) active_w.resize(k);
-            return active_w;
         }
         
         // Filter out deleted nodes
@@ -1609,6 +1773,7 @@ public:
         int ef,
         int num_threads = 0
     ) const {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         if (num_threads <= 0) {
             #if defined(_OPENMP)
             num_threads = omp_get_max_threads();
@@ -1690,11 +1855,76 @@ public:
         return get_total_edges() * sizeof(tableint);
     }
 
+    MemoryBreakdown get_memory_breakdown() const {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
+        MemoryBreakdown mb;
+        size_t packed_dim = (dim + 1) / 2;
+        
+        // 1. Logical compressed payload
+        if (policy.enable_sq4) {
+            mb.logical_compressed_bytes = num_elements * packed_dim * sizeof(uint8_t);
+        } else if (policy.enable_sq8) {
+            mb.logical_compressed_bytes = num_elements * dim * sizeof(uint8_t);
+        } else {
+            mb.logical_compressed_bytes = num_elements * dim * sizeof(float);
+        }
+        
+        // 2. Allocated quantized vector capacity
+        mb.allocated_quantized_capacity_bytes = 
+            quantized_data_sq4.capacity() * sizeof(uint8_t) +
+            quantized_data.capacity() * sizeof(uint8_t);
+            
+        // 3. Resident FP32 vectors
+        mb.resident_fp32_bytes = data.capacity() * sizeof(float);
+        
+        // 4. Graph adjacency storage (edges + container overhead)
+        size_t edge_bytes = 0;
+        size_t container_bytes = graphs.capacity() * sizeof(std::vector<std::vector<tableint>>);
+        for (const auto& layer : graphs) {
+            container_bytes += layer.capacity() * sizeof(std::vector<tableint>);
+            for (const auto& adj : layer) {
+                edge_bytes += adj.capacity() * sizeof(tableint);
+            }
+        }
+        mb.graph_adjacency_bytes = edge_bytes + container_bytes;
+        
+        // 5. Per-node metadata
+        mb.per_node_metadata_bytes = 
+            node_levels.capacity() * sizeof(int) +
+            node_params.capacity() * sizeof(NodeParams) +
+            in_degrees.capacity() * sizeof(uint32_t) +
+            deleted.capacity() * sizeof(uint8_t);
+            
+        // 6. Quantization parameters
+        mb.quantization_params_bytes = 
+            (quantizer.min_vals.capacity() + quantizer.scales.capacity() +
+             quantizer_sq4.min_vals.capacity() + quantizer_sq4.scales.capacity()) * sizeof(float);
+             
+        // 7. Synchronization structures
+        mb.synchronization_bytes = node_locks.capacity() * sizeof(std::mutex);
+        
+        // 8. Estimated allocator alignment overhead (~16B per vector container)
+        mb.allocator_overhead_bytes = num_elements * 16;
+        
+        // 9. Total owned memory
+        mb.total_owned_bytes = 
+            mb.allocated_quantized_capacity_bytes +
+            mb.resident_fp32_bytes +
+            mb.graph_adjacency_bytes +
+            mb.per_node_metadata_bytes +
+            mb.quantization_params_bytes +
+            mb.synchronization_bytes;
+            
+        // 10. Process working set from OS
+        ProcessMemoryMetrics pmm = get_process_memory_metrics();
+        mb.process_working_set_bytes = pmm.working_set_bytes;
+        mb.peak_process_working_set_bytes = pmm.peak_working_set_bytes;
+        
+        return mb;
+    }
+
     size_t get_total_memory_bytes() const {
-        size_t total = get_vector_memory_bytes() + get_edge_memory_bytes();
-        total += num_elements * sizeof(int); // node_levels
-        total += in_degrees.size() * sizeof(uint32_t); // in_degrees
-        return total;
+        return get_memory_breakdown().total_owned_bytes;
     }
 };
 

@@ -1,0 +1,72 @@
+{
+  "git": {
+    "commit": "9c22f4b",
+    "branch": "phase-0-correctness",
+    "parent_commit": "f8fbdfe",
+    "clean_state": true
+  },
+  "hardware": {
+    "cpu": "Intel Core 5 210H",
+    "cores": 8,
+    "threads": 12,
+    "p_cores": 4,
+    "e_cores": 4,
+    "ram": "16 GB DDR5",
+    "simd": [
+      "AVX2",
+      "FMA"
+    ]
+  },
+  "toolchain": {
+    "compiler": "gcc (Rev5, Built by MSYS2 project) 16.1.0",
+    "python": "3.14.5",
+    "cmake": "4.4.5",
+    "pybind11": "3.1.0",
+    "faiss": "1.16.0",
+    "hnswlib": "0.8.0 (vendored in third_party/hnswlib)"
+  },
+  "datasets": {
+    "sift_subset_100k.fvecs": {
+      "size_bytes": 51600000,
+      "size_mb": 49.21,
+      "sha256_prefix": "b3b198c01e49d75f",
+      "sha256_full": "b3b198c01e49d75f47fd23837324b0e4c83b6e142feb842bc011d5cb76a2a192"
+    },
+    "sift_subset_groundtruth.ivecs": {
+      "size_bytes": 4040000,
+      "size_mb": 3.85,
+      "sha256_prefix": "6b00e6afe5618e41",
+      "sha256_full": "6b00e6afe5618e41992a2a822fa8af81c923fcab198e8b7ddee2f1b41d0d9d1b"
+    },
+    "sift_groundtruth_250k.ivecs": {
+      "size_bytes": 404000,
+      "size_mb": 0.39,
+      "sha256_prefix": "355652bae0ac7a66",
+      "sha256_full": "355652bae0ac7a6685dc83a855501bdf93b9c7273edc406c6e1d3238981eadf7"
+    },
+    "sift_groundtruth_500k.ivecs": {
+      "size_bytes": 404000,
+      "size_mb": 0.39,
+      "sha256_prefix": "686e95f155481637",
+      "sha256_full": "686e95f155481637be80bc8e933ad26396f68ccd96e8214466567f0b32aaabf2"
+    },
+    "sift_base_1m.fvecs": {
+      "size_bytes": 516000000,
+      "size_mb": 492.1,
+      "sha256_prefix": "01992def8624931e",
+      "sha256_full": "01992def8624931eab298a4f6feed137e68fa0f887ed12ad054cc955df7483c8"
+    },
+    "sift_groundtruth_1m.ivecs": {
+      "size_bytes": 4040000,
+      "size_mb": 3.85,
+      "sha256_prefix": "c79ae6fea54f3fd4",
+      "sha256_full": "c79ae6fea54f3fd49950463ab2193ed4d6a562567a046189e7cfce51daac4047"
+    },
+    "sift_query.fvecs": {
+      "size_bytes": 5160000,
+      "size_mb": 4.92,
+      "sha256_prefix": "02cc1e8ec63e7439",
+      "sha256_full": "02cc1e8ec63e7439cfef1d491f08655b2a2ac67d32bf3e817395a370c6a3ca02"
+    }
+  }
+}

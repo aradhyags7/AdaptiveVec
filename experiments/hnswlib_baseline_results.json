@@ -1,0 +1,14 @@
+{
+  "engine": "hnswlib",
+  "n_samples": 100000,
+  "dim": 128,
+  "build_time_sec": 4.21332,
+  "working_set_mb": 142.102,
+  "evaluations": [
+    {"ef_search": 16, "recall_at_10": 0.87378, "qps": 92894.5},
+    {"ef_search": 32, "recall_at_10": 0.95338, "qps": 43677.6},
+    {"ef_search": 64, "recall_at_10": 0.98821, "qps": 41540.3},
+    {"ef_search": 128, "recall_at_10": 0.99791, "qps": 28548.7},
+    {"ef_search": 256, "recall_at_10": 0.99967, "qps": 13878.7}
+  ]
+}

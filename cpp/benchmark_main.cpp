@@ -1,7 +1,7 @@
 /**
  * AdaptiveVec Paper Benchmark Runner
- * Executes the 6-step ablation suite and macro-benchmarks.
- * Compiles with: g++ -O3 -mavx2 -mfma -std=c++17 cpp/benchmark_main.cpp -o cpp/benchmark_runner.exe
+ * Executes the Phase 0 ablation suite and macro-benchmarks.
+ * Compiles with: g++ -O3 -mavx2 -mfma -fopenmp -std=c++17 cpp/benchmark_main.cpp -o cpp/benchmark_runner.exe
  */
 
 #include "adaptive_hnsw.hpp"
@@ -15,6 +15,7 @@
 #include <sstream>
 #include <unordered_set>
 #include <algorithm>
+#include <cassert>
 
 using namespace adaptivevec;
 
@@ -32,19 +33,21 @@ struct DatasetWrapper {
 struct BenchmarkRecord {
     std::string dataset_name;
     std::string config_name;
-    size_t n_samples;
-    size_t dim;
-    size_t n_queries;
-    double build_time_s;
-    size_t total_edges;
-    size_t layer0_edges;
-    size_t upper_layer_edges;
-    double edge_change_pct;
-    double build_speedup_pct;
-    double ram_mb;
-    double recall_10;
-    double qps;
-    double avg_dist_evals;
+    size_t n_samples = 0;
+    size_t dim = 0;
+    size_t n_queries = 0;
+    double build_time_s = 0.0;
+    size_t total_edges = 0;
+    size_t layer0_edges = 0;
+    size_t upper_layer_edges = 0;
+    double edge_change_pct = 0.0;
+    double build_speedup_pct = 0.0;
+    double ram_mb = 0.0;
+    double recall_10 = 0.0;
+    double qps = 0.0;
+    double avg_dist_evals = 0.0;
+    uint64_t graph_fingerprint = 0;
+    MemoryBreakdown memory_breakdown;
 };
 
 // Generates the 8-cluster synthetic benchmark dataset, strictly labeled "Synthetic-Multi-Cluster"
@@ -125,39 +128,26 @@ float compute_recall(const std::vector<std::vector<Candidate>>& results,
     return (float)total_matches / (float)(total_queries * k);
 }
 
-BenchmarkRecord run_single_benchmark(
+BenchmarkRecord run_query_benchmark_on_existing_graph(
     const DatasetWrapper& ds,
     const std::string& config_name,
-    PolicyConfig cfg,
-    bool is_adaptive,
+    const AdaptiveHNSWIndex& index,
     int ef_search,
     int k,
     size_t baseline_edges,
+    double build_time_s,
     double baseline_build_time_s
 ) {
-    std::cout << "  -> Running: " << config_name << " ... " << std::flush;
-    
-    AdaptiveHNSWIndex index(ds.dim, ds.space, is_adaptive, cfg);
-    
-    if (cfg.enable_sq8 || cfg.enable_sq4) {
-        // Pre-train quantizer on dataset sample (first 10,000 vectors)
-        index.train_quantizer(ds.data.data(), std::min((size_t)10000, ds.n_samples));
-    }
-    
-    // 1. Build Phase
-    auto t0 = std::chrono::high_resolution_clock::now();
-    for (size_t i = 0; i < ds.n_samples; ++i) {
-        index.insert(&ds.data[i * ds.dim]);
-    }
-    auto t1 = std::chrono::high_resolution_clock::now();
-    double build_time_s = std::chrono::duration<double>(t1 - t0).count();
+    std::cout << "  -> Querying (Reusing Graph): " << config_name << " ... " << std::flush;
     
     size_t total_edges = index.get_total_edges();
     size_t layer0_edges = index.get_layer0_edges();
     size_t upper_edges = index.get_upper_layer_edges();
-    double ram_mb = (double)index.get_total_memory_bytes() / (1024.0 * 1024.0);
-    
-    // 2. Query Phase
+    MemoryBreakdown mb = index.get_memory_breakdown();
+    double ram_mb = (double)mb.total_owned_bytes / (1024.0 * 1024.0);
+    uint64_t fp = index.get_graph_fingerprint();
+
+    // Query Phase
     uint64_t dist_comps_before = index.total_dist_computations;
     std::vector<std::vector<Candidate>> results(ds.n_queries);
     
@@ -176,12 +166,13 @@ BenchmarkRecord run_single_benchmark(
     double edge_change_pct = (baseline_edges > 0) 
         ? ((double)total_edges - (double)baseline_edges) / (double)baseline_edges * 100.0 
         : 0.0;
-    double build_speedup_pct = (baseline_build_time_s > 0.0) 
-        ? (baseline_build_time_s - build_time_s) / baseline_build_time_s * 100.0 
+    double build_speedup_pct = (baseline_build_time_s > 0.0)
+        ? (baseline_build_time_s - build_time_s) / baseline_build_time_s * 100.0
         : 0.0;
         
-    std::cout << "Done! (Build: " << std::fixed << std::setprecision(2) << build_time_s << "s, "
+    std::cout << "Done! (Fingerprint: 0x" << std::hex << fp << std::dec << ", "
               << "Edges: " << total_edges << ", "
+              << "RAM: " << std::fixed << std::setprecision(1) << ram_mb << " MB, "
               << "Recall@10: " << std::setprecision(4) << recall10 << ", "
               << "QPS: " << std::setprecision(1) << qps << ")" << std::endl;
               
@@ -200,7 +191,9 @@ BenchmarkRecord run_single_benchmark(
         ram_mb,
         recall10,
         qps,
-        avg_dist_evals
+        avg_dist_evals,
+        fp,
+        mb
     };
 }
 
@@ -226,7 +219,23 @@ void write_json(const std::string& path, const std::vector<BenchmarkRecord>& rec
         out << "      \"memory_mb\": " << std::setprecision(2) << r.ram_mb << ",\n";
         out << "      \"recall_at_10\": " << std::setprecision(4) << r.recall_10 << ",\n";
         out << "      \"qps\": " << std::setprecision(1) << r.qps << ",\n";
-        out << "      \"distance_evaluations_per_query\": " << std::setprecision(1) << r.avg_dist_evals << "\n";
+        out << "      \"distance_evaluations_per_query\": " << std::setprecision(1) << r.avg_dist_evals << ",\n";
+        std::stringstream fp_ss;
+        fp_ss << "0x" << std::hex << r.graph_fingerprint;
+        out << "      \"graph_fingerprint\": \"" << fp_ss.str() << "\",\n";
+        out << "      \"memory_breakdown\": {\n";
+        out << "        \"logical_compressed_bytes\": " << r.memory_breakdown.logical_compressed_bytes << ",\n";
+        out << "        \"allocated_quantized_capacity_bytes\": " << r.memory_breakdown.allocated_quantized_capacity_bytes << ",\n";
+        out << "        \"resident_fp32_bytes\": " << r.memory_breakdown.resident_fp32_bytes << ",\n";
+        out << "        \"graph_adjacency_bytes\": " << r.memory_breakdown.graph_adjacency_bytes << ",\n";
+        out << "        \"per_node_metadata_bytes\": " << r.memory_breakdown.per_node_metadata_bytes << ",\n";
+        out << "        \"quantization_params_bytes\": " << r.memory_breakdown.quantization_params_bytes << ",\n";
+        out << "        \"synchronization_bytes\": " << r.memory_breakdown.synchronization_bytes << ",\n";
+        out << "        \"allocator_overhead_bytes\": " << r.memory_breakdown.allocator_overhead_bytes << ",\n";
+        out << "        \"total_owned_bytes\": " << r.memory_breakdown.total_owned_bytes << ",\n";
+        out << "        \"process_working_set_bytes\": " << r.memory_breakdown.process_working_set_bytes << ",\n";
+        out << "        \"peak_process_working_set_bytes\": " << r.memory_breakdown.peak_process_working_set_bytes << "\n";
+        out << "      }\n";
         out << "    }" << (i + 1 < records.size() ? "," : "") << "\n";
     }
     out << "  ]\n}\n";
@@ -237,8 +246,14 @@ void write_csv(const std::string& path, const std::vector<BenchmarkRecord>& reco
     std::ofstream out(path);
     if (!out.is_open()) return;
     
-    out << "dataset,configuration,n_samples,dim,n_queries,build_time_sec,total_edges,edge_change_pct,build_speedup_pct,memory_mb,recall_at_10,qps,distance_evals\n";
+    out << "dataset,configuration,n_samples,dim,n_queries,build_time_sec,total_edges,edge_change_pct,build_speedup_pct,memory_mb,recall_at_10,qps,distance_evals,fingerprint,resident_fp32_mb,quantized_mb,working_set_mb\n";
     for (const auto& r : records) {
+        std::stringstream fp_ss;
+        fp_ss << "0x" << std::hex << r.graph_fingerprint;
+        double fp32_mb = (double)r.memory_breakdown.resident_fp32_bytes / (1024.0 * 1024.0);
+        double q_mb = (double)r.memory_breakdown.allocated_quantized_capacity_bytes / (1024.0 * 1024.0);
+        double ws_mb = (double)r.memory_breakdown.process_working_set_bytes / (1024.0 * 1024.0);
+
         out << "\"" << r.dataset_name << "\","
             << "\"" << r.config_name << "\","
             << r.n_samples << ","
@@ -251,14 +266,18 @@ void write_csv(const std::string& path, const std::vector<BenchmarkRecord>& reco
             << std::setprecision(2) << r.ram_mb << ","
             << std::setprecision(4) << r.recall_10 << ","
             << std::setprecision(1) << r.qps << ","
-            << std::setprecision(1) << r.avg_dist_evals << "\n";
+            << std::setprecision(1) << r.avg_dist_evals << ","
+            << "\"" << fp_ss.str() << "\","
+            << std::setprecision(2) << fp32_mb << ","
+            << std::setprecision(2) << q_mb << ","
+            << std::setprecision(2) << ws_mb << "\n";
     }
     std::cout << "[+] Wrote machine-readable CSV: " << path << std::endl;
 }
 
 int main(int argc, char** argv) {
     std::cout << "=================================================================================" << std::endl;
-    std::cout << "     AdaptiveVec Research Benchmark Suite: 6-Step Ablation & Macro Matrix       " << std::endl;
+    std::cout << "     AdaptiveVec Research Benchmark Suite: Phase 0 Rigorous Ablations            " << std::endl;
     std::cout << "=================================================================================\n" << std::endl;
 
     std::string dataset_path = "";
@@ -269,7 +288,6 @@ int main(int argc, char** argv) {
     size_t max_queries = 10000;
     int ef_search = 64;
     int k = 10;
-    int repeats = 1;
     bool force_synthetic = false;
     std::string json_out = "benchmark_results.json";
     std::string csv_out = "benchmark_results.csv";
@@ -283,7 +301,6 @@ int main(int argc, char** argv) {
         else if (arg == "--max_samples" && i + 1 < argc) max_samples = std::stoul(argv[++i]);
         else if (arg == "--max_queries" && i + 1 < argc) max_queries = std::stoul(argv[++i]);
         else if (arg == "--ef_search" && i + 1 < argc) ef_search = std::stoi(argv[++i]);
-        else if (arg == "--repeats" && i + 1 < argc) repeats = std::stoi(argv[++i]);
         else if (arg == "--synthetic") force_synthetic = true;
         else if (arg == "--out" && i + 1 < argc) json_out = argv[++i];
         else if (arg == "--csv" && i + 1 < argc) csv_out = argv[++i];
@@ -337,43 +354,17 @@ int main(int argc, char** argv) {
         ds = generate_synthetic_multi_cluster(50000, 64, 1000);
     }
 
-    std::cout << "\n[*] Beginning 6-Step Ablation Matrix on " << ds.name << " (N=" << ds.n_samples << ", D=" << ds.dim << ", Q=" << ds.n_queries << "):\n" << std::endl;
+    std::cout << "\n[*] Beginning Ablation Matrix on " << ds.name 
+              << " (N=" << ds.n_samples << ", D=" << ds.dim << ", Q=" << ds.n_queries << "):\n" << std::endl;
 
-    struct StatSummary {
-        double mean;
-        double std_dev;
-        double min_val;
-        double max_val;
-    };
+    std::vector<BenchmarkRecord> records;
+    size_t base_edges = 0;
+    double base_build_time = 0.0;
 
-    auto calc_stats = [](const std::vector<double>& vals) -> StatSummary {
-        if (vals.empty()) return {0, 0, 0, 0};
-        double sum = 0.0;
-        double min_v = vals[0];
-        double max_v = vals[0];
-        for (double v : vals) {
-            sum += v;
-            if (v < min_v) min_v = v;
-            if (v > max_v) max_v = v;
-        }
-        double mean = sum / vals.size();
-        double sq_diff_sum = 0.0;
-        for (double v : vals) {
-            sq_diff_sum += (v - mean) * (v - mean);
-        }
-        double std_dev = (vals.size() > 1) ? std::sqrt(sq_diff_sum / (vals.size() - 1)) : 0.0;
-        return {mean, std_dev, min_v, max_v};
-    };
-
-    struct ConfigItem {
-        std::string name;
-        PolicyConfig cfg;
-        bool is_adaptive;
-    };
-
-    std::vector<ConfigItem> configs;
-
-    // Configuration 1: Baseline HNSW (Fixed M=16, efC=200)
+    // =========================================================================
+    // STEP 1: Baseline HNSW (Fixed M=16, efC=200)
+    // =========================================================================
+    std::cout << ">>> [1/7] 1. Baseline HNSW (Fixed M=16) <<<" << std::endl;
     PolicyConfig cfg1;
     cfg1.enable_dynamic_m_efc = false;
     cfg1.enable_layer_scaling = false;
@@ -382,9 +373,22 @@ int main(int argc, char** argv) {
     cfg1.enable_sq8 = false;
     cfg1.m_base = 16;
     cfg1.ef_c_base = 200;
-    configs.push_back({"1. Baseline HNSW (Fixed M=16)", cfg1, false});
+    
+    AdaptiveHNSWIndex index1(ds.dim, ds.space, false, cfg1);
+    auto t0 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < ds.n_samples; ++i) {
+        index1.insert(&ds.data[i * ds.dim]);
+    }
+    auto t1 = std::chrono::high_resolution_clock::now();
+    double build1_s = std::chrono::duration<double>(t1 - t0).count();
+    base_edges = index1.get_total_edges();
+    base_build_time = build1_s;
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "1. Baseline HNSW (Fixed M=16)", index1, ef_search, k, base_edges, build1_s, base_build_time));
 
-    // Configuration 2: + Dynamic M(x) & efC(x)
+    // =========================================================================
+    // STEP 2: + Dynamic M(x) & efC(x)
+    // =========================================================================
+    std::cout << "\n>>> [2/7] 2. + Dynamic M(x) & efC(x) <<<" << std::endl;
     PolicyConfig cfg2;
     cfg2.enable_dynamic_m_efc = true;
     cfg2.enable_layer_scaling = false;
@@ -398,178 +402,130 @@ int main(int argc, char** argv) {
     cfg2.ef_c_min = 40;
     cfg2.ef_c_max = 220;
     cfg2.sensitivity = 0.4f;
-    configs.push_back({"2. + Dynamic M(x) & efC(x)", cfg2, true});
+    
+    AdaptiveHNSWIndex index2(ds.dim, ds.space, true, cfg2);
+    t0 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < ds.n_samples; ++i) {
+        index2.insert(&ds.data[i * ds.dim]);
+    }
+    t1 = std::chrono::high_resolution_clock::now();
+    double build2_s = std::chrono::duration<double>(t1 - t0).count();
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "2. + Dynamic M(x) & efC(x)", index2, ef_search, k, base_edges, build2_s, base_build_time));
 
-    // Configuration 3: + Layer-Decoupled Scaling
+    // =========================================================================
+    // STEP 3: + Layer-Decoupled Scaling
+    // =========================================================================
+    std::cout << "\n>>> [3/7] 3. + Layer-Decoupled Scaling <<<" << std::endl;
     PolicyConfig cfg3 = cfg2;
     cfg3.enable_layer_scaling = true;
     cfg3.lambda_layer = 0.75f;
     cfg3.m_min_layer = 4;
-    configs.push_back({"3. + Layer-Decoupled Scaling", cfg3, true});
+    
+    AdaptiveHNSWIndex index3(ds.dim, ds.space, true, cfg3);
+    t0 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < ds.n_samples; ++i) {
+        index3.insert(&ds.data[i * ds.dim]);
+    }
+    t1 = std::chrono::high_resolution_clock::now();
+    double build3_s = std::chrono::duration<double>(t1 - t0).count();
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "3. + Layer-Decoupled Scaling", index3, ef_search, k, base_edges, build3_s, base_build_time));
 
-    // Configuration 4: + Hubness Regulation
+    // =========================================================================
+    // STEP 4: + Hubness Regulation (Base Adaptive Graph)
+    // =========================================================================
+    std::cout << "\n>>> [4/7] 4. + Hubness Regulation (mu=0.15) <<<" << std::endl;
     PolicyConfig cfg4 = cfg3;
     cfg4.enable_hubness_regulation = true;
     cfg4.hubness_mu = 0.15f;
-    configs.push_back({"4. + Hubness Regulation (mu=0.15)", cfg4, true});
-
-    // Configuration 5: + Ada-ef Stagnation Exit
-    PolicyConfig cfg5 = cfg4;
-    cfg5.enable_ada_ef = true;
-    cfg5.ada_ef_patience = 6;
-    cfg5.ada_ef_epsilon = 1e-4f;
-    configs.push_back({"5. + Ada-ef Stagnation Exit", cfg5, true});
-
-    // Configuration 6: + Asymmetric INT8 SQ8
-    PolicyConfig cfg6 = cfg5;
-    cfg6.enable_sq8 = true;
-    configs.push_back({"6. + Asymmetric INT8 SQ8", cfg6, true});
-
-    std::cout << "\n[*] Beginning 6-Step Ablation Matrix on " << ds.name 
-              << " (N=" << ds.n_samples << ", D=" << ds.dim << ", Q=" << ds.n_queries 
-              << ", Repeats=" << repeats << "):\n" << std::endl;
-
-    struct ConfigStats {
-        std::string name;
-        StatSummary build_time;
-        StatSummary edges;
-        StatSummary ram;
-        StatSummary recall;
-        StatSummary qps;
-        StatSummary dist_evals;
-    };
-    std::vector<ConfigStats> stats_list;
-    std::vector<BenchmarkRecord> all_trials;
-    std::vector<BenchmarkRecord> summary_records;
-
-    size_t base_edges = 0;
-    double base_build_time = 0.0;
-
-    for (size_t c_idx = 0; c_idx < configs.size(); ++c_idx) {
-        const auto& citem = configs[c_idx];
-        std::vector<BenchmarkRecord> trials;
-        std::cout << "\n>>> [" << (c_idx + 1) << "/6] " << citem.name << " (" << repeats << " trial" << (repeats > 1 ? "s" : "") << ") <<<" << std::endl;
-
-        for (int rep = 0; rep < repeats; ++rep) {
-            if (repeats > 1) {
-                std::cout << "  [Trial " << (rep + 1) << "/" << repeats << "] ";
-            }
-            auto rec = run_single_benchmark(ds, citem.name, citem.cfg, citem.is_adaptive, ef_search, k, base_edges, base_build_time);
-            trials.push_back(rec);
-            all_trials.push_back(rec);
-        }
-
-        if (c_idx == 0) {
-            base_edges = (size_t)trials[0].total_edges;
-            base_build_time = trials[0].build_time_s;
-        }
-
-        std::vector<double> v_build, v_edges, v_ram, v_rec, v_qps, v_dist;
-        for (const auto& t : trials) {
-            v_build.push_back(t.build_time_s);
-            v_edges.push_back((double)t.total_edges);
-            v_ram.push_back(t.ram_mb);
-            v_rec.push_back(t.recall_10);
-            v_qps.push_back(t.qps);
-            v_dist.push_back(t.avg_dist_evals);
-        }
-
-        ConfigStats cs;
-        cs.name = citem.name;
-        cs.build_time = calc_stats(v_build);
-        cs.edges = calc_stats(v_edges);
-        cs.ram = calc_stats(v_ram);
-        cs.recall = calc_stats(v_rec);
-        cs.qps = calc_stats(v_qps);
-        cs.dist_evals = calc_stats(v_dist);
-        stats_list.push_back(cs);
-
-        double edge_change_pct = (base_edges > 0) ? ((cs.edges.mean - (double)base_edges) / (double)base_edges * 100.0) : 0.0;
-        double build_speedup_pct = (base_build_time > 0.0) ? ((base_build_time - cs.build_time.mean) / base_build_time * 100.0) : 0.0;
-
-        summary_records.push_back({
-            ds.name,
-            citem.name,
-            ds.n_samples,
-            ds.dim,
-            ds.n_queries,
-            cs.build_time.mean,
-            (size_t)std::round(cs.edges.mean),
-            trials[0].layer0_edges,
-            trials[0].upper_layer_edges,
-            edge_change_pct,
-            build_speedup_pct,
-            cs.ram.mean,
-            cs.recall.mean,
-            cs.qps.mean,
-            cs.dist_evals.mean
-        });
+    
+    AdaptiveHNSWIndex index4(ds.dim, ds.space, true, cfg4);
+    t0 = std::chrono::high_resolution_clock::now();
+    for (size_t i = 0; i < ds.n_samples; ++i) {
+        index4.insert(&ds.data[i * ds.dim]);
     }
+    t1 = std::chrono::high_resolution_clock::now();
+    double build4_s = std::chrono::duration<double>(t1 - t0).count();
+    uint64_t fp4 = index4.get_graph_fingerprint();
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "4. + Hubness Regulation (mu=0.15)", index4, ef_search, k, base_edges, build4_s, base_build_time));
 
-    if (repeats > 1) {
-        std::cout << "\n================================================================================================================================================" << std::endl;
-        std::cout << "                                  EMPIRICAL STATISTICAL SUMMARY (Mean ± Std over " << repeats << " trials)                                      " << std::endl;
-        std::cout << "================================================================================================================================================" << std::endl;
-        std::cout << std::left << std::setw(34) << "Ablation Configuration" 
-                  << std::setw(18) << "Graph Edges" 
-                  << std::setw(20) << "Build Time (s)" 
-                  << std::setw(12) << "RAM (MB)"
-                  << std::setw(22) << "Recall@10" 
-                  << std::setw(22) << "QPS" 
-                  << "Dist Evals/q" << std::endl;
-        std::cout << "------------------------------------------------------------------------------------------------------------------------------------------------" << std::endl;
-
-        for (const auto& cs : stats_list) {
-            std::stringstream edges_ss, build_ss, recall_ss, qps_ss, dist_ss, ram_ss;
-            edges_ss << std::fixed << std::setprecision(0) << cs.edges.mean;
-            if (cs.edges.std_dev > 0.5) edges_ss << " ± " << std::setprecision(0) << cs.edges.std_dev;
-            
-            build_ss << std::fixed << std::setprecision(1) << cs.build_time.mean << " ± " << cs.build_time.std_dev;
-            ram_ss << std::fixed << std::setprecision(1) << cs.ram.mean;
-            recall_ss << std::fixed << std::setprecision(4) << cs.recall.mean << " ± " << cs.recall.std_dev;
-            qps_ss << std::fixed << std::setprecision(1) << cs.qps.mean << " ± " << cs.qps.std_dev;
-            dist_ss << std::fixed << std::setprecision(1) << cs.dist_evals.mean << " ± " << cs.dist_evals.std_dev;
-
-            std::cout << std::left << std::setw(34) << cs.name
-                      << std::setw(18) << edges_ss.str()
-                      << std::setw(20) << build_ss.str()
-                      << std::setw(12) << ram_ss.str()
-                      << std::setw(22) << recall_ss.str()
-                      << std::setw(22) << qps_ss.str()
-                      << dist_ss.str() << std::endl;
-        }
-        std::cout << "================================================================================================================================================\n" << std::endl;
-    } else {
-        std::cout << "\n====================================================================================================================" << std::endl;
-        std::cout << "                                  ACTUAL MEASURED STEPWISE ABLATION MATRIX                                          " << std::endl;
-        std::cout << "====================================================================================================================" << std::endl;
-        std::cout << std::left << std::setw(34) << "Ablation Configuration" 
-                  << std::setw(14) << "Graph Edges" 
-                  << std::setw(12) << "Build Time" 
-                  << std::setw(12) << "RAM (MB)"
-                  << std::setw(12) << "Recall@10" 
-                  << std::setw(12) << "QPS" 
-                  << "Dist Evals/q" << std::endl;
-        std::cout << "--------------------------------------------------------------------------------------------------------------------" << std::endl;
-
-        for (const auto& r : summary_records) {
-            std::stringstream edges_str, build_str;
-            edges_str << r.total_edges << " (" << (r.edge_change_pct >= 0 ? "+" : "") << std::fixed << std::setprecision(1) << r.edge_change_pct << "%)";
-            build_str << std::fixed << std::setprecision(1) << r.build_time_s << "s";
-            
-            std::cout << std::left << std::setw(34) << r.config_name
-                      << std::setw(14) << edges_str.str()
-                      << std::setw(12) << build_str.str()
-                      << std::setw(12) << std::fixed << std::setprecision(1) << r.ram_mb
-                      << std::setw(12) << std::fixed << std::setprecision(4) << r.recall_10
-                      << std::setw(12) << std::fixed << std::setprecision(1) << r.qps
-                      << std::fixed << std::setprecision(1) << r.avg_dist_evals << std::endl;
-        }
-        std::cout << "====================================================================================================================\n" << std::endl;
+    // =========================================================================
+    // STEP 5: + Ada-ef Stagnation Exit (Reusing Step 4 Graph)
+    // =========================================================================
+    std::cout << "\n>>> [5/7] 5. + Ada-ef Stagnation Exit (REUSING STEP 4 GRAPH) <<<" << std::endl;
+    index4.policy.enable_ada_ef = true;
+    index4.policy.ada_ef_patience = 6;
+    index4.policy.ada_ef_epsilon = 1e-4f;
+    uint64_t fp5 = index4.get_graph_fingerprint();
+    if (fp5 != fp4) {
+        std::cerr << "[-] CRITICAL ERROR: Graph fingerprint changed for query-only Ada-ef modification!" << std::endl;
+        return 1;
     }
+    std::cout << "  [✓] Verified Graph Invariance: Fingerprint 0x" << std::hex << fp5 << std::dec << " matches Step 4 exactly." << std::endl;
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "5. + Ada-ef Stagnation Exit", index4, ef_search, k, base_edges, build4_s, base_build_time));
 
-    write_json(json_out, summary_records);
-    write_csv(csv_out, summary_records);
+    // =========================================================================
+    // STEP 6: + Asymmetric INT8 SQ8 (Config B: SQ8 + FP32 Re-rank, REUSING STEP 4 GRAPH)
+    // =========================================================================
+    std::cout << "\n>>> [6/7] 6. + Asymmetric INT8 SQ8 (Config B: SQ8 + FP32 Re-rank) <<<" << std::endl;
+    index4.quantize_vectors(true, false);
+    index4.policy.enable_sq8 = true;
+    index4.policy.enable_rerank = true;
+    uint64_t fp6 = index4.get_graph_fingerprint();
+    if (fp6 != fp4) {
+        std::cerr << "[-] CRITICAL ERROR: Graph fingerprint changed during vector quantization!" << std::endl;
+        return 1;
+    }
+    std::cout << "  [✓] Verified Graph Invariance: Fingerprint 0x" << std::hex << fp6 << std::dec << " matches Step 4 exactly." << std::endl;
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "6. + Asymmetric INT8 SQ8 (Config B)", index4, ef_search, k, base_edges, build4_s, base_build_time));
+
+    // =========================================================================
+    // STEP 7: + Asymmetric INT8 SQ8 (Config A: Pure Quantized, No Resident FP32)
+    // =========================================================================
+    std::cout << "\n>>> [7/7] 7. + Asymmetric INT8 SQ8 (Config A: Pure Quantized, No FP32) <<<" << std::endl;
+    index4.drop_raw_vectors();
+    uint64_t fp7 = index4.get_graph_fingerprint();
+    if (fp7 != fp4) {
+        std::cerr << "[-] CRITICAL ERROR: Graph fingerprint changed during raw vector drop!" << std::endl;
+        return 1;
+    }
+    std::cout << "  [✓] Verified Graph Invariance: Fingerprint 0x" << std::hex << fp7 << std::dec << " matches Step 4 exactly." << std::endl;
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "7. + Asymmetric INT8 SQ8 (Config A)", index4, ef_search, k, base_edges, build4_s, base_build_time));
+
+    // =========================================================================
+    // Output Summary Tables
+    // =========================================================================
+    std::cout << "\n================================================================================================================================================" << std::endl;
+    std::cout << "                                  ACTUAL MEASURED STEPWISE ABLATION MATRIX (PHASE 0 AUDITED)                                                    " << std::endl;
+    std::cout << "================================================================================================================================================" << std::endl;
+    std::cout << std::left << std::setw(38) << "Ablation Configuration" 
+              << std::setw(14) << "Graph Edges" 
+              << std::setw(12) << "Build Time" 
+              << std::setw(12) << "Total RAM"
+              << std::setw(12) << "FP32 RAM"
+              << std::setw(12) << "Recall@10" 
+              << std::setw(12) << "QPS" 
+              << "Dist Evals/q" << std::endl;
+    std::cout << "------------------------------------------------------------------------------------------------------------------------------------------------" << std::endl;
+
+    for (const auto& r : records) {
+        std::stringstream edges_str, build_str;
+        edges_str << r.total_edges << " (" << (r.edge_change_pct >= 0 ? "+" : "") << std::fixed << std::setprecision(1) << r.edge_change_pct << "%)";
+        build_str << std::fixed << std::setprecision(1) << r.build_time_s << "s";
+        double fp32_mb = (double)r.memory_breakdown.resident_fp32_bytes / (1024.0 * 1024.0);
+        
+        std::cout << std::left << std::setw(38) << r.config_name
+                  << std::setw(14) << edges_str.str()
+                  << std::setw(12) << build_str.str()
+                  << std::setw(12) << std::fixed << std::setprecision(1) << r.ram_mb
+                  << std::setw(12) << std::fixed << std::setprecision(1) << fp32_mb
+                  << std::setw(12) << std::fixed << std::setprecision(4) << r.recall_10
+                  << std::setw(12) << std::fixed << std::setprecision(1) << r.qps
+                  << std::fixed << std::setprecision(1) << r.avg_dist_evals << std::endl;
+    }
+    std::cout << "================================================================================================================================================\n" << std::endl;
+
+    write_json(json_out, records);
+    write_csv(csv_out, records);
 
     return 0;
 }

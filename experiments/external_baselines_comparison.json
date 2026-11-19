@@ -1,0 +1,130 @@
+{
+  "faiss_hnsw": {
+    "build_time_sec": 5.036693811416626,
+    "evaluations": [
+      {
+        "ef_search": 16,
+        "recall_at_10": 0.87504,
+        "qps": 141270.87417227466
+      },
+      {
+        "ef_search": 32,
+        "recall_at_10": 0.95575,
+        "qps": 86233.88371810924
+      },
+      {
+        "ef_search": 64,
+        "recall_at_10": 0.98928,
+        "qps": 50497.461464464715
+      },
+      {
+        "ef_search": 128,
+        "recall_at_10": 0.99807,
+        "qps": 27736.033465985813
+      },
+      {
+        "ef_search": 256,
+        "recall_at_10": 0.9996,
+        "qps": 15076.859811901588
+      }
+    ]
+  },
+  "adaptivevec_baseline": {
+    "build_time_sec": 12.28865098953247,
+    "ram_mb": 185.9044418334961,
+    "total_edges": 2705768,
+    "evaluations": [
+      {
+        "ef_search": 16,
+        "recall_at_10": 0.89719,
+        "qps": 25236.000269549564
+      },
+      {
+        "ef_search": 32,
+        "recall_at_10": 0.96366,
+        "qps": 22664.41587971979
+      },
+      {
+        "ef_search": 64,
+        "recall_at_10": 0.99008,
+        "qps": 20012.415004692604
+      },
+      {
+        "ef_search": 128,
+        "recall_at_10": 0.99693,
+        "qps": 13128.698243373525
+      },
+      {
+        "ef_search": 256,
+        "recall_at_10": 0.99807,
+        "qps": 8692.200486388076
+      }
+    ]
+  },
+  "adaptivevec_full": {
+    "build_time_sec": 11.643929958343506,
+    "ram_mb": 185.90657806396484,
+    "total_edges": 2415674,
+    "evaluations": [
+      {
+        "ef_search": 16,
+        "recall_at_10": 0.81405,
+        "qps": 15915.868306304754
+      },
+      {
+        "ef_search": 32,
+        "recall_at_10": 0.89782,
+        "qps": 18474.896400078935
+      },
+      {
+        "ef_search": 64,
+        "recall_at_10": 0.94592,
+        "qps": 20262.338164251207
+      },
+      {
+        "ef_search": 128,
+        "recall_at_10": 0.97284,
+        "qps": 20940.601202324768
+      },
+      {
+        "ef_search": 256,
+        "recall_at_10": 0.98737,
+        "qps": 15897.860804872262
+      }
+    ]
+  },
+  "hnswlib": {
+    "engine": "hnswlib",
+    "n_samples": 100000,
+    "dim": 128,
+    "build_time_sec": 4.21332,
+    "working_set_mb": 142.102,
+    "evaluations": [
+      {
+        "ef_search": 16,
+        "recall_at_10": 0.87378,
+        "qps": 92894.5
+      },
+      {
+        "ef_search": 32,
+        "recall_at_10": 0.95338,
+        "qps": 43677.6
+      },
+      {
+        "ef_search": 64,
+        "recall_at_10": 0.98821,
+        "qps": 41540.3
+      },
+      {
+        "ef_search": 128,
+        "recall_at_10": 0.99791,
+        "qps": 28548.7
+      },
+      {
+        "ef_search": 256,
+        "recall_at_10": 0.99967,
+        "qps": 13878.7
+      }
+    ]
+  }
+}

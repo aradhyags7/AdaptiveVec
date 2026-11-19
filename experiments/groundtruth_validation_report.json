@@ -1,0 +1,47 @@
+{
+  "groundtruth_validation": [
+    {
+      "dataset": "SIFT-100K",
+      "n_base": 100000,
+      "n_queries": 10000,
+      "n_gt": 10000,
+      "k_gt": 100,
+      "max_gt_id": 99999,
+      "boundary_valid": true,
+      "recall_at_1": 1.0,
+      "recall_at_10": 0.99995,
+      "recall_at_100": 0.999976,
+      "faiss_build_sec": 0.015047073364257812,
+      "faiss_search_sec": 1.7329020500183105
+    },
+    {
+      "dataset": "SIFT-250K",
+      "n_base": 250000,
+      "n_queries": 1000,
+      "n_gt": 1000,
+      "k_gt": 100,
+      "max_gt_id": 249998,
+      "boundary_valid": true,
+      "recall_at_1": 1.0,
+      "recall_at_10": 1.0,
+      "recall_at_100": 0.99998,
+      "faiss_build_sec": 0.042163848876953125,
+      "faiss_search_sec": 0.4945974349975586
+    },
+    {
+      "dataset": "SIFT-500K",
+      "n_base": 500000,
+      "n_queries": 1000,
+      "n_gt": 1000,
+      "k_gt": 100,
+      "max_gt_id": 499982,
+      "boundary_valid": true,
+      "recall_at_1": 1.0,
+      "recall_at_10": 0.9986,
+      "recall_at_100": 0.99977,
+      "faiss_build_sec": 0.09512996673583984,
+      "faiss_search_sec": 0.9142217636108398
+    }
+  ],
+  "timestamp": 1795093834.9698708
+}
