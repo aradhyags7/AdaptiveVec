@@ -39,6 +39,40 @@ inline OptimizationGoal parse_optimization_goal(const std::string& str) {
     return OptimizationGoal::MaxThroughput;
 }
 
+enum class FeasibilityStatus {
+    Feasible = 0,                    // Strictly satisfies recall (including 95% bootstrap lower bound), memory, and latency
+    ProvisionallyFeasible = 1,       // Satisfies mean recall, memory, and latency, but 95% bootstrap lower bound dips below target
+    InfeasibleWithinSearchSpace = 2  // One or more hard constraints violated by all evaluated configurations in search space
+};
+
+inline std::string to_string(FeasibilityStatus status) {
+    switch (status) {
+        case FeasibilityStatus::Feasible: return "Feasible";
+        case FeasibilityStatus::ProvisionallyFeasible: return "ProvisionallyFeasible";
+        case FeasibilityStatus::InfeasibleWithinSearchSpace: return "InfeasibleWithinSearchSpace";
+        default: return "Unknown";
+    }
+}
+
+struct NormalizedViolations {
+    double v_recall = 0.0;
+    double v_memory = 0.0;
+    double v_latency = 0.0;
+    double v_total = 0.0;
+    
+    std::string to_json() const {
+        std::ostringstream ss;
+        ss << std::fixed << std::setprecision(4);
+        ss << "{"
+           << "\"v_recall\": " << v_recall << ", "
+           << "\"v_memory\": " << v_memory << ", "
+           << "\"v_latency\": " << v_latency << ", "
+           << "\"v_total\": " << v_total
+           << "}";
+        return ss.str();
+    }
+};
+
 struct CalibrationConstraints {
     float target_recall = 0.95f;
     double max_memory_mb = 1024.0;
@@ -50,6 +84,7 @@ struct CalibrationConstraints {
     OptimizationGoal optimization_goal = OptimizationGoal::MaxThroughput;
     bool sample_construction_if_large = true;
     size_t sample_size_cap = 20000;
+    bool require_conservative_recall = false; // If true, requires CI_lower >= target_recall for Feasible status
 };
 
 struct CalibrationTrial {
@@ -71,6 +106,9 @@ struct CalibrationTrial {
     double trial_duration_s = 0.0;
     
     bool is_feasible = false;
+    bool conservative_feasible = false;
+    FeasibilityStatus status = FeasibilityStatus::InfeasibleWithinSearchSpace;
+    NormalizedViolations violations;
     std::string rejection_reason = "";
     
     std::string to_json() const {
@@ -93,6 +131,9 @@ struct CalibrationTrial {
            << "\"p99_latency_ms\": " << p99_latency_ms << ", "
            << "\"trial_duration_s\": " << trial_duration_s << ", "
            << "\"is_feasible\": " << (is_feasible ? "true" : "false") << ", "
+           << "\"conservative_feasible\": " << (conservative_feasible ? "true" : "false") << ", "
+           << "\"status\": \"" << to_string(status) << "\", "
+           << "\"violations\": " << violations.to_json() << ", "
            << "\"rejection_reason\": \"" << rejection_reason << "\""
            << "}";
         return ss.str();
@@ -101,11 +142,14 @@ struct CalibrationTrial {
 
 struct CalibrationReport {
     bool is_feasible = false;
+    FeasibilityStatus status = FeasibilityStatus::InfeasibleWithinSearchSpace;
     std::vector<std::string> violated_constraints;
     CalibrationTrial selected_config;
     std::vector<CalibrationTrial> evaluated_trials;
     std::vector<CalibrationTrial> pareto_frontier;
+    std::vector<CalibrationTrial> fallback_pareto_set; // Set of non-dominated fallbacks when no configuration satisfies all constraints
     double total_calibration_time_s = 0.0;
+    double optimizer_overhead_ms = 0.0;
     size_t num_calibration_queries = 0;
     size_t num_validation_queries = 0;
     std::string dataset_name = "Unknown";
@@ -116,7 +160,9 @@ struct CalibrationReport {
         ss << "{\n"
            << "  \"dataset_name\": \"" << dataset_name << "\",\n"
            << "  \"is_feasible\": " << (is_feasible ? "true" : "false") << ",\n"
+           << "  \"status\": \"" << to_string(status) << "\",\n"
            << "  \"total_calibration_time_s\": " << total_calibration_time_s << ",\n"
+           << "  \"optimizer_overhead_ms\": " << optimizer_overhead_ms << ",\n"
            << "  \"num_calibration_queries\": " << num_calibration_queries << ",\n"
            << "  \"num_validation_queries\": " << num_validation_queries << ",\n"
            << "  \"violated_constraints\": [";
@@ -128,6 +174,11 @@ struct CalibrationReport {
         ss << "  \"pareto_frontier\": [\n";
         for (size_t i = 0; i < pareto_frontier.size(); ++i) {
             ss << "    " << pareto_frontier[i].to_json() << (i + 1 < pareto_frontier.size() ? ",\n" : "\n");
+        }
+        ss << "  ],\n";
+        ss << "  \"fallback_pareto_set\": [\n";
+        for (size_t i = 0; i < fallback_pareto_set.size(); ++i) {
+            ss << "    " << fallback_pareto_set[i].to_json() << (i + 1 < fallback_pareto_set.size() ? ",\n" : "\n");
         }
         ss << "  ],\n";
         ss << "  \"evaluated_trials\": [\n";
@@ -144,8 +195,8 @@ struct CalibrationReport {
         ss << std::fixed << std::setprecision(2);
         ss << "=== AdaptiveVec Calibration Report ===\n";
         ss << "Dataset: " << dataset_name << "\n";
-        ss << "Feasible: " << (is_feasible ? "YES" : "NO") << "\n";
-        if (!is_feasible && !violated_constraints.empty()) {
+        ss << "Status: " << to_string(status) << "\n";
+        if (status != FeasibilityStatus::Feasible && !violated_constraints.empty()) {
             ss << "Violated Constraints:\n";
             for (const auto& vc : violated_constraints) {
                 ss << "  - " << vc << "\n";
@@ -160,8 +211,12 @@ struct CalibrationReport {
         ss << "  Memory: " << selected_config.memory_mb << " MB\n";
         ss << "  Throughput: " << selected_config.qps << " QPS\n";
         ss << "  p99 Latency: " << selected_config.p99_latency_ms << " ms\n";
-        ss << "Calibration Time: " << total_calibration_time_s << " s\n";
-        ss << "Total Evaluated Trials: " << evaluated_trials.size() << " (Pareto Frontier: " << pareto_frontier.size() << ")\n";
+        ss << "Calibration Duration: " << total_calibration_time_s << " s (Optimizer Overhead: " << optimizer_overhead_ms << " ms)\n";
+        ss << "Total Evaluated Trials: " << evaluated_trials.size() << " (Pareto Frontier: " << pareto_frontier.size();
+        if (!fallback_pareto_set.empty()) {
+            ss << ", Fallback Pareto Set: " << fallback_pareto_set.size();
+        }
+        ss << ")\n";
         return ss.str();
     }
 };
@@ -197,13 +252,32 @@ public:
         return {sample_means[lower_idx], sample_means[upper_idx]};
     }
 
-    static void compute_pareto_frontier(std::vector<CalibrationTrial>& trials, std::vector<CalibrationTrial>& frontier) {
+    static NormalizedViolations compute_normalized_violations(
+        float recall_mean, 
+        double memory_mb, 
+        float p99_latency_ms,
+        const CalibrationConstraints& constraints
+    ) {
+        NormalizedViolations nv;
+        if (recall_mean < constraints.target_recall && constraints.target_recall > 0.0f) {
+            nv.v_recall = (constraints.target_recall - recall_mean) / constraints.target_recall;
+        }
+        if (memory_mb > constraints.max_memory_mb && constraints.max_memory_mb > 0.0) {
+            nv.v_memory = (memory_mb - constraints.max_memory_mb) / constraints.max_memory_mb;
+        }
+        if (p99_latency_ms > constraints.target_p99_latency_ms && constraints.target_p99_latency_ms > 0.0f) {
+            nv.v_latency = (p99_latency_ms - constraints.target_p99_latency_ms) / constraints.target_p99_latency_ms;
+        }
+        nv.v_total = nv.v_recall + nv.v_memory + nv.v_latency;
+        return nv;
+    }
+
+    static void compute_pareto_frontier(const std::vector<CalibrationTrial>& trials, std::vector<CalibrationTrial>& frontier) {
         frontier.clear();
         for (size_t i = 0; i < trials.size(); ++i) {
             bool dominated = false;
             for (size_t j = 0; j < trials.size(); ++j) {
                 if (i == j) continue;
-                // j dominates i if j is >= in recall & QPS, and <= in memory & latency, with at least one strictly better
                 bool j_better_or_equal = (trials[j].recall_mean >= trials[i].recall_mean) &&
                                          (trials[j].qps >= trials[i].qps) &&
                                          (trials[j].memory_mb <= trials[i].memory_mb) &&
@@ -223,6 +297,31 @@ public:
         }
     }
 
+    static void compute_fallback_pareto_set(const std::vector<CalibrationTrial>& trials, std::vector<CalibrationTrial>& fallbacks) {
+        fallbacks.clear();
+        // A fallback trial dominates another if its normalized violation is lower and QPS higher
+        for (size_t i = 0; i < trials.size(); ++i) {
+            bool dominated = false;
+            for (size_t j = 0; j < trials.size(); ++j) {
+                if (i == j) continue;
+                bool j_better_or_equal = (trials[j].violations.v_total <= trials[i].violations.v_total) &&
+                                         (trials[j].qps >= trials[i].qps);
+                bool j_strictly_better = (trials[j].violations.v_total < trials[i].violations.v_total) ||
+                                         (trials[j].qps > trials[i].qps);
+                if (j_better_or_equal && j_strictly_better) {
+                    dominated = true;
+                    break;
+                }
+            }
+            if (!dominated) {
+                fallbacks.push_back(trials[i]);
+            }
+        }
+        std::sort(fallbacks.begin(), fallbacks.end(), [](const CalibrationTrial& a, const CalibrationTrial& b) {
+            return a.violations.v_total < b.violations.v_total;
+        });
+    }
+
     static CalibrationReport calibrate(
         const float* base_vectors,
         size_t n_vectors,
@@ -239,7 +338,6 @@ public:
         CalibrationReport report;
         report.dataset_name = dataset_name;
         
-        // Split queries: 50% calibration, 50% validation
         size_t n_calib_q = n_queries / 2;
         size_t n_val_q = n_queries - n_calib_q;
         report.num_calibration_queries = n_calib_q;
@@ -255,7 +353,7 @@ public:
         size_t packed_dim = (dim + 1) / 2;
         double vec_sq4_mb = (n_vectors * packed_dim * sizeof(uint8_t)) / (1024.0 * 1024.0);
         
-        // Minimum graph overhead estimate (M=8, 24 bytes per node for levels/locks/ptrs)
+        // Lower connectivity boundary check (M=8, 24 bytes per node for levels/locks/ptrs)
         double min_graph_mb = (n_vectors * (8 * sizeof(tableint) + 24)) / (1024.0 * 1024.0);
         double min_total_sq4_mb = vec_sq4_mb + min_graph_mb;
         double min_total_sq8_mb = vec_sq8_mb + min_graph_mb;
@@ -263,10 +361,9 @@ public:
         
         std::vector<std::string> candidate_precisions;
         if (min_total_sq4_mb > constraints.max_memory_mb) {
-            report.is_feasible = false;
+            report.status = FeasibilityStatus::InfeasibleWithinSearchSpace;
             report.violated_constraints.push_back("Memory budget " + std::to_string(constraints.max_memory_mb) + 
-                " MB is strictly below minimum possible 4-bit index requirement (" + std::to_string(min_total_sq4_mb) + " MB)");
-            // Still explore SQ4 to return best-effort configuration
+                " MB is below estimated lower bound for evaluated configuration space (" + std::to_string(min_total_sq4_mb) + " MB)");
             candidate_precisions.push_back("SQ4");
         } else if (min_total_sq8_mb > constraints.max_memory_mb) {
             candidate_precisions.push_back("SQ4");
@@ -274,19 +371,20 @@ public:
             candidate_precisions.push_back("SQ8");
             candidate_precisions.push_back("SQ4");
         } else {
-            // Memory allows FP32; test both FP32 and SQ8 (Uniform SQ8 preferred if throughput/memory matches)
             candidate_precisions.push_back("SQ8");
             candidate_precisions.push_back("FP32");
         }
         
         // -------------------------------------------------------------
-        // Stage 4 Phase B: Construction Configuration via Bounded Candidate Search
+        // Stage 4 Phase B: Construction Configuration via Bounded Candidate Ladder
+        // Expanded to include lower connectivity options (M=8, 12, 16, 24)
         // -------------------------------------------------------------
         struct BuildCandidate {
             int m;
             int ef_c;
         };
         std::vector<BuildCandidate> build_candidates = {
+            {8, 30},
             {12, 40},
             {16, 64},
             {24, 100}
@@ -295,6 +393,7 @@ public:
         std::unique_ptr<AdaptiveHNSWIndex> best_index = nullptr;
         CalibrationTrial best_trial;
         bool found_feasible = false;
+        bool found_provisional = false;
         
         for (const auto& prec_str : candidate_precisions) {
             for (const auto& bc : build_candidates) {
@@ -304,7 +403,6 @@ public:
                     break;
                 }
                 
-                // Estimate memory for this configuration
                 double est_graph_mb = (n_vectors * (bc.m * sizeof(tableint) * 2 + 32)) / (1024.0 * 1024.0);
                 double est_vec_mb = (prec_str == "FP32") ? vec_fp32_mb : ((prec_str == "SQ8") ? vec_sq8_mb : vec_sq4_mb);
                 double est_total_mb = est_vec_mb + est_graph_mb;
@@ -318,16 +416,17 @@ public:
                     reject_trial.precision = prec_str;
                     reject_trial.memory_mb = est_total_mb;
                     reject_trial.is_feasible = false;
-                    reject_trial.rejection_reason = "Estimated memory " + std::to_string(est_total_mb) + " MB exceeds budget";
+                    reject_trial.status = FeasibilityStatus::InfeasibleWithinSearchSpace;
+                    reject_trial.violations = compute_normalized_violations(0.0f, est_total_mb, 0.0f, constraints);
+                    reject_trial.rejection_reason = "Estimated memory " + std::to_string(est_total_mb) + " MB exceeds budget in search space";
                     report.evaluated_trials.push_back(reject_trial);
                     continue;
                 }
                 
-                // Construct Index
                 PolicyConfig cfg;
                 cfg.m_base = bc.m;
                 cfg.ef_c_base = bc.ef_c;
-                cfg.enable_hubness_regulation = false; // Phase 1/2.1 verified: uniform canonical connectivity provides best baseline
+                cfg.enable_hubness_regulation = false;
                 cfg.enable_bridge_aware = false;
                 
                 auto build_start = std::chrono::high_resolution_clock::now();
@@ -361,7 +460,6 @@ public:
                     for (int ef_s : ef_sweeps) {
                         auto trial_t0 = std::chrono::high_resolution_clock::now();
                         
-                        // Evaluate on Validation Queries
                         std::vector<float> per_query_recall(n_val_q, 0.0f);
                         std::vector<double> latencies_ms(n_val_q, 0.0);
                         
@@ -378,7 +476,6 @@ public:
                             
                             latencies_ms[q] = std::chrono::duration<double, std::milli>(q_end - q_start).count();
                             
-                            // Recall calculation
                             if (query_idx < ground_truth.size() && !ground_truth[query_idx].empty()) {
                                 size_t match_cnt = 0;
                                 const auto& gt = ground_truth[query_idx];
@@ -399,13 +496,11 @@ public:
                         double total_val_time_s = val_search_t1 - val_search_t0;
                         double measured_qps = n_val_q / std::max(1e-6, total_val_time_s);
                         
-                        // Compute mean recall and 95% bootstrap CI
                         double r_sum = 0.0;
                         for (float r : per_query_recall) r_sum += r;
                         float mean_recall = static_cast<float>(r_sum / std::max((size_t)1, n_val_q));
                         auto [ci_low, ci_high] = bootstrap_confidence_interval(per_query_recall, 1000, 0.05f);
                         
-                        // Compute p99 latency
                         std::sort(latencies_ms.begin(), latencies_ms.end());
                         size_t p99_idx = static_cast<size_t>(std::floor(0.99 * latencies_ms.size()));
                         if (p99_idx >= latencies_ms.size()) p99_idx = latencies_ms.size() - 1;
@@ -414,14 +509,26 @@ public:
                         auto trial_t1 = std::chrono::high_resolution_clock::now();
                         double trial_sec = std::chrono::duration<double>(trial_t1 - trial_t0).count();
                         
-                        // Constraint Verification
-                        bool satisfies_recall = (mean_recall >= constraints.target_recall);
+                        NormalizedViolations nv = compute_normalized_violations(mean_recall, measured_memory_mb, p99_lat, constraints);
+                        
+                        bool satisfies_mean_recall = (mean_recall >= constraints.target_recall);
+                        bool satisfies_ci_recall = (ci_low >= constraints.target_recall);
                         bool satisfies_memory = (measured_memory_mb <= constraints.max_memory_mb);
                         bool satisfies_latency = (p99_lat <= constraints.target_p99_latency_ms);
-                        bool trial_feasible = satisfies_recall && satisfies_memory && satisfies_latency;
+                        
+                        FeasibilityStatus trial_status = FeasibilityStatus::InfeasibleWithinSearchSpace;
+                        if (satisfies_mean_recall && satisfies_memory && satisfies_latency) {
+                            if (satisfies_ci_recall || !constraints.require_conservative_recall) {
+                                trial_status = FeasibilityStatus::Feasible;
+                                found_feasible = true;
+                            } else {
+                                trial_status = FeasibilityStatus::ProvisionallyFeasible;
+                                found_provisional = true;
+                            }
+                        }
                         
                         std::string rej = "";
-                        if (!satisfies_recall) rej += "[Recall " + std::to_string(mean_recall) + " < " + std::to_string(constraints.target_recall) + "] ";
+                        if (!satisfies_mean_recall) rej += "[Recall " + std::to_string(mean_recall) + " < " + std::to_string(constraints.target_recall) + "] ";
                         if (!satisfies_memory) rej += "[Memory " + std::to_string(measured_memory_mb) + " MB > " + std::to_string(constraints.max_memory_mb) + " MB] ";
                         if (!satisfies_latency) rej += "[p99 Latency " + std::to_string(p99_lat) + " ms > " + std::to_string(constraints.target_p99_latency_ms) + " ms]";
                         
@@ -441,17 +548,19 @@ public:
                         trial.qps = measured_qps;
                         trial.p99_latency_ms = p99_lat;
                         trial.trial_duration_s = trial_sec;
-                        trial.is_feasible = trial_feasible;
+                        trial.is_feasible = (trial_status == FeasibilityStatus::Feasible);
+                        trial.conservative_feasible = satisfies_ci_recall;
+                        trial.status = trial_status;
+                        trial.violations = nv;
                         trial.rejection_reason = rej;
                         
                         report.evaluated_trials.push_back(trial);
                         
-                        // Track best configuration according to constraints and optimization goal
+                        // Selection logic
                         bool should_replace = false;
-                        if (trial_feasible) {
+                        if (trial_status == FeasibilityStatus::Feasible) {
                             if (!found_feasible) {
                                 should_replace = true;
-                                found_feasible = true;
                             } else {
                                 switch (constraints.optimization_goal) {
                                     case OptimizationGoal::MaxThroughput:
@@ -469,22 +578,20 @@ public:
                                         break;
                                 }
                             }
-                        } else if (!found_feasible) {
-                            // If nothing is feasible yet, track highest recall configuration within memory budget
-                            if (best_trial.trial_id == 0) {
+                        } else if (!found_feasible && trial_status == FeasibilityStatus::ProvisionallyFeasible) {
+                            if (!found_provisional || trial.qps > best_trial.qps) {
                                 should_replace = true;
-                            } else if (satisfies_memory && !trial.rejection_reason.empty()) {
-                                if (trial.recall_mean > best_trial.recall_mean) {
-                                    should_replace = true;
-                                }
+                            }
+                        } else if (!found_feasible && !found_provisional) {
+                            // Track configuration minimizing normalized constraint violations
+                            if (best_trial.trial_id == 0 || trial.violations.v_total < best_trial.violations.v_total) {
+                                should_replace = true;
                             }
                         }
                         
                         if (should_replace) {
                             best_trial = trial;
-                            // Keep clone of index or assign best
                             best_index = std::move(index);
-                            // Recreate index for subsequent sweeps on this graph
                             index = best_index->clone();
                         }
                     }
@@ -495,27 +602,33 @@ public:
         auto t_end = std::chrono::high_resolution_clock::now();
         report.total_calibration_time_s = std::chrono::duration<double>(t_end - t_start).count();
         report.is_feasible = found_feasible;
+        report.status = found_feasible ? FeasibilityStatus::Feasible 
+                     : (found_provisional ? FeasibilityStatus::ProvisionallyFeasible 
+                                          : FeasibilityStatus::InfeasibleWithinSearchSpace);
         report.selected_config = best_trial;
         
-        if (!found_feasible) {
+        if (report.status != FeasibilityStatus::Feasible) {
             if (best_trial.recall_mean < constraints.target_recall) {
                 report.violated_constraints.push_back("Target recall " + std::to_string(constraints.target_recall) + 
-                    " not achieved (best achieved: " + std::to_string(best_trial.recall_mean) + ")");
+                    " not achieved (best achieved: " + std::to_string(best_trial.recall_mean) + 
+                    ", normalized violation: " + std::to_string(best_trial.violations.v_recall) + ")");
             }
             if (best_trial.memory_mb > constraints.max_memory_mb) {
                 report.violated_constraints.push_back("Memory budget " + std::to_string(constraints.max_memory_mb) + 
-                    " MB exceeded (best achieved: " + std::to_string(best_trial.memory_mb) + " MB)");
+                    " MB exceeded (best achieved: " + std::to_string(best_trial.memory_mb) + 
+                    " MB, normalized violation: " + std::to_string(best_trial.violations.v_memory) + ")");
             }
             if (best_trial.p99_latency_ms > constraints.target_p99_latency_ms) {
                 report.violated_constraints.push_back("p99 latency target " + std::to_string(constraints.target_p99_latency_ms) + 
-                    " ms exceeded (best achieved: " + std::to_string(best_trial.p99_latency_ms) + " ms)");
+                    " ms exceeded (best achieved: " + std::to_string(best_trial.p99_latency_ms) + 
+                    " ms, normalized violation: " + std::to_string(best_trial.violations.v_latency) + ")");
             }
         }
         
-        // Compute Pareto frontier
+        // Compute Pareto frontier & fallback Pareto set
         compute_pareto_frontier(report.evaluated_trials, report.pareto_frontier);
+        compute_fallback_pareto_set(report.evaluated_trials, report.fallback_pareto_set);
         
-        // Return calibrated index
         if (best_index) {
             best_index->policy.enable_ada_ef = best_trial.enable_ada_ef;
             out_calibrated_index = std::move(best_index);

@@ -1,0 +1,33 @@
+{
+  "experiment_1_shrink_to_fit": {
+    "allocated_bytes": 12800000,
+    "exact_payload_bytes": 12800000,
+    "total_index_ram_mb": 42.6142
+  },
+  "experiment_2_telemetry_overhead": {
+    "baseline_qps": 7142.86,
+    "telemetry_qps": 7843.13,
+    "overhead_percent": -8.92852
+  },
+  "experiment_3_drift_detectors": {
+    "rolling_delay": 0,
+    "rolling_false_positives": 2,
+    "ewma_delay": 1,
+    "ewma_false_positives": 0,
+    "cusum_delay": 0,
+    "cusum_false_positives": 0
+  },
+  "experiment_4_query_specific_policies": {
+    "fixed_ef48_recall": 0.964,
+    "fixed_ef48_qps": 2188.18,
+    "ada_ef_recall": 0.9713,
+    "ada_ef_qps": 2169.2,
+    "query_specific_recall": 0.9711,
+    "query_specific_qps": 2481.39
+  },
+  "experiment_5_closed_loop": {
+    "stream_queries": 2000,
+    "final_ef": 48,
+    "rollbacks": 0
+  }
+}
