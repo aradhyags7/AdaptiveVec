@@ -1,0 +1,32 @@
+[
+  {
+    "test_name": "Forced Low-Recall Rollback & Recovery",
+    "passed": true,
+    "details": "Triggered safety action when recall dropped below target threshold."
+  },
+  {
+    "test_name": "Concurrent Telemetry Thread-Safety",
+    "passed": true,
+    "details": "12 parallel threads recorded 600000 events with zero race conditions."
+  },
+  {
+    "test_name": "Ring Buffer Wraparound Correctness",
+    "passed": true,
+    "details": "Successfully wrapped around ring buffer 8 times without corruption."
+  },
+  {
+    "test_name": "Concurrent Policy Mutation Safety",
+    "passed": true,
+    "details": "Completed 21491 active searches while mutating policies without deadlocks."
+  },
+  {
+    "test_name": "Zero Runtime Allocation Invariant",
+    "passed": true,
+    "details": "Index memory before: 173928 bytes, after: 173928 bytes (Exact Delta = 0)."
+  },
+  {
+    "test_name": "Invalid Configuration Defensive Clamping",
+    "passed": true,
+    "details": "Clamped out-of-bounds parameters into safe operating range."
+  }
+]

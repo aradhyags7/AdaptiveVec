@@ -1,0 +1,31 @@
+{
+  "stage1_telemetry_reliability": {
+    "num_repetitions": 10,
+    "threads": 12,
+    "queries_per_rep": 2000,
+    "baseline_qps_median": 26320.4,
+    "baseline_qps_mean": 26202.8,
+    "baseline_qps_ci_low": 25018.7,
+    "baseline_qps_ci_high": 27260.4,
+    "telemetry_qps_median": 26671.4,
+    "telemetry_qps_mean": 26388.2,
+    "telemetry_qps_ci_low": 24889,
+    "telemetry_qps_ci_high": 27762.3,
+    "overhead_pct_median": -0.000161094,
+    "overhead_pct_ci_low": -3.42052,
+    "overhead_pct_ci_high": 2.00683,
+    "target_met": true
+  },
+  "stage2_difficulty_correlations": {
+    "entry_dist_vs_min_ef_pearson": -0.0216838,
+    "entry_dist_vs_min_ef_spearman": -0.0706364,
+    "entry_dist_vs_latency_pearson": -0.15684,
+    "upper_dist_vs_min_ef_spearman": 0.332868,
+    "margin_vs_min_ef_spearman": -0.205203,
+    "norm_vs_min_ef_spearman": -0.131177,
+    "calib_thresh_low": 424.742,
+    "calib_thresh_high": 571.799,
+    "heldout_recall": 0.968,
+    "heldout_qps": 5319.16
+  }
+}
