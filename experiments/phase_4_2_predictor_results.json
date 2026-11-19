@@ -1,0 +1,13 @@
+{
+  "dataset": "SIFT-100K",
+  "evaluated_queries": 1000,
+  "feature_spearman_rho": {
+    "layer0_entry_dist": 0.31345,
+    "top10_margin": -0.292285,
+    "estimated_lid": 0.327712,
+    "candidate_improvement_rate": -0.470945,
+    "entry_node_degree": -0.0668545
+  },
+  "expansion_rate_pct": 85.1,
+  "avg_inference_latency_us": 52.571
+}

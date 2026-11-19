@@ -99,3 +99,34 @@ Every invariant in this contract was empirically verified under the Phase 4.1 te
 | **§4.2 Ring Buffer Wraparound** | Zero corruption across wraparound | 8 full circular cycles (40K entries / 5K capacity) | Wraparound executed cleanly with zero buffer overrun or index drift. | **VERIFIED** |
 | **§5 Feasibility Status** | Normalized violations & 3-state reporting | Multi-constraint auto-calibrator test | Correctly categorized SIFT-500K resource constraints and generated fallback Pareto frontiers. | **VERIFIED** |
 
+---
+
+## 7. Phase 4.2 Lightweight Adaptation and Resumable Search Contract
+
+### 7.1 Bounded Incremental Monitoring Invariant (< 5% CPU Work)
+Synchronous batch evaluation of reference queries is strictly deprecated.
+- **Monitoring Policy**: The system implements **Incremental Reference Sampling** where at most 1 reference query is evaluated every $K \ge 25$ production queries.
+- **CPU Budget Invariant**:
+  $$\text{Overhead}_{CPU} = \frac{1}{K} \le 4.0\% < 5.0\% \text{ of query-time CPU budget}$$
+- **Rolling Accuracy State**: Moving average recall $\bar{R}_{ref}$ is maintained via a 100-slot lockless ring buffer. The controller never triggers bulk batch evaluations on query serving threads.
+
+### 7.2 Multi-Signal Query Difficulty Contract
+- **Predictor Signals**: Difficulty is estimated strictly using local layer-0 topological signals:
+  1. Layer-0 Entry Distance: $d(q, ep_{L0})$.
+  2. Top-k Distance Margin: $\Delta_{margin} = (d_k - d_1) / (d_k + \epsilon)$.
+  3. Estimated Local Intrinsic Dimensionality (LID) via Levina-Bickel MLE:
+     $$\widehat{\text{LID}} = \left(\frac{1}{k-1} \sum_{i=1}^{k-1} \ln \frac{d_k}{d_i}\right)^{-1}$$
+  4. Normalized Candidate Improvement Velocity: $\Delta d / (d_{best} \cdot \Delta t)$.
+- **Zero Leakage & O(1) Overhead**: All features must be computable in $O(1)$ operations on CPU registers without memory allocations, additional distance calculations, or ground-truth access.
+
+### 7.3 Resumable Search Invariant
+When incremental expansion from $ef_{init}$ to $ef_{expanded}$ is triggered:
+- Candidate priority queues, furthest heaps, visited generation tags, and previously calculated distances must be preserved in thread-local storage.
+- Traversal must resume from the active frontier without resetting visited tags or recomputing distances.
+- Invariant: Zero redundant distance calculations ($\Delta \text{Dist}_{redundant} = 0$).
+
+### 7.4 Production Deployment Default
+- In accordance with Phase 4.2 acceptance criteria, closed-loop runtime workload adaptation remains **disabled by default** in production builds.
+- The default operational policy remains the **Phase 3 Calibrated Static Policy with Ada-ef enabled**, guaranteeing predictable recall without out-of-sample drift risk.
+
+

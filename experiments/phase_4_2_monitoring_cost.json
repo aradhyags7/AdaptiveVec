@@ -1,0 +1,7 @@
+[
+  {"policy": "Unmonitored Baseline (0% Target)", "wall_clock_ms": 96.9819, "throughput_qps": 10311.2, "prod_queries": 1000, "ref_queries_evaluated": 0, "cpu_time_ms": 0, "cpu_overhead_pct": 0},
+  {"policy": "Phase 4.1 Fixed Batch (100q / 50req)", "wall_clock_ms": 309.38, "throughput_qps": 3232.28, "prod_queries": 1000, "ref_queries_evaluated": 1900, "cpu_time_ms": 202.082, "cpu_overhead_pct": 190},
+  {"policy": "Low-Frequency Periodic (100q / 500req)", "wall_clock_ms": 105.458, "throughput_qps": 9482.46, "prod_queries": 1000, "ref_queries_evaluated": 1, "cpu_time_ms": 0.1075, "cpu_overhead_pct": 0.1},
+  {"policy": "Proposed Incremental (1q / 25req)", "wall_clock_ms": 101.254, "throughput_qps": 9876.19, "prod_queries": 1000, "ref_queries_evaluated": 39, "cpu_time_ms": 4.2268, "cpu_overhead_pct": 3.9},
+  {"policy": "Proposed Incremental (1q / 50req)", "wall_clock_ms": 109.654, "throughput_qps": 9119.58, "prod_queries": 1000, "ref_queries_evaluated": 19, "cpu_time_ms": 1.8329, "cpu_overhead_pct": 1.9}
+]
