@@ -433,10 +433,10 @@ int main(int argc, char** argv) {
     // =========================================================================
     // STEP 4: + Hubness Regulation (Base Adaptive Graph)
     // =========================================================================
-    std::cout << "\n>>> [4/7] 4. + Hubness Regulation (mu=0.15) <<<" << std::endl;
+    std::cout << "\n>>> [4/7] 4. + Hubness Regulation (mu=0.03 calibrated) <<<" << std::endl;
     PolicyConfig cfg4 = cfg3;
     cfg4.enable_hubness_regulation = true;
-    cfg4.hubness_mu = 0.15f;
+    cfg4.hubness_mu = 0.03f; // Calibrated from 0.15 to preserve bridge connectivity
     
     AdaptiveHNSWIndex index4(ds.dim, ds.space, true, cfg4);
     t0 = std::chrono::high_resolution_clock::now();
@@ -446,14 +446,14 @@ int main(int argc, char** argv) {
     t1 = std::chrono::high_resolution_clock::now();
     double build4_s = std::chrono::duration<double>(t1 - t0).count();
     uint64_t fp4 = index4.get_graph_fingerprint();
-    records.push_back(run_query_benchmark_on_existing_graph(ds, "4. + Hubness Regulation (mu=0.15)", index4, ef_search, k, base_edges, build4_s, base_build_time));
+    records.push_back(run_query_benchmark_on_existing_graph(ds, "4. + Hubness Regulation (mu=0.03)", index4, ef_search, k, base_edges, build4_s, base_build_time));
 
     // =========================================================================
     // STEP 5: + Ada-ef Stagnation Exit (Reusing Step 4 Graph)
     // =========================================================================
     std::cout << "\n>>> [5/7] 5. + Ada-ef Stagnation Exit (REUSING STEP 4 GRAPH) <<<" << std::endl;
     index4.policy.enable_ada_ef = true;
-    index4.policy.ada_ef_patience = 6;
+    index4.policy.ada_ef_patience = 12; // Calibrated from 6 to prevent premature truncation
     index4.policy.ada_ef_epsilon = 1e-4f;
     uint64_t fp5 = index4.get_graph_fingerprint();
     if (fp5 != fp4) {

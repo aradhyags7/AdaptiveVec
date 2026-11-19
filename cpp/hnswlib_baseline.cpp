@@ -46,18 +46,23 @@ int main(int argc, char** argv) {
     std::string query_path = "data/sift_query.fvecs";
     std::string gt_path = "data/sift_subset_groundtruth.ivecs";
     std::string out_json = "experiments/hnswlib_baseline_results.json";
+    size_t max_samples = 100000;
+    size_t max_queries = 10000;
 
     if (argc > 1) dataset_path = argv[1];
     if (argc > 2) query_path = argv[2];
     if (argc > 3) gt_path = argv[3];
+    if (argc > 4) out_json = argv[4];
+    if (argc > 5) max_samples = std::stoul(argv[5]);
+    if (argc > 6) max_queries = std::stoul(argv[6]);
 
     std::vector<float> data;
     size_t n_samples = 0, dim = 0;
-    load_fvecs(dataset_path, data, n_samples, dim, 100000);
+    load_fvecs(dataset_path, data, n_samples, dim, max_samples);
 
     std::vector<float> queries;
     size_t n_queries = 0, q_dim = 0;
-    load_fvecs(query_path, queries, n_queries, q_dim, 10000);
+    load_fvecs(query_path, queries, n_queries, q_dim, max_queries);
 
     std::vector<std::vector<uint32_t>> ground_truth;
     load_ivecs(gt_path, ground_truth, n_queries);

@@ -11,8 +11,8 @@
       "recall_at_1": 1.0,
       "recall_at_10": 0.99995,
       "recall_at_100": 0.999976,
-      "faiss_build_sec": 0.015047073364257812,
-      "faiss_search_sec": 1.7329020500183105
+      "faiss_build_sec": 0.019043445587158203,
+      "faiss_search_sec": 1.8659131526947021
     },
     {
       "dataset": "SIFT-250K",
@@ -25,8 +25,8 @@
       "recall_at_1": 1.0,
       "recall_at_10": 1.0,
       "recall_at_100": 0.99998,
-      "faiss_build_sec": 0.042163848876953125,
-      "faiss_search_sec": 0.4945974349975586
+      "faiss_build_sec": 0.04538679122924805,
+      "faiss_search_sec": 0.6365129947662354
     },
     {
       "dataset": "SIFT-500K",
@@ -39,9 +39,23 @@
       "recall_at_1": 1.0,
       "recall_at_10": 0.9986,
       "recall_at_100": 0.99977,
-      "faiss_build_sec": 0.09512996673583984,
-      "faiss_search_sec": 0.9142217636108398
+      "faiss_build_sec": 0.1312706470489502,
+      "faiss_search_sec": 2.046870708465576
+    },
+    {
+      "dataset": "SIFT-1M",
+      "n_base": 1000000,
+      "n_queries": 1000,
+      "n_gt": 1000,
+      "k_gt": 100,
+      "max_gt_id": 999993,
+      "boundary_valid": true,
+      "recall_at_1": 1.0,
+      "recall_at_10": 0.9991,
+      "recall_at_100": 0.99989,
+      "faiss_build_sec": 0.28151845932006836,
+      "faiss_search_sec": 4.425102233886719
     }
   ],
-  "timestamp": 1795093834.9698708
+  "timestamp": 1795094665.2114556
 }

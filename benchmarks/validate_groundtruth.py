@@ -185,6 +185,18 @@ def main():
         queries_1k = queries_10k[:len(gt_500k)]
         res = validate_subset("SIFT-500K", base_500k, queries_1k, gt_500k)
         results.append(res)
+
+    # 4. SIFT-1M Full Dataset Validation
+    gt_1m_file = os.path.join(DATA_DIR, "sift_groundtruth_1m.ivecs")
+    if os.path.exists(sift_1m_file) and os.path.exists(gt_1m_file):
+        print("\n[*] Loading full 1,000,000 vectors from sift_base_1m.fvecs ...")
+        base_1m = read_fvecs(sift_1m_file)
+        gt_1m = read_ivecs(gt_1m_file)
+        # Evaluate on first 1,000 queries for speed while verifying full 1M base vectors
+        queries_1m_eval = queries_10k[:1000]
+        gt_1m_eval = gt_1m[:1000]
+        res = validate_subset("SIFT-1M", base_1m, queries_1m_eval, gt_1m_eval)
+        results.append(res)
         
     # Save Report
     out_json = os.path.join(EXP_DIR, "groundtruth_validation_report.json")

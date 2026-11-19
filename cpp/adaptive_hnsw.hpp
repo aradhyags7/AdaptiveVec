@@ -131,8 +131,8 @@ struct PolicyConfig {
     // Mechanics parameters
     float lambda_layer = 0.75f;
     int m_min_layer = 4;
-    float hubness_mu = 0.15f;
-    int ada_ef_patience = 6;
+    float hubness_mu = 0.03f; // Calibrated from 0.15f to preserve bridge node connectivity
+    int ada_ef_patience = 12; // Calibrated from 6 to prevent premature early exit
     float ada_ef_epsilon = 1e-4f;
     int sq8_rerank_factor = 2; // K = 2 * k
     int sq4_rerank_factor = 3; // K = 3 * k (Frontier 3 Sub-Byte)
@@ -199,7 +199,7 @@ inline float _mm256_reduce_add_ps(__m256 x) {
     return _mm_cvtss_f32(v32);
 }
 
-inline dist_t l2_distance(const float* a, const float* b, size_t dim) {
+inline dist_t l2_sq_distance(const float* a, const float* b, size_t dim) {
     size_t i = 0;
     __m256 sum256 = _mm256_setzero_ps();
     for (; i + 8 <= dim; i += 8) {
@@ -217,7 +217,11 @@ inline dist_t l2_distance(const float* a, const float* b, size_t dim) {
         float diff = a[i] - b[i];
         total += diff * diff;
     }
-    return std::sqrt(total);
+    return total;
+}
+
+inline dist_t l2_distance(const float* a, const float* b, size_t dim) {
+    return std::sqrt(l2_sq_distance(a, b, dim));
 }
 
 inline dist_t cosine_distance(const float* a, const float* b, size_t dim) {
@@ -251,13 +255,17 @@ inline dist_t cosine_distance(const float* a, const float* b, size_t dim) {
     return std::max(0.0f, 1.0f - cos_sim);
 }
 #else
-inline dist_t l2_distance(const float* a, const float* b, size_t dim) {
+inline dist_t l2_sq_distance(const float* a, const float* b, size_t dim) {
     dist_t sum = 0.0f;
     for (size_t i = 0; i < dim; ++i) {
         dist_t diff = a[i] - b[i];
         sum += diff * diff;
     }
-    return std::sqrt(sum);
+    return sum;
+}
+
+inline dist_t l2_distance(const float* a, const float* b, size_t dim) {
+    return std::sqrt(l2_sq_distance(a, b, dim));
 }
 
 inline dist_t cosine_distance(const float* a, const float* b, size_t dim) {
@@ -352,7 +360,7 @@ struct ScalarQuantizer {
         }
     }
 
-    dist_t asymmetric_l2_distance(const float* q, const uint8_t* code) const {
+    dist_t asymmetric_l2_sq_distance(const float* q, const uint8_t* code) const {
         float sum = 0.0f;
         size_t d = 0;
 #if defined(__AVX2__)
@@ -383,7 +391,11 @@ struct ScalarQuantizer {
             float diff = q[d] - approx;
             sum += diff * diff;
         }
-        return std::sqrt(sum);
+        return sum;
+    }
+
+    dist_t asymmetric_l2_distance(const float* q, const uint8_t* code) const {
+        return std::sqrt(asymmetric_l2_sq_distance(q, code));
     }
 
     dist_t asymmetric_cosine_distance(const float* q, const uint8_t* code) const {
@@ -471,7 +483,7 @@ struct ScalarQuantizer4Bit {
         }
     }
 
-    dist_t asymmetric_l2_distance(const float* q, const uint8_t* code) const {
+    dist_t asymmetric_l2_sq_distance(const float* q, const uint8_t* code) const {
         float sum = 0.0f;
         size_t d = 0;
 #if defined(__AVX2__)
@@ -530,7 +542,11 @@ struct ScalarQuantizer4Bit {
             float diff = q[d] - approx;
             sum += diff * diff;
         }
-        return std::sqrt(sum);
+        return sum;
+    }
+
+    dist_t asymmetric_l2_distance(const float* q, const uint8_t* code) const {
+        return std::sqrt(asymmetric_l2_sq_distance(q, code));
     }
 };
 
@@ -600,6 +616,46 @@ inline NodeParams evaluate_policy(float density, float lid, const PolicyConfig& 
 }
 
 /**
+ * VisitedTagPool: Generation-tagged visited set for fast zero-allocation graph traversal.
+ * Eliminates heap allocations and O(V) memset overhead across queries.
+ */
+class VisitedTagPool {
+private:
+    std::vector<uint32_t> tags_;
+    uint32_t cur_tag_ = 0;
+
+public:
+    VisitedTagPool() = default;
+
+    inline void reset(size_t n) {
+        if (tags_.size() < n) {
+            tags_.resize(n, 0);
+        }
+        cur_tag_++;
+        if (cur_tag_ == 0) {
+            std::fill(tags_.begin(), tags_.end(), 0);
+            cur_tag_ = 1;
+        }
+    }
+
+    inline bool is_visited(tableint id) const {
+        return id < tags_.size() && tags_[id] == cur_tag_;
+    }
+
+    inline void mark_visited(tableint id) {
+        if (id >= tags_.size()) {
+            tags_.resize(id + 1, 0);
+        }
+        tags_[id] = cur_tag_;
+    }
+};
+
+inline VisitedTagPool& get_thread_visited_pool() {
+    static thread_local VisitedTagPool pool;
+    return pool;
+}
+
+/**
  * Adaptive HNSW Graph Index
  */
 class AdaptiveHNSWIndex {
@@ -664,6 +720,11 @@ public:
         return space == SpaceType::Cosine ? cosine_distance(a, b, dim) : l2_distance(a, b, dim);
     }
 
+    inline dist_t get_distance_sq(const float* a, const float* b) const {
+        total_dist_computations++;
+        return space == SpaceType::Cosine ? cosine_distance(a, b, dim) : l2_sq_distance(a, b, dim);
+    }
+
     inline dist_t get_sq8_distance(const float* query, tableint id) const {
         total_dist_computations++;
         const uint8_t* code = &quantized_data[id * dim];
@@ -672,11 +733,26 @@ public:
                : quantizer.asymmetric_l2_distance(query, code);
     }
 
+    inline dist_t get_sq8_distance_sq(const float* query, tableint id) const {
+        total_dist_computations++;
+        const uint8_t* code = &quantized_data[id * dim];
+        return space == SpaceType::Cosine 
+               ? quantizer.asymmetric_cosine_distance(query, code) 
+               : quantizer.asymmetric_l2_sq_distance(query, code);
+    }
+
     inline dist_t get_sq4_distance(const float* query, tableint id) const {
         total_dist_computations++;
         size_t packed_dim = (dim + 1) / 2;
         const uint8_t* code = &quantized_data_sq4[id * packed_dim];
         return quantizer_sq4.asymmetric_l2_distance(query, code);
+    }
+
+    inline dist_t get_sq4_distance_sq(const float* query, tableint id) const {
+        total_dist_computations++;
+        size_t packed_dim = (dim + 1) / 2;
+        const uint8_t* code = &quantized_data_sq4[id * packed_dim];
+        return quantizer_sq4.asymmetric_l2_sq_distance(query, code);
     }
     
     inline const float* get_vector(tableint id) const {
@@ -819,7 +895,9 @@ public:
         bool concurrent_search = false,
         bool use_asym_sq4 = false
     ) const {
-        std::unordered_set<tableint> visited(enter_points.begin(), enter_points.end());
+        VisitedTagPool& visited = get_thread_visited_pool();
+        visited.reset(std::max(num_elements, enter_points.size()));
+
         std::priority_queue<Candidate, std::vector<Candidate>, std::greater<Candidate>> candidates;
         std::priority_queue<Candidate, std::vector<Candidate>, std::less<Candidate>> w_furthest;
         
@@ -827,11 +905,12 @@ public:
         int stagnation_counter = 0;
         
         for (tableint ep : enter_points) {
+            visited.mark_visited(ep);
             dist_t d = (use_asym_sq4 && quantizer_sq4.is_trained)
-                       ? get_sq4_distance(query, ep)
+                       ? get_sq4_distance_sq(query, ep)
                        : (use_asym_sq8 && quantizer.is_trained) 
-                       ? get_sq8_distance(query, ep) 
-                       : get_distance(query, get_vector(ep));
+                       ? get_sq8_distance_sq(query, ep) 
+                       : get_distance_sq(query, get_vector(ep));
             candidates.push({d, ep});
             w_furthest.push({d, ep});
             if (d < best_dist) best_dist = d;
@@ -866,13 +945,13 @@ public:
                         #endif
                     }
                     
-                    if (visited.find(neighbor) == visited.end()) {
-                        visited.insert(neighbor);
+                    if (!visited.is_visited(neighbor)) {
+                        visited.mark_visited(neighbor);
                         dist_t d = (use_asym_sq4 && quantizer_sq4.is_trained)
-                                   ? get_sq4_distance(query, neighbor)
+                                   ? get_sq4_distance_sq(query, neighbor)
                                    : (use_asym_sq8 && quantizer.is_trained) 
-                                   ? get_sq8_distance(query, neighbor) 
-                                   : get_distance(query, get_vector(neighbor));
+                                   ? get_sq8_distance_sq(query, neighbor) 
+                                   : get_distance_sq(query, get_vector(neighbor));
                         furthest_d = w_furthest.top().dist;
                         
                         if (d < furthest_d || (int)w_furthest.size() < ef) {
@@ -950,7 +1029,7 @@ public:
             const float* c_vec = get_vector(c.id);
             bool is_diverse = true;
             for (tableint r_id : result) {
-                dist_t dist_c_r = get_distance(c_vec, get_vector(r_id));
+                dist_t dist_c_r = get_distance_sq(c_vec, get_vector(r_id));
                 
                 // Hubness Regulation: Penalize high-degree hubs from shadowing diverse neighbors
                 if (policy.enable_hubness_regulation && lc == 0 && !in_degrees.empty()) {
@@ -1045,7 +1124,7 @@ public:
             int probe_budget = std::min(25, std::max(10, policy.ef_c_base / 4));
             auto probe_w = search_layer(vec, {curr_ep}, probe_budget, probe_lc, false, false);
             std::vector<dist_t> probe_dists;
-            for (const auto& c : probe_w) probe_dists.push_back(c.dist);
+            for (const auto& c : probe_w) probe_dists.push_back(space == SpaceType::L2 ? std::sqrt(c.dist) : c.dist);
             
             float density = estimate_local_density(probe_dists);
             float lid = estimate_mle_lid(probe_dists);
@@ -1090,7 +1169,7 @@ public:
                     std::vector<Candidate> n_candidates;
                     const float* n_vec = get_vector(neighbor);
                     for (tableint cand : graphs[lc][neighbor]) {
-                        n_candidates.push_back({get_distance(n_vec, get_vector(cand)), cand});
+                        n_candidates.push_back({get_distance_sq(n_vec, get_vector(cand)), cand});
                     }
                     auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc);
                     
@@ -1229,7 +1308,7 @@ public:
                 int probe_budget = std::min(25, std::max(10, policy.ef_c_base / 4));
                 auto probe_w = search_layer(vec, {curr_ep}, probe_budget, probe_lc, false, false, true);
                 std::vector<dist_t> probe_dists;
-                for (const auto& c : probe_w) probe_dists.push_back(c.dist);
+                for (const auto& c : probe_w) probe_dists.push_back(space == SpaceType::L2 ? std::sqrt(c.dist) : c.dist);
 
                 float density = estimate_local_density(probe_dists);
                 float lid = estimate_mle_lid(probe_dists);
@@ -1277,7 +1356,7 @@ public:
                         std::vector<Candidate> n_candidates;
                         const float* n_vec = get_vector(neighbor);
                         for (tableint cand : graphs[lc][neighbor]) {
-                            n_candidates.push_back({get_distance(n_vec, get_vector(cand)), cand});
+                            n_candidates.push_back({get_distance_sq(n_vec, get_vector(cand)), cand});
                         }
                         auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc);
 
@@ -1418,7 +1497,7 @@ public:
                         const float* u_vec = get_vector(u);
                         for (tableint cand : v_surviving_neighbors) {
                             if (cand != u && !is_deleted(cand) && std::find(u_adj.begin(), u_adj.end(), cand) == u_adj.end()) {
-                                repair_cands.push_back({get_distance(u_vec, get_vector(cand)), cand});
+                                repair_cands.push_back({get_distance_sq(u_vec, get_vector(cand)), cand});
                             }
                         }
 
@@ -1746,6 +1825,11 @@ public:
                         if ((int)active_w.size() >= k) break;
                     }
                 }
+                if (space == SpaceType::L2) {
+                    for (auto& cand : active_w) {
+                        cand.dist = std::sqrt(cand.dist);
+                    }
+                }
                 return active_w;
             }
         }
@@ -1757,6 +1841,11 @@ public:
             if (!is_deleted(cand.id)) {
                 final_results.push_back(cand);
                 if ((int)final_results.size() >= k) break;
+            }
+        }
+        if (space == SpaceType::L2) {
+            for (auto& cand : final_results) {
+                cand.dist = std::sqrt(cand.dist);
             }
         }
         return final_results;

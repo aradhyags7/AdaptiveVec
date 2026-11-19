@@ -1,0 +1,33 @@
+{
+  "engine": "faiss_hnsw",
+  "n_samples": 500000,
+  "dim": 128,
+  "build_time_sec": 115.85843110084534,
+  "evaluations": [
+    {
+      "ef_search": 16,
+      "recall_at_10": 0.8241,
+      "qps": 30361.385780261462
+    },
+    {
+      "ef_search": 32,
+      "recall_at_10": 0.9209,
+      "qps": 19510.840896298603
+    },
+    {
+      "ef_search": 64,
+      "recall_at_10": 0.9739,
+      "qps": 11129.725943065787
+    },
+    {
+      "ef_search": 128,
+      "recall_at_10": 0.9921,
+      "qps": 5226.918298246729
+    },
+    {
+      "ef_search": 256,
+      "recall_at_10": 0.9977,
+      "qps": 3098.5418553557156
+    }
+  ]
+}

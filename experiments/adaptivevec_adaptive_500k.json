@@ -1,0 +1,16 @@
+{
+  "engine": "adaptivevec_adaptive",
+  "n_samples": 500000,
+  "dim": 128,
+  "build_time_sec": 71.5902,
+  "working_set_mb": 2496.13,
+  "total_edges": 12247511,
+  "edge_reduction_pct": 8.69749,
+  "evaluations": [
+    {"ef_search": 16, "recall_at_10": 0.7926, "qps": 29601.2},
+    {"ef_search": 32, "recall_at_10": 0.8881, "qps": 12949.7},
+    {"ef_search": 64, "recall_at_10": 0.9532, "qps": 9856.34},
+    {"ef_search": 128, "recall_at_10": 0.9801, "qps": 12617.5},
+    {"ef_search": 256, "recall_at_10": 0.9922, "qps": 10006.7}
+  ]
+}
