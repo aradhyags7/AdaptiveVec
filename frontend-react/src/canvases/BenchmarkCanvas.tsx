@@ -758,7 +758,7 @@ export const BenchmarkCanvas: React.FC = () => {
             <div className={styles.persistentHardwareStamp}>
               <div><strong>HARDWARE:</strong> {hardware.model} ({hardware.cores}C/{hardware.threads}T)</div>
               <div><strong>INSTRUCTIONS:</strong> AVX2 / FMA • 16GB Physical RAM</div>
-              <div><strong>SOURCE:</strong> benchmark_results.json (Zero synthetic figures)</div>
+              <div><strong>PROVENANCE:</strong> Phase 2.1 Correctness Verified &bull; Git: e9f4a0c (phase-2.1-recovery) &bull; experiments/phase_2_1_recovered_benchmarks.json</div>
             </div>
           </div>
         </div>

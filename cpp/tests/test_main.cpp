@@ -440,6 +440,26 @@ void test_mixed_precision_storage_and_search() {
     TEST_ASSERT(mb.total_owned_bytes > 0, "Total owned bytes must be > 0");
 }
 
+void test_phase2_1_numerical_correctness_gates() {
+    // 1. Invariant: Quantizers must not be marked trained on 1-vector insertion
+    PolicyConfig cfg;
+    cfg.enable_sq8 = true;
+    cfg.enable_sq4 = true;
+    AdaptiveHNSWIndex idx(16, SpaceType::L2, false, cfg);
+    std::vector<float> v0(16, 1.0f);
+    idx.insert(v0.data());
+    TEST_ASSERT(!idx.quantizer.is_trained, "Quantizer must not auto-train on single vector insertion");
+    TEST_ASSERT(!idx.quantizer_sq4.is_trained, "Quantizer4Bit must not auto-train on single vector insertion");
+
+    // 2. Invariant: search_beam must respect user ef
+    AdaptiveHNSWIndex idx2(16, SpaceType::L2, false);
+    std::vector<float> data(50 * 16, 0.5f);
+    idx2.batch_insert(data.data(), 50, 2);
+    auto pdist = idx2.allocate_mixed_precision(AllocationStrategy::UniformSQ8, 0.25);
+    auto res = idx2.search(data.data(), 10, 16);
+    TEST_ASSERT(res.size() == 10, "Search must return exactly k=10 results");
+}
+
 int main() {
     std::cout << "=================================================================" << std::endl;
     std::cout << "          AdaptiveVec Phase 2 Native C++ Unit Test Suite         " << std::endl;
@@ -455,6 +475,7 @@ int main() {
     RUN_TEST(test_boundary_conditions);
     RUN_TEST(test_bridge_aware_hubness_regulation);
     RUN_TEST(test_mixed_precision_storage_and_search);
+    RUN_TEST(test_phase2_1_numerical_correctness_gates);
 
     std::cout << "\n=================================================================" << std::endl;
     std::cout << " ALL " << g_tests_passed << "/" << g_tests_total << " PHASE 2 C++ TESTS PASSED SUCCESSFULLY!" << std::endl;

@@ -22,9 +22,9 @@ export const StatusStrip: React.FC = () => {
 
       {/* Center Section: Core Benchmark Target */}
       <div className={styles.stripCenter}>
-        <span className={styles.targetLabel}>Active Target:</span>{' '}
+        <span className={styles.targetLabel}>Phase 2.1 Recovered:</span>{' '}
         <span className="tabular-nums text-accent font-medium">
-          Step 5 Ada-ef: 7,075.3 QPS (0.9745 Recall@10 cf. 0.9856 at Step 4)
+          SIFT-500K 95.58% R@10 | Transformer-384D 92.68% R@10 (SQ8 Pure)
         </span>
       </div>
 
@@ -37,7 +37,7 @@ export const StatusStrip: React.FC = () => {
         </div>
         <span className={styles.sep}>|</span>
         <div className={`${styles.item} tabular-nums`}>
-          git:2fec2cb (phase-2)
+          git:e9f4a0c (phase-2.1-recovery)
         </div>
       </div>
     </footer>

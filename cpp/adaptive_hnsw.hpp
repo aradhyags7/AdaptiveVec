@@ -1571,20 +1571,13 @@ public:
             data.insert(data.end(), vec, vec + dim);
         }
         
-        if (policy.enable_sq8) {
-            if (!quantizer.is_trained) {
-                // Initialize default training bounds if not yet trained
-                quantizer.train(vec, 1);
-            }
+        if (policy.enable_sq8 && quantizer.is_trained) {
             size_t old_size = quantized_data.size();
             quantized_data.resize(old_size + dim);
             quantizer.encode(vec, &quantized_data[old_size]);
         }
 
-        if (policy.enable_sq4) {
-            if (!quantizer_sq4.is_trained) {
-                quantizer_sq4.train(vec, 1);
-            }
+        if (policy.enable_sq4 && quantizer_sq4.is_trained) {
             size_t packed_dim = (dim + 1) / 2;
             size_t old_size = quantized_data_sq4.size();
             quantized_data_sq4.resize(old_size + packed_dim);
@@ -2371,8 +2364,11 @@ public:
             effective_ef = std::min(effective_ef, target_ef * 2);
         }
         
-        int rerank_factor = use_asym_sq4 ? policy.sq4_rerank_factor : (use_asym_sq8 ? policy.sq8_rerank_factor : 1);
-        int search_beam = use_asym ? std::max(rerank_factor * k, effective_ef) : effective_ef;
+        int search_beam = std::max(k, effective_ef);
+        if (use_asym && policy.enable_rerank && !data.empty()) {
+            int rerank_factor = use_asym_sq4 ? policy.sq4_rerank_factor : (use_asym_sq8 ? policy.sq8_rerank_factor : 1);
+            search_beam = std::max(rerank_factor * k, effective_ef);
+        }
         auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym_sq8, false, use_asym_sq4);
         
         if (use_asym) {
@@ -2525,7 +2521,9 @@ public:
         
         // 1. Logical compressed payload
         if (use_mixed_storage) {
-            mb.logical_compressed_bytes = pool_sq8.size() + pool_sq4.size();
+            mb.logical_compressed_bytes = pool_fp32.size() * sizeof(float) +
+                                         pool_sq8.size() * sizeof(uint8_t) +
+                                         pool_sq4.size() * sizeof(uint8_t);
         } else if (policy.enable_sq4) {
             mb.logical_compressed_bytes = num_elements * packed_dim * sizeof(uint8_t);
         } else if (policy.enable_sq8) {
