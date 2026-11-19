@@ -16,7 +16,7 @@ export const StatusStrip: React.FC = () => {
         </div>
         <span className={styles.sep}>|</span>
         <div className={styles.item}>
-          <span className="tabular-nums">SIFT-100K (128-D FP32)</span>
+          <span className="tabular-nums">SIFT-500K Scaled (128-D FP32)</span>
         </div>
       </div>
 
@@ -37,7 +37,7 @@ export const StatusStrip: React.FC = () => {
         </div>
         <span className={styles.sep}>|</span>
         <div className={`${styles.item} tabular-nums`}>
-          git:ee4339f
+          git:2fec2cb (phase-2)
         </div>
       </div>
     </footer>

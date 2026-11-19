@@ -27,6 +27,31 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .value("DensityOnly", PolicyType::DensityOnly)
         .export_values();
 
+    py::enum_<VectorPrecision>(m, "VectorPrecision")
+        .value("FP32", VectorPrecision::FP32)
+        .value("SQ8", VectorPrecision::SQ8)
+        .value("SQ4", VectorPrecision::SQ4)
+        .export_values();
+
+    py::enum_<AllocationStrategy>(m, "AllocationStrategy")
+        .value("UniformFP32", AllocationStrategy::UniformFP32)
+        .value("UniformSQ8", AllocationStrategy::UniformSQ8)
+        .value("UniformSQ4", AllocationStrategy::UniformSQ4)
+        .value("Random", AllocationStrategy::Random)
+        .value("ReconstructionError", AllocationStrategy::ReconstructionError)
+        .value("Geometry", AllocationStrategy::Geometry)
+        .value("RoutingImportance", AllocationStrategy::RoutingImportance)
+        .value("CombinedSensitivity", AllocationStrategy::CombinedSensitivity)
+        .export_values();
+
+    py::class_<PrecisionDistribution>(m, "PrecisionDistribution")
+        .def(py::init<>())
+        .def_readonly("n_fp32", &PrecisionDistribution::n_fp32)
+        .def_readonly("n_sq8", &PrecisionDistribution::n_sq8)
+        .def_readonly("n_sq4", &PrecisionDistribution::n_sq4)
+        .def_readonly("vector_storage_mb", &PrecisionDistribution::vector_storage_mb)
+        .def_readonly("savings_ratio", &PrecisionDistribution::savings_ratio);
+
     // PolicyConfig struct
     py::class_<PolicyConfig>(m, "PolicyConfig")
         .def(py::init<>())
@@ -60,7 +85,10 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def_readwrite("use_deterministic_level_hash", &PolicyConfig::use_deterministic_level_hash)
         .def_readwrite("enable_bridge_aware", &PolicyConfig::enable_bridge_aware)
         .def_readwrite("bridge_alpha", &PolicyConfig::bridge_alpha)
-        .def_readwrite("bridge_estimator", &PolicyConfig::bridge_estimator);
+        .def_readwrite("bridge_estimator", &PolicyConfig::bridge_estimator)
+        .def_readwrite("enable_mixed_precision", &PolicyConfig::enable_mixed_precision)
+        .def_readwrite("mixed_precision_strategy", &PolicyConfig::mixed_precision_strategy)
+        .def_readwrite("mixed_precision_budget_ratio", &PolicyConfig::mixed_precision_budget_ratio);
 
     // MemoryBreakdown struct
     py::class_<MemoryBreakdown>(m, "MemoryBreakdown")
@@ -151,6 +179,13 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def("get_average_bridge_score", &AdaptiveHNSWIndex::get_average_bridge_score, "Return average bridge score across active nodes")
         .def("get_bridge_preservation_ratio", &AdaptiveHNSWIndex::get_bridge_preservation_ratio, py::arg("threshold") = 0.5f, "Return connectivity preservation ratio for bridge nodes")
         .def("update_bridge_scores", &AdaptiveHNSWIndex::update_bridge_scores, "Recompute bridge scores for all nodes")
+        .def("allocate_mixed_precision", &AdaptiveHNSWIndex::allocate_mixed_precision,
+             py::arg("strategy") = AllocationStrategy::CombinedSensitivity,
+             py::arg("budget_ratio") = 0.5,
+             "Allocate resource-budgeted mixed precisions (SQ4/SQ8/FP32)")
+        .def("get_precision_distribution", &AdaptiveHNSWIndex::get_precision_distribution, "Return precision distribution and memory stats")
+        .def("get_vector_precision", &AdaptiveHNSWIndex::get_vector_precision, py::arg("node_id"), "Return precision of node")
+        .def("is_mixed_precision_active", &AdaptiveHNSWIndex::is_mixed_precision_active, "Return whether mixed-precision storage is active")
         .def_readonly("num_elements", &AdaptiveHNSWIndex::num_elements)
         .def_readonly("dim", &AdaptiveHNSWIndex::dim)
         .def_readwrite("policy", &AdaptiveHNSWIndex::policy);

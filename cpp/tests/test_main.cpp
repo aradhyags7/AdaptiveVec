@@ -396,9 +396,53 @@ void test_bridge_aware_hubness_regulation() {
     TEST_ASSERT(!res_bridge.empty() && res_bridge[0].id >= 50 && res_bridge[0].id < 60, "Nearest neighbor for bridge query should be in bridge set");
 }
 
+// 10. Phase 2: Mixed-Precision Storage Pools, Knapsack Allocation & Search
+void test_mixed_precision_storage_and_search() {
+    const size_t dim = 15; // Odd dimension to test sub-byte padding
+    const size_t n_samples = 300;
+    std::mt19937 rng(1337);
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+
+    std::vector<float> data(n_samples * dim);
+    for (size_t i = 0; i < n_samples * dim; ++i) data[i] = dist(rng);
+
+    PolicyConfig cfg;
+    cfg.m_base = 16;
+    cfg.ef_c_base = 64;
+    AdaptiveHNSWIndex index(dim, SpaceType::L2, true, cfg);
+    index.batch_insert(data.data(), n_samples, 2);
+
+    TEST_ASSERT(!index.is_mixed_precision_active(), "Mixed precision should be inactive before allocation");
+
+    // Pure quantized / mixed storage mode (drop raw vectors during allocation)
+    index.policy.keep_raw_vectors = false;
+    auto pdist = index.allocate_mixed_precision(AllocationStrategy::CombinedSensitivity, 0.4);
+    TEST_ASSERT(index.is_mixed_precision_active(), "Mixed precision must be active");
+    TEST_ASSERT(pdist.n_fp32 + pdist.n_sq8 + pdist.n_sq4 == n_samples, "Total allocated vectors mismatch");
+    TEST_ASSERT(pdist.savings_ratio > 0.20, "Expected significant storage savings (>20%) for low-D vectors");
+
+    // Perform search on odd-dimensional mixed-precision index
+    std::vector<float> q(dim);
+    for (size_t d = 0; d < dim; ++d) q[d] = data[d]; // search 1st vector
+    auto res = index.search(q.data(), 5, 32);
+    TEST_ASSERT(!res.empty(), "Search on mixed-precision index must return results");
+    TEST_ASSERT(res[0].id == 0, "Top candidate should be self query");
+
+    // Verify deletion and compaction with mixed precision pools
+    index.delete_vector(0, true);
+    TEST_ASSERT(index.get_active_count() == n_samples - 1, "Active count mismatch after deletion");
+    index.compact();
+    TEST_ASSERT(index.num_elements == n_samples - 1, "Element count mismatch after compaction");
+    TEST_ASSERT(index.is_mixed_precision_active(), "Mixed precision must remain active after compaction");
+
+    MemoryBreakdown mb = index.get_memory_breakdown();
+    TEST_ASSERT(mb.allocated_quantized_capacity_bytes > 0, "Quantized pool capacity must be recorded");
+    TEST_ASSERT(mb.total_owned_bytes > 0, "Total owned bytes must be > 0");
+}
+
 int main() {
     std::cout << "=================================================================" << std::endl;
-    std::cout << "          AdaptiveVec Phase 1 Native C++ Unit Test Suite         " << std::endl;
+    std::cout << "          AdaptiveVec Phase 2 Native C++ Unit Test Suite         " << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     RUN_TEST(test_metrics_parity_scalar_vs_simd);
@@ -410,9 +454,10 @@ int main() {
     RUN_TEST(test_memory_breakdown);
     RUN_TEST(test_boundary_conditions);
     RUN_TEST(test_bridge_aware_hubness_regulation);
+    RUN_TEST(test_mixed_precision_storage_and_search);
 
     std::cout << "\n=================================================================" << std::endl;
-    std::cout << " ALL " << g_tests_passed << "/" << g_tests_total << " PHASE 1 C++ TESTS PASSED SUCCESSFULLY!" << std::endl;
+    std::cout << " ALL " << g_tests_passed << "/" << g_tests_total << " PHASE 2 C++ TESTS PASSED SUCCESSFULLY!" << std::endl;
     std::cout << "=================================================================" << std::endl;
 
     return 0;

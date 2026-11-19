@@ -57,6 +57,37 @@ enum class PolicyType {
     DensityOnly
 };
 
+// Phase 2: Mixed-Precision Storage Enums & Descriptors
+enum class VectorPrecision : uint8_t {
+    FP32 = 0,
+    SQ8 = 1,
+    SQ4 = 2
+};
+
+enum class AllocationStrategy {
+    UniformFP32 = 0,
+    UniformSQ8 = 1,
+    UniformSQ4 = 2,
+    Random = 3,
+    ReconstructionError = 4,
+    Geometry = 5,
+    RoutingImportance = 6,
+    CombinedSensitivity = 7
+};
+
+struct VectorStorageDescriptor {
+    uint32_t offset = 0;
+    VectorPrecision prec = VectorPrecision::FP32;
+};
+
+struct PrecisionDistribution {
+    size_t n_fp32 = 0;
+    size_t n_sq8 = 0;
+    size_t n_sq4 = 0;
+    double vector_storage_mb = 0.0;
+    double savings_ratio = 0.0;
+};
+
 struct ProcessMemoryMetrics {
     size_t working_set_bytes = 0;
     size_t peak_working_set_bytes = 0;
@@ -135,7 +166,7 @@ struct PolicyConfig {
     // Mechanics parameters
     float lambda_layer = 0.75f;
     int m_min_layer = 4;
-    float hubness_mu = 0.03f; // Calibrated from 0.15f to preserve bridge node connectivity
+    float hubness_mu = 0.003f; // Calibrated uniform penalty (Phase 1 Stage 1 verification)
     int ada_ef_patience = 12; // Calibrated from 6 to prevent premature early exit
     float ada_ef_epsilon = 1e-4f;
     int sq8_rerank_factor = 2; // K = 2 * k
@@ -145,6 +176,11 @@ struct PolicyConfig {
     bool enable_bridge_aware = false; // Disabled by default
     float bridge_alpha = 1.0f;        // Attenuation strength of bridge score B(v)
     int bridge_estimator = 0;         // 0: Clustering Coeff, 1: Directional Dispersion, 2: Density Contrast
+    
+    // Phase 2: Mixed-Precision Quantization Controls
+    bool enable_mixed_precision = false;
+    AllocationStrategy mixed_precision_strategy = AllocationStrategy::CombinedSensitivity;
+    double mixed_precision_budget_ratio = 0.5;
     
     // Online tracking state
     bool use_streaming_welford = true;
@@ -682,6 +718,13 @@ public:
     ScalarQuantizer4Bit quantizer_sq4;
     size_t num_elements = 0;
     
+    // Phase 2: Mixed-Precision Storage Pools
+    bool use_mixed_storage = false;
+    std::vector<float> pool_fp32;
+    std::vector<uint8_t> pool_sq8;
+    std::vector<uint8_t> pool_sq4;
+    std::vector<VectorStorageDescriptor> vector_descriptors;
+    
     // Multi-layer adjacency: graphs[layer][node_id] = std::vector<tableint>
     std::vector<std::vector<std::vector<tableint>>> graphs;
     std::vector<int> node_levels;
@@ -715,6 +758,38 @@ public:
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
         : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), quantizer_sq4(dimension), node_locks(NUM_NODE_LOCKS) {
         m_l = 1.0 / std::log(policy.m_base > 1 ? policy.m_base : 2);
+    }
+
+    std::unique_ptr<AdaptiveHNSWIndex> clone() const {
+        auto other = std::make_unique<AdaptiveHNSWIndex>(dim, space, is_adaptive, policy);
+        other->max_level = max_level;
+        other->enter_point = enter_point;
+        other->num_elements = num_elements;
+        other->num_deleted.store(num_deleted.load());
+        other->total_in_degrees.store(total_in_degrees.load());
+        other->total_dist_computations.store(total_dist_computations.load());
+        other->m_l = m_l;
+        other->data = data;
+        other->quantized_data = quantized_data;
+        other->quantized_data_sq4 = quantized_data_sq4;
+        other->quantizer = quantizer;
+        other->quantizer_sq4 = quantizer_sq4;
+        other->node_levels = node_levels;
+        other->node_params = node_params;
+        other->in_degrees = in_degrees;
+        other->bridge_scores = bridge_scores;
+        other->deleted = deleted;
+        other->graphs = graphs;
+        other->use_mixed_storage = use_mixed_storage;
+        other->pool_fp32 = pool_fp32;
+        other->pool_sq8 = pool_sq8;
+        other->pool_sq4 = pool_sq4;
+        other->vector_descriptors = vector_descriptors;
+        return other;
+    }
+
+    inline uint64_t get_total_dist_computations() const {
+        return total_dist_computations.load();
     }
 
     inline bool is_deleted(tableint id) const {
@@ -768,6 +843,78 @@ public:
     inline const float* get_vector(tableint id) const {
         return &data[id * dim];
     }
+
+    void get_vector_reconstructed(tableint id, float* out) const {
+        if (!data.empty() && id * dim < data.size()) {
+            std::memcpy(out, &data[id * dim], dim * sizeof(float));
+            return;
+        }
+        if (use_mixed_storage && id < vector_descriptors.size()) {
+            const VectorStorageDescriptor& d = vector_descriptors[id];
+            if (d.prec == VectorPrecision::FP32 && d.offset + dim <= pool_fp32.size()) {
+                std::memcpy(out, &pool_fp32[d.offset], dim * sizeof(float));
+                return;
+            } else if (d.prec == VectorPrecision::SQ8 && d.offset + dim <= pool_sq8.size()) {
+                quantizer.decode(&pool_sq8[d.offset], out);
+                return;
+            } else if (d.prec == VectorPrecision::SQ4) {
+                quantizer_sq4.decode(&pool_sq4[d.offset], out);
+                return;
+            }
+        }
+        if (policy.enable_sq8 && quantizer.is_trained && !quantized_data.empty()) {
+            quantizer.decode(&quantized_data[id * dim], out);
+            return;
+        }
+        if (policy.enable_sq4 && quantizer_sq4.is_trained && !quantized_data_sq4.empty()) {
+            size_t packed_dim = (dim + 1) / 2;
+            quantizer_sq4.decode(&quantized_data_sq4[id * packed_dim], out);
+            return;
+        }
+        std::memset(out, 0, dim * sizeof(float));
+    }
+
+    inline dist_t get_node_distance_sq(const float* query, tableint id) const {
+        total_dist_computations++;
+        if (use_mixed_storage && id < vector_descriptors.size()) {
+            const VectorStorageDescriptor& desc = vector_descriptors[id];
+            switch (desc.prec) {
+                case VectorPrecision::FP32:
+                    return (space == SpaceType::Cosine) 
+                           ? cosine_distance(query, &pool_fp32[desc.offset], dim)
+                           : l2_sq_distance(query, &pool_fp32[desc.offset], dim);
+                case VectorPrecision::SQ8:
+                    return (space == SpaceType::Cosine)
+                           ? quantizer.asymmetric_cosine_distance(query, &pool_sq8[desc.offset])
+                           : quantizer.asymmetric_l2_sq_distance(query, &pool_sq8[desc.offset]);
+                case VectorPrecision::SQ4:
+                    return quantizer_sq4.asymmetric_l2_sq_distance(query, &pool_sq4[desc.offset]);
+                default:
+                    return 0.0f;
+            }
+        }
+        
+        if (policy.enable_sq4 && quantizer_sq4.is_trained && !quantized_data_sq4.empty()) {
+            size_t packed_dim = (dim + 1) / 2;
+            return quantizer_sq4.asymmetric_l2_sq_distance(query, &quantized_data_sq4[id * packed_dim]);
+        }
+        if (policy.enable_sq8 && quantizer.is_trained && !quantized_data.empty()) {
+            return (space == SpaceType::Cosine)
+                   ? quantizer.asymmetric_cosine_distance(query, &quantized_data[id * dim])
+                   : quantizer.asymmetric_l2_sq_distance(query, &quantized_data[id * dim]);
+        }
+        return get_distance_sq(query, get_vector(id));
+    }
+
+    inline const void* get_node_payload_ptr(tableint id) const {
+        if (use_mixed_storage && id < vector_descriptors.size()) {
+            const VectorStorageDescriptor& desc = vector_descriptors[id];
+            if (desc.prec == VectorPrecision::FP32 && desc.offset < pool_fp32.size()) return &pool_fp32[desc.offset];
+            if (desc.prec == VectorPrecision::SQ8 && desc.offset < pool_sq8.size()) return &pool_sq8[desc.offset];
+            if (desc.prec == VectorPrecision::SQ4 && desc.offset < pool_sq4.size()) return &pool_sq4[desc.offset];
+        }
+        return (id * dim < data.size()) ? get_vector(id) : nullptr;
+    }
     
     void train_quantizer(const float* sample_data, size_t sample_count) {
         if (policy.enable_sq4) {
@@ -815,6 +962,221 @@ public:
         data.shrink_to_fit();
         policy.keep_raw_vectors = false;
         policy.enable_rerank = false;
+    }
+
+    // Phase 2: Mixed-Precision Budgeted Allocation & Query Routing
+    PrecisionDistribution allocate_mixed_precision(AllocationStrategy strategy, double budget_ratio = 0.5) {
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+        if (num_elements == 0) return {};
+
+        // Ensure quantizers are trained on representative sample
+        if (!quantizer.is_trained && !data.empty()) {
+            quantizer.train(data.data(), std::min(num_elements, (size_t)50000));
+        }
+        if (!quantizer_sq4.is_trained && !data.empty()) {
+            quantizer_sq4.train(data.data(), std::min(num_elements, (size_t)50000));
+        }
+
+        budget_ratio = std::max(0.0, std::min(1.0, budget_ratio));
+        size_t packed_dim = (dim + 1) / 2;
+
+        std::vector<VectorPrecision> assigned(num_elements, VectorPrecision::SQ4);
+
+        if (strategy == AllocationStrategy::UniformFP32) {
+            std::fill(assigned.begin(), assigned.end(), VectorPrecision::FP32);
+        } else if (strategy == AllocationStrategy::UniformSQ8) {
+            std::fill(assigned.begin(), assigned.end(), VectorPrecision::SQ8);
+        } else if (strategy == AllocationStrategy::UniformSQ4) {
+            std::fill(assigned.begin(), assigned.end(), VectorPrecision::SQ4);
+        } else {
+            std::vector<float> scores(num_elements, 0.0f);
+
+            #if defined(_OPENMP)
+            #pragma omp parallel for schedule(dynamic, 128)
+            #endif
+            for (size_t i = 0; i < num_elements; ++i) {
+                if (is_deleted((tableint)i)) continue;
+
+                if (strategy == AllocationStrategy::Random) {
+                    uint64_t h = splitmix64(global_seed ^ (static_cast<uint64_t>(i) + 0x77bb22aaULL));
+                    scores[i] = static_cast<float>(h & 0xFFFF) / 65535.0f;
+                } else if (strategy == AllocationStrategy::ReconstructionError) {
+                    if (!data.empty()) {
+                        const float* v = &data[i * dim];
+                        std::vector<uint8_t> code(packed_dim);
+                        quantizer_sq4.encode(v, code.data());
+                        std::vector<float> dec(dim);
+                        quantizer_sq4.decode(code.data(), dec.data());
+                        float err = 0.0f, norm = 0.0f;
+                        for (size_t d = 0; d < dim; ++d) {
+                            float diff = v[d] - dec[d];
+                            err += diff * diff;
+                            norm += v[d] * v[d];
+                        }
+                        scores[i] = std::sqrt(err) / std::max(1e-7f, std::sqrt(norm));
+                    }
+                } else if (strategy == AllocationStrategy::Geometry) {
+                    float l = (i < node_params.size()) ? node_params[i].lid : 4.0f;
+                    float dens = (i < node_params.size()) ? node_params[i].density : 1.0f;
+                    scores[i] = l * std::log1p(dens);
+                } else if (strategy == AllocationStrategy::RoutingImportance) {
+                    scores[i] = (i < in_degrees.size()) ? static_cast<float>(in_degrees[i]) : 0.0f;
+                } else {
+                    // CombinedSensitivity: structural weight * reconstruction distortion * LID
+                    float in_deg = (i < in_degrees.size()) ? static_cast<float>(in_degrees[i]) : 0.0f;
+                    float w = 1.0f + 0.5f * std::log1p(in_deg);
+                    float l = (i < node_params.size()) ? node_params[i].lid : 4.0f;
+                    
+                    float err_ratio = 1.0f;
+                    if (!data.empty()) {
+                        const float* v = &data[i * dim];
+                        std::vector<uint8_t> code(packed_dim);
+                        quantizer_sq4.encode(v, code.data());
+                        std::vector<float> dec(dim);
+                        quantizer_sq4.decode(code.data(), dec.data());
+                        float err = 0.0f, norm = 0.0f;
+                        for (size_t d = 0; d < dim; ++d) {
+                            float diff = v[d] - dec[d];
+                            err += diff * diff;
+                            norm += v[d] * v[d];
+                        }
+                        err_ratio = std::sqrt(err) / std::max(1e-7f, std::sqrt(norm));
+                    }
+                    scores[i] = w * l * err_ratio;
+                }
+            }
+
+            double cost_fp32 = static_cast<double>(dim * sizeof(float));
+            double cost_sq8 = static_cast<double>(dim * sizeof(uint8_t));
+            double cost_sq4 = static_cast<double>(packed_dim * sizeof(uint8_t));
+
+            double min_total_cost = num_elements * cost_sq4;
+            double max_total_cost = num_elements * cost_fp32;
+            double target_cost = min_total_cost + budget_ratio * (max_total_cost - min_total_cost);
+
+            std::vector<size_t> order(num_elements);
+            std::iota(order.begin(), order.end(), 0);
+            std::sort(order.begin(), order.end(), [&scores](size_t a, size_t b) {
+                return scores[a] > scores[b];
+            });
+
+            // Exact linear budget interpolation relative to FP32 total size
+            double n_fp32 = 0.0, n_sq8 = 0.0, n_sq4 = 0.0;
+            if (budget_ratio <= 0.25) {
+                // Interpolate between SQ4 (0.125) and SQ8 (0.25)
+                double f = std::max(0.0, std::min(1.0, (budget_ratio - 0.125) / 0.125));
+                n_sq8 = num_elements * f;
+                n_sq4 = num_elements - n_sq8;
+                n_fp32 = 0.0;
+            } else {
+                // Interpolate between SQ8 (0.25) and FP32 (1.0)
+                double f = std::max(0.0, std::min(1.0, (budget_ratio - 0.25) / 0.75));
+                n_fp32 = num_elements * f;
+                n_sq8 = num_elements - n_fp32;
+                n_sq4 = 0.0;
+            }
+
+            size_t n_fp32_target = static_cast<size_t>(n_fp32);
+            size_t n_sq8_target = static_cast<size_t>(n_sq8);
+
+            for (size_t rank = 0; rank < num_elements; ++rank) {
+                size_t id = order[rank];
+                if (rank < n_fp32_target) {
+                    assigned[id] = VectorPrecision::FP32;
+                } else if (rank < n_fp32_target + n_sq8_target) {
+                    assigned[id] = VectorPrecision::SQ8;
+                } else {
+                    assigned[id] = VectorPrecision::SQ4;
+                }
+            }
+        }
+
+        pool_fp32.clear();
+        pool_sq8.clear();
+        pool_sq4.clear();
+        vector_descriptors.resize(num_elements);
+
+        PrecisionDistribution dist;
+        for (size_t i = 0; i < num_elements; ++i) {
+            VectorPrecision p = assigned[i];
+            vector_descriptors[i].prec = p;
+            if (p == VectorPrecision::FP32) {
+                dist.n_fp32++;
+                vector_descriptors[i].offset = static_cast<uint32_t>(pool_fp32.size());
+                if (!data.empty()) {
+                    pool_fp32.insert(pool_fp32.end(), &data[i * dim], &data[(i + 1) * dim]);
+                } else {
+                    pool_fp32.resize(pool_fp32.size() + dim, 0.0f);
+                }
+            } else if (p == VectorPrecision::SQ8) {
+                dist.n_sq8++;
+                vector_descriptors[i].offset = static_cast<uint32_t>(pool_sq8.size());
+                pool_sq8.resize(pool_sq8.size() + dim);
+                if (!data.empty()) {
+                    quantizer.encode(&data[i * dim], &pool_sq8[vector_descriptors[i].offset]);
+                }
+            } else {
+                dist.n_sq4++;
+                vector_descriptors[i].offset = static_cast<uint32_t>(pool_sq4.size());
+                pool_sq4.resize(pool_sq4.size() + packed_dim);
+                if (!data.empty()) {
+                    quantizer_sq4.encode(&data[i * dim], &pool_sq4[vector_descriptors[i].offset]);
+                }
+            }
+        }
+
+        if (!policy.keep_raw_vectors) {
+            data.clear();
+            data.shrink_to_fit();
+        }
+
+        use_mixed_storage = true;
+
+        size_t total_vec_bytes = pool_fp32.capacity() * sizeof(float) +
+                                 pool_sq8.capacity() * sizeof(uint8_t) +
+                                 pool_sq4.capacity() * sizeof(uint8_t) +
+                                 vector_descriptors.capacity() * sizeof(VectorStorageDescriptor);
+        double full_fp32_bytes = static_cast<double>(num_elements * dim * sizeof(float));
+
+        dist.vector_storage_mb = total_vec_bytes / (1024.0 * 1024.0);
+        dist.savings_ratio = 1.0 - (static_cast<double>(total_vec_bytes) / full_fp32_bytes);
+        return dist;
+    }
+
+    PrecisionDistribution get_precision_distribution() const {
+        PrecisionDistribution dist;
+        if (!use_mixed_storage) {
+            if (policy.enable_sq4) dist.n_sq4 = num_elements;
+            else if (policy.enable_sq8) dist.n_sq8 = num_elements;
+            else dist.n_fp32 = num_elements;
+            return dist;
+        }
+        for (const auto& desc : vector_descriptors) {
+            if (desc.prec == VectorPrecision::FP32) dist.n_fp32++;
+            else if (desc.prec == VectorPrecision::SQ8) dist.n_sq8++;
+            else dist.n_sq4++;
+        }
+        size_t total_vec_bytes = pool_fp32.capacity() * sizeof(float) +
+                                 pool_sq8.capacity() * sizeof(uint8_t) +
+                                 pool_sq4.capacity() * sizeof(uint8_t) +
+                                 vector_descriptors.capacity() * sizeof(VectorStorageDescriptor);
+        double full_fp32_bytes = static_cast<double>(std::max((size_t)1, num_elements) * dim * sizeof(float));
+        dist.vector_storage_mb = total_vec_bytes / (1024.0 * 1024.0);
+        dist.savings_ratio = 1.0 - (static_cast<double>(total_vec_bytes) / full_fp32_bytes);
+        return dist;
+    }
+
+    VectorPrecision get_vector_precision(tableint id) const {
+        if (use_mixed_storage && id < vector_descriptors.size()) {
+            return vector_descriptors[id].prec;
+        }
+        if (policy.enable_sq4) return VectorPrecision::SQ4;
+        if (policy.enable_sq8) return VectorPrecision::SQ8;
+        return VectorPrecision::FP32;
+    }
+
+    bool is_mixed_precision_active() const {
+        return use_mixed_storage;
     }
 
     void calibrate(const float* sample_data, size_t sample_count, int k = 15) {
@@ -916,11 +1278,7 @@ public:
         
         for (tableint ep : enter_points) {
             visited.mark_visited(ep);
-            dist_t d = (use_asym_sq4 && quantizer_sq4.is_trained)
-                       ? get_sq4_distance_sq(query, ep)
-                       : (use_asym_sq8 && quantizer.is_trained) 
-                       ? get_sq8_distance_sq(query, ep) 
-                       : get_distance_sq(query, get_vector(ep));
+            dist_t d = get_node_distance_sq(query, ep);
             candidates.push({d, ep});
             w_furthest.push({d, ep});
             if (d < best_dist) best_dist = d;
@@ -948,20 +1306,19 @@ public:
                     // Hardware Cache Prefetching for next candidate vector
                     if (n_idx + 1 < neighbors.size()) {
                         tableint next_neighbor = neighbors[n_idx + 1];
-                        #if defined(__GNUC__) || defined(__clang__)
-                        __builtin_prefetch(get_vector(next_neighbor), 0, 3);
-                        #elif defined(_MSC_VER)
-                        _mm_prefetch((const char*)get_vector(next_neighbor), _MM_HINT_T0);
-                        #endif
+                        const void* ptr = get_node_payload_ptr(next_neighbor);
+                        if (ptr) {
+                            #if defined(__GNUC__) || defined(__clang__)
+                            __builtin_prefetch(ptr, 0, 3);
+                            #elif defined(_MSC_VER)
+                            _mm_prefetch((const char*)ptr, _MM_HINT_T0);
+                            #endif
+                        }
                     }
                     
                     if (!visited.is_visited(neighbor)) {
                         visited.mark_visited(neighbor);
-                        dist_t d = (use_asym_sq4 && quantizer_sq4.is_trained)
-                                   ? get_sq4_distance_sq(query, neighbor)
-                                   : (use_asym_sq8 && quantizer.is_trained) 
-                                   ? get_sq8_distance_sq(query, neighbor) 
-                                   : get_distance_sq(query, get_vector(neighbor));
+                        dist_t d = get_node_distance_sq(query, neighbor);
                         furthest_d = w_furthest.top().dist;
                         
                         if (d < furthest_d || (int)w_furthest.size() < ef) {
@@ -1666,10 +2023,11 @@ public:
 
                         // Candidate replacements for u: other surviving neighbors of v
                         std::vector<Candidate> repair_cands;
-                        const float* u_vec = get_vector(u);
+                        std::vector<float> u_vec(dim);
+                        get_vector_reconstructed(u, u_vec.data());
                         for (tableint cand : v_surviving_neighbors) {
                             if (cand != u && !is_deleted(cand) && std::find(u_adj.begin(), u_adj.end(), cand) == u_adj.end()) {
-                                repair_cands.push_back({get_distance_sq(u_vec, get_vector(cand)), cand});
+                                repair_cands.push_back({get_node_distance_sq(u_vec.data(), cand), cand});
                             }
                         }
 
@@ -1830,6 +2188,10 @@ public:
             data.clear();
             quantized_data.clear();
             quantized_data_sq4.clear();
+            pool_fp32.clear();
+            pool_sq8.clear();
+            pool_sq4.clear();
+            vector_descriptors.clear();
             graphs.clear();
             node_levels.clear();
             node_params.clear();
@@ -1844,13 +2206,15 @@ public:
         }
 
         // Compact vector data
-        std::vector<float> new_data(new_count * dim);
-        for (tableint i = 0; i < num_elements; ++i) {
-            if (id_map[i] != (tableint)-1) {
-                std::memcpy(&new_data[id_map[i] * dim], &data[i * dim], dim * sizeof(float));
+        if (!data.empty()) {
+            std::vector<float> new_data(new_count * dim);
+            for (tableint i = 0; i < num_elements; ++i) {
+                if (id_map[i] != (tableint)-1) {
+                    std::memcpy(&new_data[id_map[i] * dim], &data[i * dim], dim * sizeof(float));
+                }
             }
+            data = std::move(new_data);
         }
-        data = std::move(new_data);
 
         // Compact quantized data
         if (policy.enable_sq8 && !quantized_data.empty()) {
@@ -1872,6 +2236,37 @@ public:
                 }
             }
             quantized_data_sq4 = std::move(new_qdata4);
+        }
+
+        // Compact mixed-precision pools
+        if (use_mixed_storage) {
+            std::vector<float> new_pool_fp32;
+            std::vector<uint8_t> new_pool_sq8;
+            std::vector<uint8_t> new_pool_sq4;
+            std::vector<VectorStorageDescriptor> new_desc(new_count);
+            size_t packed_dim = (dim + 1) / 2;
+
+            for (tableint i = 0; i < num_elements; ++i) {
+                if (id_map[i] != (tableint)-1) {
+                    tableint new_id = id_map[i];
+                    VectorStorageDescriptor old_d = vector_descriptors[i];
+                    new_desc[new_id].prec = old_d.prec;
+                    if (old_d.prec == VectorPrecision::FP32) {
+                        new_desc[new_id].offset = static_cast<uint32_t>(new_pool_fp32.size());
+                        new_pool_fp32.insert(new_pool_fp32.end(), &pool_fp32[old_d.offset], &pool_fp32[old_d.offset + dim]);
+                    } else if (old_d.prec == VectorPrecision::SQ8) {
+                        new_desc[new_id].offset = static_cast<uint32_t>(new_pool_sq8.size());
+                        new_pool_sq8.insert(new_pool_sq8.end(), &pool_sq8[old_d.offset], &pool_sq8[old_d.offset + dim]);
+                    } else {
+                        new_desc[new_id].offset = static_cast<uint32_t>(new_pool_sq4.size());
+                        new_pool_sq4.insert(new_pool_sq4.end(), &pool_sq4[old_d.offset], &pool_sq4[old_d.offset + packed_dim]);
+                    }
+                }
+            }
+            pool_fp32 = std::move(new_pool_fp32);
+            pool_sq8 = std::move(new_pool_sq8);
+            pool_sq4 = std::move(new_pool_sq4);
+            vector_descriptors = std::move(new_desc);
         }
 
         // Compact node levels and node params
@@ -1943,7 +2338,7 @@ public:
 
         bool use_asym_sq8 = policy.enable_sq8 && quantizer.is_trained;
         bool use_asym_sq4 = policy.enable_sq4 && quantizer_sq4.is_trained;
-        bool use_asym = use_asym_sq8 || use_asym_sq4;
+        bool use_asym = use_asym_sq8 || use_asym_sq4 || use_mixed_storage;
         bool use_ada = policy.enable_ada_ef;
         
         for (int lc = max_level; lc > 0; --lc) {
@@ -1954,11 +2349,13 @@ public:
         int target_ef = ef;
         if (policy.enable_dynamic_ef_search && curr_ep < node_params.size()) {
             float node_score = node_params[curr_ep].score;
-            dist_t d_entry = (use_asym_sq4 && quantizer_sq4.is_trained)
-                             ? get_sq4_distance(query, curr_ep)
-                             : ((use_asym_sq8 && quantizer.is_trained) 
-                                ? get_sq8_distance(query, curr_ep) 
-                                : get_distance(query, get_vector(curr_ep)));
+            dist_t d_entry = (use_mixed_storage)
+                             ? get_node_distance_sq(query, curr_ep)
+                             : ((use_asym_sq4 && quantizer_sq4.is_trained)
+                                ? get_sq4_distance(query, curr_ep)
+                                : ((use_asym_sq8 && quantizer.is_trained) 
+                                   ? get_sq8_distance(query, curr_ep) 
+                                   : get_distance(query, get_vector(curr_ep))));
             float norm_d = (d_entry - policy.density_mean) / (policy.density_std + 1e-6f);
             float query_hardness = 0.7f * node_score + 0.3f * std::max(-2.0f, std::min(norm_d, 2.0f));
             float factor = 1.0f + policy.dynamic_ef_factor * query_hardness;
@@ -2127,7 +2524,9 @@ public:
         size_t packed_dim = (dim + 1) / 2;
         
         // 1. Logical compressed payload
-        if (policy.enable_sq4) {
+        if (use_mixed_storage) {
+            mb.logical_compressed_bytes = pool_sq8.size() + pool_sq4.size();
+        } else if (policy.enable_sq4) {
             mb.logical_compressed_bytes = num_elements * packed_dim * sizeof(uint8_t);
         } else if (policy.enable_sq8) {
             mb.logical_compressed_bytes = num_elements * dim * sizeof(uint8_t);
@@ -2136,12 +2535,19 @@ public:
         }
         
         // 2. Allocated quantized vector capacity
-        mb.allocated_quantized_capacity_bytes = 
-            quantized_data_sq4.capacity() * sizeof(uint8_t) +
-            quantized_data.capacity() * sizeof(uint8_t);
+        if (use_mixed_storage) {
+            mb.allocated_quantized_capacity_bytes = pool_sq8.capacity() + pool_sq4.capacity();
+        } else {
+            mb.allocated_quantized_capacity_bytes = 
+                quantized_data_sq4.capacity() * sizeof(uint8_t) +
+                quantized_data.capacity() * sizeof(uint8_t);
+        }
             
         // 3. Resident FP32 vectors
         mb.resident_fp32_bytes = data.capacity() * sizeof(float);
+        if (use_mixed_storage) {
+            mb.resident_fp32_bytes += pool_fp32.capacity() * sizeof(float);
+        }
         
         // 4. Graph adjacency storage (edges + container overhead)
         size_t edge_bytes = 0;
@@ -2160,7 +2566,8 @@ public:
             node_params.capacity() * sizeof(NodeParams) +
             in_degrees.capacity() * sizeof(uint32_t) +
             deleted.capacity() * sizeof(uint8_t) +
-            bridge_scores.capacity() * sizeof(float);
+            bridge_scores.capacity() * sizeof(float) +
+            (use_mixed_storage ? (vector_descriptors.capacity() * sizeof(VectorStorageDescriptor)) : 0);
             
         // 6. Quantization parameters
         mb.quantization_params_bytes = 

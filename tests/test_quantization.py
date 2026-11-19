@@ -65,3 +65,34 @@ def test_adaptive_hnsw_sq4_search():
     assert len(results) > 0
     # Top result should be the query itself
     assert results[0][0] == 0
+
+def test_mixed_precision_cpp_extension():
+    import adaptivevec._adaptivevec_cpp as av
+    np.random.seed(1337)
+    dim = 32
+    n = 200
+    vectors = np.random.randn(n, dim).astype(np.float32)
+
+    cfg = av.PolicyConfig()
+    cfg.m_base = 16
+    cfg.ef_c_base = 64
+    cfg.enable_sq8 = True
+    cfg.enable_sq4 = True
+
+    index = av.AdaptiveHNSWIndex(dim, av.SpaceType.L2, True, cfg)
+    index.batch_insert(vectors, 2)
+    assert not index.is_mixed_precision_active()
+
+    # Allocate mixed precision with combined sensitivity strategy
+    pdist = index.allocate_mixed_precision(av.AllocationStrategy.CombinedSensitivity, 0.4)
+    assert index.is_mixed_precision_active()
+    assert pdist.n_fp32 + pdist.n_sq8 + pdist.n_sq4 == n
+    assert pdist.savings_ratio > 0.25
+
+    res = index.search(vectors[0], k=5, ef=32)
+    assert len(res) > 0
+    assert res[0].id == 0
+
+    mb = index.get_memory_breakdown()
+    assert mb.allocated_quantized_capacity_bytes > 0
+    assert mb.total_owned_bytes > 0
