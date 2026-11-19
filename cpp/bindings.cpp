@@ -7,6 +7,7 @@
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 #include "adaptive_hnsw.hpp"
+#include "auto_calibrator.hpp"
 
 namespace py = pybind11;
 using namespace adaptivevec;
@@ -189,4 +190,100 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def_readonly("num_elements", &AdaptiveHNSWIndex::num_elements)
         .def_readonly("dim", &AdaptiveHNSWIndex::dim)
         .def_readwrite("policy", &AdaptiveHNSWIndex::policy);
+
+    // Auto-Calibration Enums & Structures
+    py::enum_<OptimizationGoal>(m, "OptimizationGoal")
+        .value("MaxThroughput", OptimizationGoal::MaxThroughput)
+        .value("MinMemory", OptimizationGoal::MinMemory)
+        .value("MinLatency", OptimizationGoal::MinLatency)
+        .value("MaxRecall", OptimizationGoal::MaxRecall)
+        .export_values();
+
+    py::class_<CalibrationConstraints>(m, "CalibrationConstraints")
+        .def(py::init<>())
+        .def_readwrite("target_recall", &CalibrationConstraints::target_recall)
+        .def_readwrite("max_memory_mb", &CalibrationConstraints::max_memory_mb)
+        .def_readwrite("target_p99_latency_ms", &CalibrationConstraints::target_p99_latency_ms)
+        .def_readwrite("max_calibration_duration_s", &CalibrationConstraints::max_calibration_duration_s)
+        .def_readwrite("max_construction_time_s", &CalibrationConstraints::max_construction_time_s)
+        .def_readwrite("threads", &CalibrationConstraints::threads)
+        .def_readwrite("k", &CalibrationConstraints::k)
+        .def_readwrite("optimization_goal", &CalibrationConstraints::optimization_goal);
+
+    py::class_<CalibrationTrial>(m, "CalibrationTrial")
+        .def(py::init<>())
+        .def_readonly("trial_id", &CalibrationTrial::trial_id)
+        .def_readonly("stage", &CalibrationTrial::stage)
+        .def_readonly("m", &CalibrationTrial::m)
+        .def_readonly("ef_construction", &CalibrationTrial::ef_construction)
+        .def_readonly("ef_search", &CalibrationTrial::ef_search)
+        .def_readonly("precision", &CalibrationTrial::precision)
+        .def_readonly("enable_adaptive", &CalibrationTrial::enable_adaptive)
+        .def_readonly("enable_ada_ef", &CalibrationTrial::enable_ada_ef)
+        .def_readonly("memory_mb", &CalibrationTrial::memory_mb)
+        .def_readonly("recall_mean", &CalibrationTrial::recall_mean)
+        .def_readonly("recall_ci_lower", &CalibrationTrial::recall_ci_lower)
+        .def_readonly("recall_ci_upper", &CalibrationTrial::recall_ci_upper)
+        .def_readonly("qps", &CalibrationTrial::qps)
+        .def_readonly("p99_latency_ms", &CalibrationTrial::p99_latency_ms)
+        .def_readonly("trial_duration_s", &CalibrationTrial::trial_duration_s)
+        .def_readonly("is_feasible", &CalibrationTrial::is_feasible)
+        .def_readonly("rejection_reason", &CalibrationTrial::rejection_reason)
+        .def("to_json", &CalibrationTrial::to_json);
+
+    py::class_<CalibrationReport>(m, "CalibrationReport")
+        .def(py::init<>())
+        .def_readonly("is_feasible", &CalibrationReport::is_feasible)
+        .def_readonly("violated_constraints", &CalibrationReport::violated_constraints)
+        .def_readonly("selected_config", &CalibrationReport::selected_config)
+        .def_readonly("evaluated_trials", &CalibrationReport::evaluated_trials)
+        .def_readonly("pareto_frontier", &CalibrationReport::pareto_frontier)
+        .def_readonly("total_calibration_time_s", &CalibrationReport::total_calibration_time_s)
+        .def_readonly("num_calibration_queries", &CalibrationReport::num_calibration_queries)
+        .def_readonly("num_validation_queries", &CalibrationReport::num_validation_queries)
+        .def_readonly("dataset_name", &CalibrationReport::dataset_name)
+        .def("to_json", &CalibrationReport::to_json)
+        .def("summary", &CalibrationReport::summary)
+        .def("__repr__", &CalibrationReport::summary);
+
+    m.def("calibrate_index", [](
+        py::array_t<float, py::array::c_style | py::array::forcecast> base_vectors,
+        SpaceType space,
+        py::array_t<float, py::array::c_style | py::array::forcecast> query_vectors,
+        py::array_t<int, py::array::c_style | py::array::forcecast> ground_truth,
+        const CalibrationConstraints& constraints,
+        const std::string& dataset_name
+    ) {
+        py::buffer_info b_info = base_vectors.request();
+        py::buffer_info q_info = query_vectors.request();
+        py::buffer_info gt_info = ground_truth.request();
+        
+        if (b_info.ndim != 2) throw std::runtime_error("base_vectors must be 2D array");
+        if (q_info.ndim != 2) throw std::runtime_error("query_vectors must be 2D array");
+        if (gt_info.ndim != 2) throw std::runtime_error("ground_truth must be 2D array");
+        
+        size_t n_vectors = b_info.shape[0];
+        size_t dim = b_info.shape[1];
+        size_t n_queries = q_info.shape[0];
+        size_t gt_k = gt_info.shape[1];
+        
+        std::vector<std::vector<tableint>> gt(n_queries, std::vector<tableint>(gt_k));
+        const int* gt_ptr = static_cast<const int*>(gt_info.ptr);
+        for (size_t i = 0; i < n_queries; ++i) {
+            for (size_t j = 0; j < gt_k; ++j) {
+                gt[i][j] = static_cast<tableint>(gt_ptr[i * gt_k + j]);
+            }
+        }
+        
+        std::unique_ptr<AdaptiveHNSWIndex> index = nullptr;
+        CalibrationReport report = AutoCalibrator::calibrate(
+            static_cast<const float*>(b_info.ptr), n_vectors, dim, space,
+            static_cast<const float*>(q_info.ptr), n_queries, gt,
+            constraints, index, dataset_name
+        );
+        
+        return std::make_pair(report, std::move(index));
+    }, py::arg("base_vectors"), py::arg("space"), py::arg("query_vectors"), py::arg("ground_truth"),
+       py::arg("constraints"), py::arg("dataset_name") = "Unknown",
+       "Run hierarchical auto-calibration and return (CalibrationReport, AdaptiveHNSWIndex)");
 }

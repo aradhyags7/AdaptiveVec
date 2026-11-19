@@ -460,6 +460,46 @@ void test_phase2_1_numerical_correctness_gates() {
     TEST_ASSERT(res.size() == 10, "Search must return exactly k=10 results");
 }
 
+void test_streaming_and_healing_after_fp32_purged() {
+    size_t dim = 16;
+    size_t n_initial = 100;
+    AdaptiveHNSWIndex index(dim, SpaceType::L2, false);
+    std::mt19937 rng(42);
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+    std::vector<float> data(n_initial * dim);
+    for (auto& x : data) x = dist(rng);
+
+    index.batch_insert(data.data(), n_initial, 2);
+    index.policy.keep_raw_vectors = false;
+    index.allocate_mixed_precision(AllocationStrategy::UniformSQ8, 0.25);
+
+    // Verify raw data is purged
+    TEST_ASSERT(index.data.empty(), "Raw data must be purged");
+    TEST_ASSERT(index.is_mixed_precision_active(), "Mixed precision must be active");
+
+    // Streaming insertion of 10 new vectors
+    size_t n_stream = 10;
+    for (size_t s = 0; s < n_stream; ++s) {
+        std::vector<float> v(dim);
+        for (auto& x : v) x = dist(rng);
+        tableint id = index.insert(v.data());
+        TEST_ASSERT(id == (tableint)(n_initial + s), "Streaming ID mismatch");
+    }
+    TEST_ASSERT(index.num_elements == n_initial + n_stream, "Total elements mismatch after stream");
+
+    // Search for the last streamed vector
+    std::vector<float> last_v(dim);
+    index.get_vector_reconstructed((tableint)(n_initial + n_stream - 1), last_v.data());
+    auto res = index.search(last_v.data(), 5, 32);
+    TEST_ASSERT(!res.empty(), "Search after stream must return candidates");
+
+    // 2-hop bridge healing on streamed node
+    index.delete_vector((tableint)n_initial, true); // delete streamed node with healing
+    TEST_ASSERT(index.get_active_count() == n_initial + n_stream - 1, "Active count mismatch");
+    index.compact();
+    TEST_ASSERT(index.num_elements == n_initial + n_stream - 1, "Element count mismatch after compaction");
+}
+
 int main() {
     std::cout << "=================================================================" << std::endl;
     std::cout << "          AdaptiveVec Phase 2 Native C++ Unit Test Suite         " << std::endl;
@@ -476,6 +516,7 @@ int main() {
     RUN_TEST(test_bridge_aware_hubness_regulation);
     RUN_TEST(test_mixed_precision_storage_and_search);
     RUN_TEST(test_phase2_1_numerical_correctness_gates);
+    RUN_TEST(test_streaming_and_healing_after_fp32_purged);
 
     std::cout << "\n=================================================================" << std::endl;
     std::cout << " ALL " << g_tests_passed << "/" << g_tests_total << " PHASE 2 C++ TESTS PASSED SUCCESSFULLY!" << std::endl;

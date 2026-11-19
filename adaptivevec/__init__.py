@@ -21,6 +21,7 @@ from .adaptive_hnsw import AdaptiveHNSW
 from .datasets import load_or_generate_dataset, generate_multi_manifold_dataset
 from .benchmark import BenchmarkHarness, BenchmarkResult
 from .quantization import ScalarQuantizer, ScalarQuantizer4Bit
+from .adaptive_vec import AdaptiveVec
 
 __all__ = [
     "compute_local_density",
@@ -32,6 +33,7 @@ __all__ = [
     "map_signals_to_params",
     "StockHNSW",
     "AdaptiveHNSW",
+    "AdaptiveVec",
     "ScalarQuantizer",
     "ScalarQuantizer4Bit",
     "load_or_generate_dataset",

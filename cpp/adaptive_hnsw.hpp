@@ -903,7 +903,30 @@ public:
                    ? quantizer.asymmetric_cosine_distance(query, &quantized_data[id * dim])
                    : quantizer.asymmetric_l2_sq_distance(query, &quantized_data[id * dim]);
         }
-        return get_distance_sq(query, get_vector(id));
+        if (!data.empty() && id * dim < data.size()) {
+            return get_distance_sq(query, get_vector(id));
+        }
+        std::vector<float> tmp(dim);
+        get_vector_reconstructed(id, tmp.data());
+        return get_distance_sq(query, tmp.data());
+    }
+
+    inline const float* get_vector_or_reconstruct(tableint id, std::vector<float>& buf) const {
+        if (!data.empty() && id * dim < data.size()) {
+            return &data[id * dim];
+        }
+        if (buf.size() < dim) buf.resize(dim);
+        get_vector_reconstructed(id, buf.data());
+        return buf.data();
+    }
+
+    inline dist_t get_node_to_node_distance_sq(tableint id1, tableint id2) const {
+        if (!data.empty() && id1 * dim < data.size() && id2 * dim < data.size()) {
+            return get_distance_sq(&data[id1 * dim], &data[id2 * dim]);
+        }
+        std::vector<float> buf1(dim);
+        get_vector_reconstructed(id1, buf1.data());
+        return get_node_distance_sq(buf1.data(), id2);
     }
 
     inline const void* get_node_payload_ptr(tableint id) const {
@@ -1129,6 +1152,11 @@ public:
             data.clear();
             data.shrink_to_fit();
         }
+
+        pool_fp32.shrink_to_fit();
+        pool_sq8.shrink_to_fit();
+        pool_sq4.shrink_to_fit();
+        vector_descriptors.shrink_to_fit();
 
         use_mixed_storage = true;
 
@@ -1379,17 +1407,18 @@ public:
         if (policy.bridge_estimator == 1) {
             // Estimator 1: Directional Dispersion of Displacement Vectors
             // Transit bridges connecting separate clusters exhibit opposing neighbor directions.
-            const float* u_vec = get_vector(u);
+            std::vector<float> u_buf(dim), vi_buf(dim), vj_buf(dim);
+            const float* u_vec = get_vector_or_reconstruct(u, u_buf);
             size_t sample_k = std::min(k, (size_t)8);
             float min_cos = 1.0f;
             for (size_t i = 0; i < sample_k; ++i) {
                 tableint ni = neighbors[(i * k) / sample_k];
                 if (ni >= num_elements) continue;
-                const float* vi = get_vector(ni);
+                const float* vi = get_vector_or_reconstruct(ni, vi_buf);
                 for (size_t j = i + 1; j < sample_k; ++j) {
                     tableint nj = neighbors[(j * k) / sample_k];
                     if (nj >= num_elements) continue;
-                    const float* vj = get_vector(nj);
+                    const float* vj = get_vector_or_reconstruct(nj, vj_buf);
                     float dot = 0.0f, n1_sq = 0.0f, n2_sq = 0.0f;
                     for (size_t d = 0; d < dim; ++d) {
                         float d1 = vi[d] - u_vec[d];
@@ -1527,10 +1556,9 @@ public:
         for (const auto& c : sorted_c) {
             if ((int)result.size() >= m_limit) break;
             
-            const float* c_vec = get_vector(c.id);
             bool is_diverse = true;
             for (tableint r_id : result) {
-                dist_t dist_c_r = get_distance_sq(c_vec, get_vector(r_id));
+                dist_t dist_c_r = get_node_to_node_distance_sq(c.id, r_id);
                 
                 // Hubness Regulation: Penalize high-degree hubs from shadowing diverse neighbors
                 // Stage 2: Bridge-Aware attenuation: d_eff = d * [1 + mu * H(v) * (1 - alpha * B(v))]
@@ -1569,6 +1597,31 @@ public:
         tableint q_idx = (tableint)num_elements++;
         if (policy.keep_raw_vectors) {
             data.insert(data.end(), vec, vec + dim);
+        }
+
+        if (use_mixed_storage) {
+            VectorStorageDescriptor desc;
+            if (policy.keep_raw_vectors) {
+                desc.prec = VectorPrecision::FP32;
+                desc.offset = static_cast<uint32_t>(pool_fp32.size());
+                pool_fp32.insert(pool_fp32.end(), vec, vec + dim);
+            } else if (quantizer.is_trained) {
+                desc.prec = VectorPrecision::SQ8;
+                desc.offset = static_cast<uint32_t>(pool_sq8.size());
+                pool_sq8.resize(pool_sq8.size() + dim);
+                quantizer.encode(vec, &pool_sq8[desc.offset]);
+            } else if (quantizer_sq4.is_trained) {
+                size_t packed_dim = (dim + 1) / 2;
+                desc.prec = VectorPrecision::SQ4;
+                desc.offset = static_cast<uint32_t>(pool_sq4.size());
+                pool_sq4.resize(pool_sq4.size() + packed_dim);
+                quantizer_sq4.encode(vec, &pool_sq4[desc.offset]);
+            } else {
+                desc.prec = VectorPrecision::FP32;
+                desc.offset = static_cast<uint32_t>(pool_fp32.size());
+                pool_fp32.insert(pool_fp32.end(), vec, vec + dim);
+            }
+            vector_descriptors.push_back(desc);
         }
         
         if (policy.enable_sq8 && quantizer.is_trained) {
@@ -1667,10 +1720,11 @@ public:
                 int n_limit = node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
                 if ((int)graphs[lc][neighbor].size() > n_limit) {
                     std::vector<Candidate> n_candidates;
-                    const float* n_vec = get_vector(neighbor);
                     for (tableint cand : graphs[lc][neighbor]) {
-                        n_candidates.push_back({get_distance_sq(n_vec, get_vector(cand)), cand});
+                        n_candidates.push_back({get_node_to_node_distance_sq(neighbor, cand), cand});
                     }
+                    std::vector<float> n_buf;
+                    const float* n_vec = get_vector_or_reconstruct(neighbor, n_buf);
                     auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc);
                     
                     if (lc == 0) {
@@ -1862,10 +1916,11 @@ public:
                         : policy.m_base * 2;
                     if ((int)graphs[lc][neighbor].size() > n_limit) {
                         std::vector<Candidate> n_candidates;
-                        const float* n_vec = get_vector(neighbor);
                         for (tableint cand : graphs[lc][neighbor]) {
-                            n_candidates.push_back({get_distance_sq(n_vec, get_vector(cand)), cand});
+                            n_candidates.push_back({get_node_to_node_distance_sq(neighbor, cand), cand});
                         }
+                        std::vector<float> n_buf;
+                        const float* n_vec = get_vector_or_reconstruct(neighbor, n_buf);
                         auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc);
 
                         if (lc == 0) {
@@ -2342,13 +2397,7 @@ public:
         int target_ef = ef;
         if (policy.enable_dynamic_ef_search && curr_ep < node_params.size()) {
             float node_score = node_params[curr_ep].score;
-            dist_t d_entry = (use_mixed_storage)
-                             ? get_node_distance_sq(query, curr_ep)
-                             : ((use_asym_sq4 && quantizer_sq4.is_trained)
-                                ? get_sq4_distance(query, curr_ep)
-                                : ((use_asym_sq8 && quantizer.is_trained) 
-                                   ? get_sq8_distance(query, curr_ep) 
-                                   : get_distance(query, get_vector(curr_ep))));
+            dist_t d_entry = get_node_distance_sq(query, curr_ep);
             float norm_d = (d_entry - policy.density_mean) / (policy.density_std + 1e-6f);
             float query_hardness = 0.7f * node_score + 0.3f * std::max(-2.0f, std::min(norm_d, 2.0f));
             float factor = 1.0f + policy.dynamic_ef_factor * query_hardness;
