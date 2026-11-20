@@ -1,0 +1,48 @@
+{
+  "experiment": "AdaptiveVec Final Integrated Demonstration (Transformer-384D)",
+  "corpus": "MiniLM-50K-MultiDomain (all-MiniLM-L6-v2)",
+  "cardinality": 57893,
+  "dim": 384,
+  "engine_version": "AdaptiveVec 6.1-Defense-Freeze (Commit 4fcbd40)",
+  "four_contributions_validated": {
+    "geometry_aware_intelligence": true,
+    "resource_efficient_retrieval": true,
+    "dynamic_self_healing_lifecycle": true,
+    "automatic_optimization": true
+  },
+  "calibration_result": {
+    "target_recall": 0.90,
+    "max_memory_mb": 50.0,
+    "selected_m": 8,
+    "selected_efC": 30,
+    "selected_efS": 64,
+    "selected_precision": "SQ8",
+    "calibration_time_sec": 2.47574,
+    "feasibility_status": "Feasible"
+  },
+  "execution_steps": [
+    {"step": 1, "name": "Dataset Fingerprinting", "status": "SUCCESS", "vectors": 57893, "dim": 384},
+    {"step": 2, "name": "Formulate SLA Constraints", "status": "SUCCESS", "target_recall": 0.90, "max_memory_mb": 50.0},
+    {"step": 3, "name": "Live Auto-Calibration", "status": "SUCCESS", "selected_config": "M=8, efC=30, SQ8"},
+    {"step": 4, "name": "Construct Geometry-Aware Index", "status": "SUCCESS", "initial_vectors": 5000, "build_time_sec": 0.551559},
+    {"step": 5, "name": "Initial Retrieval Evaluation", "status": "SUCCESS", "recall_at_10": 0.908, "qps": 602.981, "memory_bytes": 4530364},
+    {"step": 6, "name": "Concurrent Streaming Ingestion", "status": "SUCCESS", "added_vectors": 1000, "time_ms": 231.328, "queries_served": 4087},
+    {"step": 7, "name": "Logical Deletion & Topological Healing", "status": "SUCCESS", "deleted_count": 1000, "healing_time_ms": 95.8632},
+    {"step": 8, "name": "Exclusive-Lock Physical Compaction", "status": "SUCCESS", "lock_pause_ms": 6.5211, "memory_reclaimed_bytes": 1788968},
+    {"step": 9, "name": "Post-Compaction Retrieval Re-Evaluation", "status": "SUCCESS", "final_recall_at_10": 0.9065, "final_qps": 627.493, "final_memory_bytes": 3049332}
+  ],
+  "initial_metrics": {
+    "recall_at_10": 0.908,
+    "qps": 602.981,
+    "index_owned_bytes": 4530364,
+    "index_owned_mb": 4.32049
+  },
+  "final_metrics": {
+    "recall_at_10": 0.9065,
+    "qps": 627.493,
+    "index_owned_bytes": 3049332,
+    "index_owned_mb": 2.90807,
+    "memory_reclaimed_mb": 1.70609,
+    "exclusive_lock_pause_ms": 6.5211
+  }
+}
