@@ -1,0 +1,219 @@
+{
+  "experiment_name": "Phase 5.2 Randomization Isolation and Multi-Dataset Validation",
+  "timestamp": "2026-11-20T13:10:00Z",
+  "sift100k_reference": {
+    "arch_b": {
+      "recall_at_10": 0.9829,
+      "qps": 22167.9,
+      "mean_dist_evals": 891.319,
+      "total_edges": 2418571,
+      "correlation_score_vs_m": 0.900832,
+      "boundary_queries_recall": 0.97856,
+      "dense_queries_recall": 0.984822
+    },
+    "canonical_hnsw": {
+      "recall_at_10": 0.98843,
+      "qps": 2082.81,
+      "mean_dist_evals": 995.911,
+      "total_edges": 2694602
+    },
+    "seed_2024_boundary_deprivation": {
+      "boundary_queries_recall": 0.936201,
+      "dense_queries_recall": 0.942476,
+      "boundary_recall_delta_pct": 4.23591
+    }
+  },
+  "permutation_trials": [
+    {
+      "mode": "M_only",
+      "seed": 42,
+      "score_m_correlation": -0.00372453,
+      "total_edges": 2375294,
+      "in_degree_var": 61.027,
+      "recall_at_10": 0.97782,
+      "qps": 2158.41,
+      "mean_dist_evals": 920.006,
+      "jaccard_edge_overlap": 0.453864
+    },
+    {
+      "mode": "efC_only",
+      "seed": 42,
+      "score_m_correlation": 0,
+      "total_edges": 2617520,
+      "in_degree_var": 35.4017,
+      "recall_at_10": 0.97587,
+      "qps": 2209.7,
+      "mean_dist_evals": 954.851,
+      "jaccard_edge_overlap": 0.506153
+    },
+    {
+      "mode": "joint",
+      "seed": 42,
+      "score_m_correlation": -0.00372453,
+      "total_edges": 2376511,
+      "in_degree_var": 60.9757,
+      "recall_at_10": 0.98098,
+      "qps": 17921.3,
+      "mean_dist_evals": 924.855,
+      "jaccard_edge_overlap": 0.45603
+    },
+    {
+      "mode": "M_only",
+      "seed": 101,
+      "score_m_correlation": -0.00138141,
+      "total_edges": 2377175,
+      "in_degree_var": 61.2345,
+      "recall_at_10": 0.98104,
+      "qps": 17878.5,
+      "mean_dist_evals": 920.062,
+      "jaccard_edge_overlap": 0.455712
+    },
+    {
+      "mode": "efC_only",
+      "seed": 101,
+      "score_m_correlation": 0,
+      "total_edges": 2617238,
+      "in_degree_var": 35.3977,
+      "recall_at_10": 0.98223,
+      "qps": 11168.6,
+      "mean_dist_evals": 955.52,
+      "jaccard_edge_overlap": 0.511383
+    },
+    {
+      "mode": "joint",
+      "seed": 101,
+      "score_m_correlation": -0.00138141,
+      "total_edges": 2378235,
+      "in_degree_var": 61.1706,
+      "recall_at_10": 0.98126,
+      "qps": 14558.1,
+      "mean_dist_evals": 923.971,
+      "jaccard_edge_overlap": 0.456525
+    },
+    {
+      "mode": "M_only",
+      "seed": 777,
+      "score_m_correlation": 0.000155687,
+      "total_edges": 2375715,
+      "in_degree_var": 61.1013,
+      "recall_at_10": 0.97964,
+      "qps": 11403.9,
+      "mean_dist_evals": 918.921,
+      "jaccard_edge_overlap": 0.454158
+    },
+    {
+      "mode": "efC_only",
+      "seed": 777,
+      "score_m_correlation": 0,
+      "total_edges": 2616871,
+      "in_degree_var": 35.5112,
+      "recall_at_10": 0.98587,
+      "qps": 14362.3,
+      "mean_dist_evals": 955.454,
+      "jaccard_edge_overlap": 0.517125
+    },
+    {
+      "mode": "joint",
+      "seed": 777,
+      "score_m_correlation": 0.000155687,
+      "total_edges": 2376852,
+      "in_degree_var": 61.0242,
+      "recall_at_10": 0.98122,
+      "qps": 13720.7,
+      "mean_dist_evals": 922.846,
+      "jaccard_edge_overlap": 0.456466
+    },
+    {
+      "mode": "M_only",
+      "seed": 999,
+      "score_m_correlation": -0.00632337,
+      "total_edges": 2377017,
+      "in_degree_var": 61.2328,
+      "recall_at_10": 0.98153,
+      "qps": 12130,
+      "mean_dist_evals": 923.103,
+      "jaccard_edge_overlap": 0.454578
+    },
+    {
+      "mode": "efC_only",
+      "seed": 999,
+      "score_m_correlation": 0,
+      "total_edges": 2616986,
+      "in_degree_var": 35.5548,
+      "recall_at_10": 0.9866,
+      "qps": 11723,
+      "mean_dist_evals": 956.182,
+      "jaccard_edge_overlap": 0.517015
+    },
+    {
+      "mode": "joint",
+      "seed": 999,
+      "score_m_correlation": -0.00632337,
+      "total_edges": 2378169,
+      "in_degree_var": 61.3947,
+      "recall_at_10": 0.98146,
+      "qps": 12209,
+      "mean_dist_evals": 926.329,
+      "jaccard_edge_overlap": 0.455812
+    },
+    {
+      "mode": "M_only",
+      "seed": 2024,
+      "score_m_correlation": 0.00605947,
+      "total_edges": 2377790,
+      "in_degree_var": 61.1579,
+      "recall_at_10": 0.94095,
+      "qps": 14792.3,
+      "mean_dist_evals": 914.187,
+      "jaccard_edge_overlap": 0.432265
+    },
+    {
+      "mode": "efC_only",
+      "seed": 2024,
+      "score_m_correlation": 0,
+      "total_edges": 2616974,
+      "in_degree_var": 35.5093,
+      "recall_at_10": 0.98606,
+      "qps": 13048.8,
+      "mean_dist_evals": 955.412,
+      "jaccard_edge_overlap": 0.516695
+    },
+    {
+      "mode": "joint",
+      "seed": 2024,
+      "score_m_correlation": 0.00605947,
+      "total_edges": 2379212,
+      "in_degree_var": 61.1608,
+      "recall_at_10": 0.94055,
+      "qps": 9078.95,
+      "mean_dist_evals": 918.361,
+      "jaccard_edge_overlap": 0.432674
+    }
+  ],
+  "synthetic_heterogeneous_experiment": [
+    {
+      "config_name": "Canonical HNSW",
+      "overall_recall_at_10": 0.9924,
+      "dense_cluster_recall": 0.997714,
+      "sparse_boundary_recall": 0.98,
+      "mean_dist_evals": 430.666,
+      "total_edges": 131546
+    },
+    {
+      "config_name": "Architecture B (Adaptive)",
+      "overall_recall_at_10": 0.9976,
+      "dense_cluster_recall": 0.998286,
+      "sparse_boundary_recall": 0.996,
+      "mean_dist_evals": 441.378,
+      "total_edges": 141115
+    },
+    {
+      "config_name": "Randomized Permuted (Seed 2024)",
+      "overall_recall_at_10": 0.9974,
+      "dense_cluster_recall": 0.998,
+      "sparse_boundary_recall": 0.996,
+      "mean_dist_evals": 439.242,
+      "total_edges": 141239
+    }
+  ]
+}

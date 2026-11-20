@@ -1,0 +1,62 @@
+{
+  "experiment_name": "Phase 5.2 Layer Search Workload Profiling",
+  "timestamp": "2026-11-20T13:15:00Z",
+  "dataset": "SIFT-100K",
+  "profiling": [
+    {
+      "ef_search": 16,
+      "recall_at_10": 0.87705,
+      "qps": 788.292,
+      "mean_upper_dist_evals": 68.5898,
+      "mean_layer0_dist_evals": 317.14,
+      "mean_total_dist_evals": 385.73,
+      "upper_eval_fraction_pct": 17.7818,
+      "mean_upper_hops": 26.3175,
+      "mean_handover_distance_to_query": 508.136
+    },
+    {
+      "ef_search": 32,
+      "recall_at_10": 0.95319,
+      "qps": 1382.3,
+      "mean_upper_dist_evals": 68.5898,
+      "mean_layer0_dist_evals": 520.769,
+      "mean_total_dist_evals": 589.359,
+      "upper_eval_fraction_pct": 11.638,
+      "mean_upper_hops": 40.9213,
+      "mean_handover_distance_to_query": 508.136
+    },
+    {
+      "ef_search": 64,
+      "recall_at_10": 0.98607,
+      "qps": 546.228,
+      "mean_upper_dist_evals": 68.5898,
+      "mean_layer0_dist_evals": 849.874,
+      "mean_total_dist_evals": 918.464,
+      "upper_eval_fraction_pct": 7.46788,
+      "mean_upper_hops": 67.1787,
+      "mean_handover_distance_to_query": 508.136
+    },
+    {
+      "ef_search": 128,
+      "recall_at_10": 0.99628,
+      "qps": 499.711,
+      "mean_upper_dist_evals": 68.5898,
+      "mean_layer0_dist_evals": 1293.01,
+      "mean_total_dist_evals": 1361.6,
+      "upper_eval_fraction_pct": 5.03742,
+      "mean_upper_hops": 107.434,
+      "mean_handover_distance_to_query": 508.136
+    },
+    {
+      "ef_search": 256,
+      "recall_at_10": 0.99885,
+      "qps": 376.439,
+      "mean_upper_dist_evals": 68.5898,
+      "mean_layer0_dist_evals": 1882.25,
+      "mean_total_dist_evals": 1950.84,
+      "upper_eval_fraction_pct": 3.51591,
+      "mean_upper_hops": 169.736,
+      "mean_handover_distance_to_query": 508.136
+    }
+  ]
+}

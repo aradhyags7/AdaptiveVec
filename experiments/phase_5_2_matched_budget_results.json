@@ -1,0 +1,22 @@
+{
+  "experiment_name": "Phase 5.2 Matched Edge Budget Comparisons",
+  "timestamp": "2026-11-20T13:20:00Z",
+  "comparisons": [
+    {
+      "baseline": "Canonical HNSW",
+      "baseline_edges": 2694602,
+      "baseline_recall_at_10": 0.99448,
+      "baseline_qps": 22721.4,
+      "baseline_dist_evals": 1264.69,
+      "matched_scheme": "Scheme 6 (Matched Budget Decoupled L0)",
+      "matched_edges": 2801586,
+      "edge_delta_pct": 3.97031,
+      "matched_recall_at_10": 0.99564,
+      "recall_delta_pct": 0.116,
+      "matched_qps": 20335.2,
+      "qps_speedup_pct": -10.5019,
+      "matched_dist_evals": 1286.22,
+      "dist_evals_reduction_pct": -1.70293
+    }
+  ]
+}

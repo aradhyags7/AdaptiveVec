@@ -1,0 +1,114 @@
+{
+  "experiment_name": "Phase 5.2 Comprehensive Graph Topography Statistics",
+  "timestamp": "2026-11-20T13:20:00Z",
+  "schemes": [
+    {
+      "scheme_id": "SIFT-Scheme1-Canonical-Standard",
+      "dataset": "SIFT-100K",
+      "total_edges": 2694602,
+      "layer0_edges": 2586744,
+      "upper_layer_edges": 107858,
+      "mean_degree_l0": 25.8674,
+      "in_degree_var": 38.4369,
+      "max_in_degree": 32,
+      "fallback_invocation_rate_pct": 96.3876,
+      "memory_mb": 85.5927
+    },
+    {
+      "scheme_id": "SIFT-Scheme2-ArchB-Monolithic",
+      "dataset": "SIFT-100K",
+      "total_edges": 2490263,
+      "layer0_edges": 2399932,
+      "upper_layer_edges": 90331,
+      "mean_degree_l0": 23.9993,
+      "in_degree_var": 47.7242,
+      "max_in_degree": 48,
+      "fallback_invocation_rate_pct": 58.8576,
+      "memory_mb": 84.3505
+    },
+    {
+      "scheme_id": "SIFT-Scheme3-Decoupled-L0-Standard",
+      "dataset": "SIFT-100K",
+      "total_edges": 2507569,
+      "layer0_edges": 2399711,
+      "upper_layer_edges": 107858,
+      "mean_degree_l0": 23.9971,
+      "in_degree_var": 47.6579,
+      "max_in_degree": 48,
+      "fallback_invocation_rate_pct": 61.1116,
+      "memory_mb": 84.4846
+    },
+    {
+      "scheme_id": "SIFT-Scheme4-Decoupled-L0-StrictRNG",
+      "dataset": "SIFT-100K",
+      "total_edges": 2361573,
+      "layer0_edges": 2279587,
+      "upper_layer_edges": 81986,
+      "mean_degree_l0": 22.7959,
+      "in_degree_var": 51.9932,
+      "max_in_degree": 47,
+      "fallback_invocation_rate_pct": 0,
+      "memory_mb": 83.9014
+    },
+    {
+      "scheme_id": "SIFT-Scheme5-Boosted-Upper-StrictRNG",
+      "dataset": "SIFT-100K",
+      "total_edges": 2381619,
+      "layer0_edges": 2279926,
+      "upper_layer_edges": 101693,
+      "mean_degree_l0": 22.7993,
+      "in_degree_var": 52.0847,
+      "max_in_degree": 47,
+      "fallback_invocation_rate_pct": 0,
+      "memory_mb": 83.9835
+    },
+    {
+      "scheme_id": "SIFT-Scheme6-Matched-Budget",
+      "dataset": "SIFT-100K",
+      "total_edges": 2801586,
+      "layer0_edges": 2707026,
+      "upper_layer_edges": 94560,
+      "mean_degree_l0": 27.0703,
+      "in_degree_var": 58.5992,
+      "max_in_degree": 52,
+      "fallback_invocation_rate_pct": 66.8729,
+      "memory_mb": 82.9856
+    },
+    {
+      "scheme_id": "TF-Scheme1-Canonical-Standard",
+      "dataset": "Transformer-384D",
+      "total_edges": 1575860,
+      "layer0_edges": 1514196,
+      "upper_layer_edges": 61664,
+      "mean_degree_l0": 26.1551,
+      "in_degree_var": 36.4233,
+      "max_in_degree": 32,
+      "fallback_invocation_rate_pct": 94.7208,
+      "memory_mb": 103.585
+    },
+    {
+      "scheme_id": "TF-Scheme2-ArchB-Monolithic",
+      "dataset": "Transformer-384D",
+      "total_edges": 1534822,
+      "layer0_edges": 1477355,
+      "upper_layer_edges": 57467,
+      "mean_degree_l0": 25.5187,
+      "in_degree_var": 46.1646,
+      "max_in_degree": 47,
+      "fallback_invocation_rate_pct": 56.6749,
+      "memory_mb": 103.323
+    },
+    {
+      "scheme_id": "TF-Scheme4-Decoupled-L0-StrictRNG",
+      "dataset": "Transformer-384D",
+      "total_edges": 1472886,
+      "layer0_edges": 1418835,
+      "upper_layer_edges": 54051,
+      "mean_degree_l0": 24.5079,
+      "in_degree_var": 52.0002,
+      "max_in_degree": 46,
+      "fallback_invocation_rate_pct": 0,
+      "memory_mb": 103.25
+    }
+  ]
+}

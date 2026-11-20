@@ -264,6 +264,9 @@ void test_concurrency_correctness() {
     index.delete_vector(20);
     index.compact();
 
+    // Allow reader threads to execute concurrent queries
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
     stop_flag.store(true, std::memory_order_relaxed);
     for (auto& t : readers) t.join();
 

@@ -1,0 +1,78 @@
+{
+  "experiment_name": "Phase 5.2 Layer-by-Layer Geometric Characterization",
+  "timestamp": "2026-11-20T13:15:00Z",
+  "dataset": "SIFT-100K",
+  "max_level": 4,
+  "layers": [
+    {
+      "layer": 0,
+      "node_count": 100000,
+      "edge_count": 2399932,
+      "mean_degree": 23.9993,
+      "max_degree": 48,
+      "in_degree_var": 165.757,
+      "memory_mb": 11.4438,
+      "mean_edge_length": 260.779,
+      "p50_edge_length": 267.002,
+      "p95_edge_length": 341.054,
+      "p99_edge_length": 375.844,
+      "mean_cos_similarity": 0.221485
+    },
+    {
+      "layer": 1,
+      "node_count": 6306,
+      "edge_count": 85339,
+      "mean_degree": 13.533,
+      "max_degree": 18,
+      "in_degree_var": 34.6596,
+      "memory_mb": 0.469875,
+      "mean_edge_length": 295.529,
+      "p50_edge_length": 299.174,
+      "p95_edge_length": 369.662,
+      "p99_edge_length": 402.981,
+      "mean_cos_similarity": 0.265861
+    },
+    {
+      "layer": 2,
+      "node_count": 407,
+      "edge_count": 4710,
+      "mean_degree": 11.5725,
+      "max_degree": 13,
+      "in_degree_var": 26.6182,
+      "memory_mb": 0.0272827,
+      "mean_edge_length": 349.053,
+      "p50_edge_length": 345.725,
+      "p95_edge_length": 452.213,
+      "p99_edge_length": 542.302,
+      "mean_cos_similarity": 0.305968
+    },
+    {
+      "layer": 3,
+      "node_count": 28,
+      "edge_count": 280,
+      "mean_degree": 10,
+      "max_degree": 10,
+      "in_degree_var": 6.92857,
+      "memory_mb": 0.00170898,
+      "mean_edge_length": 431.421,
+      "p50_edge_length": 440.393,
+      "p95_edge_length": 550.316,
+      "p99_edge_length": 604.36,
+      "mean_cos_similarity": 0.409124
+    },
+    {
+      "layer": 4,
+      "node_count": 2,
+      "edge_count": 2,
+      "mean_degree": 1,
+      "max_degree": 1,
+      "in_degree_var": 0,
+      "memory_mb": 5.34058e-05,
+      "mean_edge_length": 588.891,
+      "p50_edge_length": 588.891,
+      "p95_edge_length": 588.891,
+      "p99_edge_length": 588.891,
+      "mean_cos_similarity": 0
+    }
+  ]
+}

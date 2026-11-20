@@ -201,6 +201,18 @@ struct PolicyConfig {
     float pruning_lid_weight = 0.0f;       // Modulate alpha by standardized LID (+gamma_LID)
     float pruning_density_weight = 0.0f;   // Modulate alpha by standardized density (-gamma_dens)
     bool keep_pruned_connections = true;   // Default true (HNSW). If false, discard pruned candidates.
+
+    // Phase 5.2: Strict RNG & Neighbor Retention Controls
+    bool strict_rng_layer0_only = false;
+    bool strict_rng_upper_layers_only = false;
+    int min_degree_safeguard = 0;          // If > 0, fallback retention pulls from discarded up to min_degree_safeguard
+
+    // Phase 5.2: Layer-Decoupled Geometric Resource Allocation
+    bool enable_layer_decoupled = false;
+    float beta_layer0 = 1.0f;              // Adaptation strength at Layer 0
+    float beta_upper = 0.0f;               // Adaptation strength at Upper Layers
+    int m_base_upper = 16;                 // Fixed nominal degree for upper layers when decoupled
+    bool upper_layer_fixed_m = false;      // Keep upper layers at fixed M_base without decay
 };
 
 struct NodeParams {
@@ -212,14 +224,27 @@ struct NodeParams {
     float lid;
     float density;
 
-    int get_m_for_layer(int layer, bool enable_scaling = true, float lambda = 0.75f, int min_m = 4) const {
-        if (layer == 0 || !enable_scaling) return m;
+    int get_m_for_layer(int layer, bool enable_scaling = true, float lambda = 0.75f, int min_m = 4,
+                        bool layer_decoupled = false, float beta_u = 0.0f, int m_base = 16) const {
+        if (layer == 0) return m;
+        if (layer_decoupled) {
+            if (beta_u == 0.0f) return m_base;
+            int delta = (int)std::round((float)(m_base) * (score / 2.5f) * beta_u);
+            return std::max(min_m, m_base + delta);
+        }
+        if (!enable_scaling) return m;
         float factor = std::pow(lambda, (float)layer);
         return std::max(min_m, (int)std::floor((float)m * factor));
     }
 
-    int get_m_max_for_layer(int layer, bool enable_scaling = true, float lambda = 0.75f, int min_m = 4) const {
+    int get_m_max_for_layer(int layer, bool enable_scaling = true, float lambda = 0.75f, int min_m = 4,
+                            bool layer_decoupled = false, float beta_u = 0.0f, int m_base = 16) const {
         if (layer == 0) return m_max0;
+        if (layer_decoupled) {
+            if (beta_u == 0.0f) return m_base;
+            int delta = (int)std::round((float)(m_base) * (score / 2.5f) * beta_u);
+            return std::max(min_m, m_base + delta);
+        }
         if (!enable_scaling) return m_max;
         float factor = std::pow(lambda, (float)layer);
         return std::max(min_m, (int)std::floor((float)m_max * factor));
@@ -785,6 +810,9 @@ public:
     static constexpr size_t NUM_NODE_LOCKS = 4096;
     mutable std::vector<std::mutex> node_locks;
     mutable std::atomic<uint64_t> total_dist_computations{0};
+    mutable std::atomic<uint64_t> fallback_retention_invocations{0};
+    mutable std::atomic<uint64_t> fallback_edges_added{0};
+    mutable std::atomic<uint64_t> heuristic_calls{0};
     mutable std::mutex entry_point_mutex;
     mutable std::mutex tracker_mutex;
     mutable std::shared_mutex index_lifecycle_rw_mutex; // Global reader-writer lock for compaction safety
@@ -792,6 +820,16 @@ public:
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
         : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), quantizer_sq4(dimension), node_locks(NUM_NODE_LOCKS) {
         m_l = 1.0 / std::log(policy.m_base > 1 ? policy.m_base : 2);
+    }
+
+    void reserve(size_t n) {
+        if (policy.keep_raw_vectors) data.reserve(n * dim);
+        node_levels.reserve(n);
+        node_params.reserve(n);
+        in_degrees.reserve(n);
+        deleted.reserve(n);
+        if (graphs.empty()) graphs.resize(16);
+        graphs[0].reserve(n);
     }
 
     std::unique_ptr<AdaptiveHNSWIndex> clone() const {
@@ -1652,11 +1690,25 @@ public:
             }
         }
         
-        if (policy.keep_pruned_connections) {
+        heuristic_calls++;
+        // Phase 5.2: Neighbor Retention and Strict RNG Resolution
+        bool should_keep_pruned = policy.keep_pruned_connections;
+        if (policy.strict_rng_layer0_only) {
+            should_keep_pruned = (lc > 0);
+        } else if (policy.strict_rng_upper_layers_only) {
+            should_keep_pruned = (lc == 0);
+        }
+
+        int target_retention = should_keep_pruned ? m_limit : policy.min_degree_safeguard;
+        if (target_retention > 0 && (int)result.size() < target_retention) {
+            bool invoked = false;
             for (const auto& d : discarded) {
-                if ((int)result.size() >= m_limit) break;
+                if ((int)result.size() >= target_retention) break;
                 result.push_back(d.id);
+                fallback_edges_added++;
+                invoked = true;
             }
+            if (invoked) fallback_retention_invocations++;
         }
         
         return result;
@@ -1776,7 +1828,7 @@ public:
         for (int lc = std::min(top_level, q_level); lc >= 0; --lc) {
             auto w = search_layer(vec, {curr_ep}, params.ef_construction, lc, false, false);
             
-            int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
+            int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer, policy.enable_layer_decoupled, policy.beta_upper, policy.m_base_upper);
             auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc, q_idx);
             
             graphs[lc][q_idx] = neighbors;
@@ -1789,7 +1841,7 @@ public:
                     total_in_degrees += 2;
                 }
                 
-                int n_limit = node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
+                int n_limit = node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer, policy.enable_layer_decoupled, policy.beta_upper, policy.m_base_upper);
                 if ((int)graphs[lc][neighbor].size() > n_limit) {
                     std::vector<Candidate> n_candidates;
                     for (tableint cand : graphs[lc][neighbor]) {
@@ -1967,7 +2019,7 @@ public:
             // Phase 2: Insert into levels min(top_level, q_level) down to 0
             for (int lc = std::min(top_level, q_level); lc >= 0; --lc) {
                 auto w = search_layer(vec, {curr_ep}, params.ef_construction, lc, false, false, true);
-                int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
+                int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer, policy.enable_layer_decoupled, policy.beta_upper, policy.m_base_upper);
                 auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc, q_idx);
 
                 {
@@ -1984,7 +2036,7 @@ public:
                     }
 
                     int n_limit = (node_params[neighbor].m > 0)
-                        ? node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                        ? node_params[neighbor].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer, policy.enable_layer_decoupled, policy.beta_upper, policy.m_base_upper)
                         : policy.m_base * 2;
                     if ((int)graphs[lc][neighbor].size() > n_limit) {
                         std::vector<Candidate> n_candidates;
