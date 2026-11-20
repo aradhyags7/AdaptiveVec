@@ -48,6 +48,9 @@ htmlcov/
 # Raw benchmark datasets & binary archives (root data directory)
 /data/
 *.fvecs
+
+# Git worktrees for historical investigation
+worktrees/
 *.ivecs
 *.bvecs
 *.hdf5

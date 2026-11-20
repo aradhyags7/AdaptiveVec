@@ -1,0 +1,27 @@
+{
+  "dataset": "SIFT-100K subset",
+  "evaluated_nodes": 100000,
+  "mean_out_degree": 24.29,
+  "mean_in_degree": 24.29,
+  "in_degree_variance": 139.96,
+  "max_in_degree": 233,
+  "mean_edge_length": 259.13,
+  "median_edge_length": 266.45,
+  "p90_edge_length": 320.55,
+  "clustering_coefficient": 0.0854,
+  "global_reachability_pct": 100.00,
+  "lid_out_degree_correlation": 0.6017,
+  "density_out_degree_correlation": 0.6235,
+  "degree_by_lid_quartiles": {
+    "q1_low_lid": 18.30,
+    "q2_mid_low_lid": 22.06,
+    "q3_mid_high_lid": 25.69,
+    "q4_high_lid": 31.10
+  },
+  "degree_by_density_quartiles": {
+    "q1_dense": 17.61,
+    "q2_mid_dense": 22.61,
+    "q3_mid_sparse": 26.23,
+    "q4_sparse": 30.70
+  }
+}

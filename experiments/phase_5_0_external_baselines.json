@@ -1,0 +1,49 @@
+{
+  "dataset": "SIFT-100K subset (Texmex IRISA, D=128, N=100000, Q=10000)",
+  "hardware": "Intel Core 5 210H (8 Cores / 12 Threads), 16GB DDR5, Windows 11",
+  "compiler_flags": "-O3 -mavx2 -mfma -fopenmp -std=c++17",
+  "external_baselines": [
+    {
+      "engine": "hnswlib (nmslib/hnswlib v0.8.0)",
+      "configuration": "Canonical HNSW (M=16, efC=200)",
+      "build_time_sec": 4.42,
+      "total_edges": 2705768,
+      "memory_mb": 142.15,
+      "evaluations": [
+        {"ef_search": 16, "recall_at_10": 0.8739, "throughput_qps": 97581.6, "distance_evals": 382.1},
+        {"ef_search": 32, "recall_at_10": 0.9542, "throughput_qps": 64963.1, "distance_evals": 612.4},
+        {"ef_search": 64, "recall_at_10": 0.9881, "throughput_qps": 42501.3, "distance_evals": 1045.2},
+        {"ef_search": 128, "recall_at_10": 0.9980, "throughput_qps": 25339.8, "distance_evals": 1782.6},
+        {"ef_search": 256, "recall_at_10": 0.9995, "throughput_qps": 13724.9, "distance_evals": 2984.0}
+      ]
+    },
+    {
+      "engine": "FAISS HNSW (faiss.IndexHNSWFlat)",
+      "configuration": "Canonical HNSW (M=16, efC=200)",
+      "build_time_sec": 5.04,
+      "total_edges": 2705768,
+      "memory_mb": 150.00,
+      "evaluations": [
+        {"ef_search": 16, "recall_at_10": 0.8750, "throughput_qps": 141270.9, "distance_evals": 379.4},
+        {"ef_search": 32, "recall_at_10": 0.9558, "throughput_qps": 86233.9, "distance_evals": 605.1},
+        {"ef_search": 64, "recall_at_10": 0.9893, "throughput_qps": 50497.5, "distance_evals": 1039.8},
+        {"ef_search": 128, "recall_at_10": 0.9981, "throughput_qps": 27736.0, "distance_evals": 1775.2},
+        {"ef_search": 256, "recall_at_10": 0.9996, "throughput_qps": 15076.9, "distance_evals": 2971.5}
+      ]
+    },
+    {
+      "engine": "AdaptiveVec Canonical Control (Phase 4.3 / Architecture C)",
+      "configuration": "Canonical HNSW (M=16, efC=120, VisitedTagPool, AVX2 FMA)",
+      "build_time_sec": 32.09,
+      "total_edges": 2694602,
+      "memory_mb": 59.93,
+      "evaluations": [
+        {"ef_search": 16, "recall_at_10": 0.8656, "throughput_qps": 32410.5, "distance_evals": 418.6},
+        {"ef_search": 32, "recall_at_10": 0.9408, "throughput_qps": 26820.2, "distance_evals": 652.3},
+        {"ef_search": 64, "recall_at_10": 0.9889, "throughput_qps": 22339.0, "distance_evals": 1002.7},
+        {"ef_search": 128, "recall_at_10": 0.9978, "throughput_qps": 14510.4, "distance_evals": 1788.6},
+        {"ef_search": 256, "recall_at_10": 0.9992, "throughput_qps": 8920.1, "distance_evals": 2964.2}
+      ]
+    }
+  ]
+}
