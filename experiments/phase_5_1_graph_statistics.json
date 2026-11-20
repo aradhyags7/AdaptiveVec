@@ -1,0 +1,101 @@
+{
+  "timestamp": "2026-11-20T13:05:00Z",
+  "models": [
+    {
+      "model_name": "Canonical Uniform HNSW",
+      "total_edges": 2694602,
+      "layer0_edges": 2586744,
+      "mean_out_degree": 25.8674,
+      "mean_in_degree": 20.0333,
+      "in_degree_var": 38.4369,
+      "max_in_degree": 32,
+      "edge_lengths": {
+        "mean": 268.761,
+        "median": 273.121,
+        "p90": 319.417,
+        "p99": 361.88
+      },
+      "lid_quartile_degrees": {
+        "q1_low_lid": 24.9331,
+        "q2": 20.0437,
+        "q3": 31.1437,
+        "q4_high_lid": 27.3492
+      },
+      "density_quartile_degrees": {
+        "q1_dense": 24.9331,
+        "q2": 20.0437,
+        "q3": 31.1437,
+        "q4_sparse": 27.3492
+      },
+      "navigability": {
+        "wcc_components": 2,
+        "wcc_largest_pct": 53.934,
+        "ep_reachability_pct": 46.065
+      }
+    },
+    {
+      "model_name": "Architecture B (Adaptive M/efC)",
+      "total_edges": 2418571,
+      "layer0_edges": 2321735,
+      "mean_out_degree": 23.2173,
+      "mean_in_degree": 17.2016,
+      "in_degree_var": 66.251,
+      "max_in_degree": 47,
+      "edge_lengths": {
+        "mean": 285.176,
+        "median": 288.009,
+        "p90": 343.754,
+        "p99": 392.017
+      },
+      "lid_quartile_degrees": {
+        "q1_low_lid": 15,
+        "q2": 18.9333,
+        "q3": 25.5362,
+        "q4_high_lid": 33.3999
+      },
+      "density_quartile_degrees": {
+        "q1_dense": 15.1606,
+        "q2": 20.0504,
+        "q3": 25.6758,
+        "q4_sparse": 31.9826
+      },
+      "navigability": {
+        "wcc_components": 1,
+        "wcc_largest_pct": 100,
+        "ep_reachability_pct": 100
+      }
+    },
+    {
+      "model_name": "Phase 5.1 GCP (Joint)",
+      "total_edges": 2379061,
+      "layer0_edges": 2282810,
+      "mean_out_degree": 22.8281,
+      "mean_in_degree": 16.6252,
+      "in_degree_var": 55.0211,
+      "max_in_degree": 47,
+      "edge_lengths": {
+        "mean": 281.792,
+        "median": 285.314,
+        "p90": 338.982,
+        "p99": 386.824
+      },
+      "lid_quartile_degrees": {
+        "q1_low_lid": 15.0318,
+        "q2": 18.611,
+        "q3": 24.9841,
+        "q4_high_lid": 32.6855
+      },
+      "density_quartile_degrees": {
+        "q1_dense": 15.3706,
+        "q2": 19.8863,
+        "q3": 25.0797,
+        "q4_sparse": 30.9758
+      },
+      "navigability": {
+        "wcc_components": 1,
+        "wcc_largest_pct": 100,
+        "ep_reachability_pct": 100
+      }
+    }
+  ]
+}

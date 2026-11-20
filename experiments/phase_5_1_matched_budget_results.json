@@ -1,0 +1,389 @@
+{
+  "timestamp": "2026-11-20T13:00:00Z",
+  "pareto_series": [
+    {
+      "model_id": "Uniform-HNSW-SIFT",
+      "model_name": "Uniform Canonical HNSW (M=16)",
+      "dataset": "SIFT-100K",
+      "total_edges": 2694602,
+      "memory_mb": 102.572,
+      "points": [
+        {
+          "ef_search": 16,
+          "recall_at_1": 0.9973,
+          "recall_at_10": 0.99448,
+          "recall_at_100": 0.959055,
+          "qps": 17777.5,
+          "mean_dist_evals": 1264.69,
+          "p50_latency_ms": 0.6018,
+          "p95_latency_ms": 1.1134,
+          "p99_latency_ms": 1.4233
+        },
+        {
+          "ef_search": 32,
+          "recall_at_1": 0.9973,
+          "recall_at_10": 0.99448,
+          "recall_at_100": 0.959055,
+          "qps": 21252.3,
+          "mean_dist_evals": 1264.69,
+          "p50_latency_ms": 0.4808,
+          "p95_latency_ms": 0.9973,
+          "p99_latency_ms": 1.2996
+        },
+        {
+          "ef_search": 64,
+          "recall_at_1": 0.9973,
+          "recall_at_10": 0.99448,
+          "recall_at_100": 0.959055,
+          "qps": 19330.4,
+          "mean_dist_evals": 1264.69,
+          "p50_latency_ms": 0.5487,
+          "p95_latency_ms": 1.0496,
+          "p99_latency_ms": 1.4952
+        },
+        {
+          "ef_search": 128,
+          "recall_at_1": 0.9978,
+          "recall_at_10": 0.99613,
+          "recall_at_100": 0.971257,
+          "qps": 20897.5,
+          "mean_dist_evals": 1431.86,
+          "p50_latency_ms": 0.4738,
+          "p95_latency_ms": 1.1767,
+          "p99_latency_ms": 1.5218
+        },
+        {
+          "ef_search": 256,
+          "recall_at_1": 0.9987,
+          "recall_at_10": 0.99834,
+          "recall_at_100": 0.989874,
+          "qps": 12977.6,
+          "mean_dist_evals": 1995.56,
+          "p50_latency_ms": 0.7781,
+          "p95_latency_ms": 1.7705,
+          "p99_latency_ms": 2.6322
+        }
+      ]
+    },
+    {
+      "model_id": "Arch-B-SIFT",
+      "model_name": "Architecture B (Adaptive M/efC)",
+      "dataset": "SIFT-100K",
+      "total_edges": 2418571,
+      "memory_mb": 100.883,
+      "points": [
+        {
+          "ef_search": 16,
+          "recall_at_1": 0.9959,
+          "recall_at_10": 0.99253,
+          "recall_at_100": 0.94401,
+          "qps": 18978.3,
+          "mean_dist_evals": 1168.78,
+          "p50_latency_ms": 0.562,
+          "p95_latency_ms": 1.0664,
+          "p99_latency_ms": 1.4218
+        },
+        {
+          "ef_search": 32,
+          "recall_at_1": 0.9959,
+          "recall_at_10": 0.99253,
+          "recall_at_100": 0.94401,
+          "qps": 18713.9,
+          "mean_dist_evals": 1168.78,
+          "p50_latency_ms": 0.5678,
+          "p95_latency_ms": 1.0578,
+          "p99_latency_ms": 1.3712
+        },
+        {
+          "ef_search": 64,
+          "recall_at_1": 0.9959,
+          "recall_at_10": 0.99253,
+          "recall_at_100": 0.94401,
+          "qps": 18731.8,
+          "mean_dist_evals": 1168.78,
+          "p50_latency_ms": 0.5543,
+          "p95_latency_ms": 1.1208,
+          "p99_latency_ms": 1.41
+        },
+        {
+          "ef_search": 128,
+          "recall_at_1": 0.9978,
+          "recall_at_10": 0.99526,
+          "recall_at_100": 0.961052,
+          "qps": 14406.2,
+          "mean_dist_evals": 1343.99,
+          "p50_latency_ms": 0.7137,
+          "p95_latency_ms": 1.4129,
+          "p99_latency_ms": 2.3565
+        },
+        {
+          "ef_search": 256,
+          "recall_at_1": 0.999,
+          "recall_at_10": 0.99856,
+          "recall_at_100": 0.987087,
+          "qps": 12245.8,
+          "mean_dist_evals": 1936.93,
+          "p50_latency_ms": 0.8286,
+          "p95_latency_ms": 1.8062,
+          "p99_latency_ms": 2.4505
+        }
+      ]
+    },
+    {
+      "model_id": "Phase-5.1-GCP-SIFT",
+      "model_name": "AdaptiveVec 5.1 GCP (Joint)",
+      "dataset": "SIFT-100K",
+      "total_edges": 2379061,
+      "memory_mb": 100.634,
+      "points": [
+        {
+          "ef_search": 16,
+          "recall_at_1": 0.9934,
+          "recall_at_10": 0.98992,
+          "recall_at_100": 0.939017,
+          "qps": 19334.3,
+          "mean_dist_evals": 1130.11,
+          "p50_latency_ms": 0.5529,
+          "p95_latency_ms": 1.0332,
+          "p99_latency_ms": 1.2845
+        },
+        {
+          "ef_search": 32,
+          "recall_at_1": 0.9934,
+          "recall_at_10": 0.98992,
+          "recall_at_100": 0.939017,
+          "qps": 18100.6,
+          "mean_dist_evals": 1130.11,
+          "p50_latency_ms": 0.5808,
+          "p95_latency_ms": 1.1391,
+          "p99_latency_ms": 1.4485
+        },
+        {
+          "ef_search": 64,
+          "recall_at_1": 0.9934,
+          "recall_at_10": 0.98992,
+          "recall_at_100": 0.939017,
+          "qps": 20030.6,
+          "mean_dist_evals": 1130.11,
+          "p50_latency_ms": 0.504,
+          "p95_latency_ms": 1.1058,
+          "p99_latency_ms": 1.4347
+        },
+        {
+          "ef_search": 128,
+          "recall_at_1": 0.9954,
+          "recall_at_10": 0.99337,
+          "recall_at_100": 0.95703,
+          "qps": 18447.3,
+          "mean_dist_evals": 1302.6,
+          "p50_latency_ms": 0.5361,
+          "p95_latency_ms": 1.2932,
+          "p99_latency_ms": 1.7025
+        },
+        {
+          "ef_search": 256,
+          "recall_at_1": 0.9984,
+          "recall_at_10": 0.99782,
+          "recall_at_100": 0.984656,
+          "qps": 12487,
+          "mean_dist_evals": 1881.67,
+          "p50_latency_ms": 0.8051,
+          "p95_latency_ms": 1.8272,
+          "p99_latency_ms": 2.6915
+        }
+      ]
+    },
+    {
+      "model_id": "Uniform-HNSW-TF",
+      "model_name": "Uniform Canonical HNSW (M=16)",
+      "dataset": "Transformer-384D",
+      "total_edges": 1575859,
+      "memory_mb": 115.225,
+      "points": [
+        {
+          "ef_search": 16,
+          "recall_at_1": 0.961,
+          "recall_at_10": 0.9596,
+          "recall_at_100": 0.9153,
+          "qps": 12215.2,
+          "mean_dist_evals": 1098.47,
+          "p50_latency_ms": 0.8025,
+          "p95_latency_ms": 1.6249,
+          "p99_latency_ms": 1.958
+        },
+        {
+          "ef_search": 32,
+          "recall_at_1": 0.961,
+          "recall_at_10": 0.9596,
+          "recall_at_100": 0.9153,
+          "qps": 14316.3,
+          "mean_dist_evals": 1098.47,
+          "p50_latency_ms": 0.6004,
+          "p95_latency_ms": 1.3928,
+          "p99_latency_ms": 1.9679
+        },
+        {
+          "ef_search": 64,
+          "recall_at_1": 0.961,
+          "recall_at_10": 0.9596,
+          "recall_at_100": 0.9153,
+          "qps": 14566,
+          "mean_dist_evals": 1098.47,
+          "p50_latency_ms": 0.5888,
+          "p95_latency_ms": 1.4685,
+          "p99_latency_ms": 2.0414
+        },
+        {
+          "ef_search": 128,
+          "recall_at_1": 0.963,
+          "recall_at_10": 0.9621,
+          "recall_at_100": 0.92815,
+          "qps": 12473.2,
+          "mean_dist_evals": 1239.52,
+          "p50_latency_ms": 0.7175,
+          "p95_latency_ms": 1.6624,
+          "p99_latency_ms": 2.1778
+        },
+        {
+          "ef_search": 256,
+          "recall_at_1": 0.971,
+          "recall_at_10": 0.9713,
+          "recall_at_100": 0.95435,
+          "qps": 9400.72,
+          "mean_dist_evals": 1719.87,
+          "p50_latency_ms": 0.8236,
+          "p95_latency_ms": 2.3987,
+          "p99_latency_ms": 4.1169
+        }
+      ]
+    },
+    {
+      "model_id": "Arch-B-TF",
+      "model_name": "Architecture B (Adaptive M/efC)",
+      "dataset": "Transformer-384D",
+      "total_edges": 1491316,
+      "memory_mb": 114.698,
+      "points": [
+        {
+          "ef_search": 16,
+          "recall_at_1": 0.95,
+          "recall_at_10": 0.9482,
+          "recall_at_100": 0.88508,
+          "qps": 13646,
+          "mean_dist_evals": 996.851,
+          "p50_latency_ms": 0.6892,
+          "p95_latency_ms": 1.2941,
+          "p99_latency_ms": 1.6967
+        },
+        {
+          "ef_search": 32,
+          "recall_at_1": 0.95,
+          "recall_at_10": 0.9482,
+          "recall_at_100": 0.88508,
+          "qps": 12633.8,
+          "mean_dist_evals": 996.851,
+          "p50_latency_ms": 0.7786,
+          "p95_latency_ms": 1.4543,
+          "p99_latency_ms": 1.9021
+        },
+        {
+          "ef_search": 64,
+          "recall_at_1": 0.95,
+          "recall_at_10": 0.9482,
+          "recall_at_100": 0.88508,
+          "qps": 13832.9,
+          "mean_dist_evals": 996.851,
+          "p50_latency_ms": 0.7235,
+          "p95_latency_ms": 1.3499,
+          "p99_latency_ms": 1.7209
+        },
+        {
+          "ef_search": 128,
+          "recall_at_1": 0.956,
+          "recall_at_10": 0.9553,
+          "recall_at_100": 0.90777,
+          "qps": 14177.5,
+          "mean_dist_evals": 1149.04,
+          "p50_latency_ms": 0.6478,
+          "p95_latency_ms": 1.3809,
+          "p99_latency_ms": 1.8391
+        },
+        {
+          "ef_search": 256,
+          "recall_at_1": 0.973,
+          "recall_at_10": 0.9724,
+          "recall_at_100": 0.94628,
+          "qps": 10269.9,
+          "mean_dist_evals": 1626.03,
+          "p50_latency_ms": 0.8219,
+          "p95_latency_ms": 1.8084,
+          "p99_latency_ms": 2.6472
+        }
+      ]
+    },
+    {
+      "model_id": "Phase-5.1-GCP-TF",
+      "model_name": "AdaptiveVec 5.1 GCP (Joint)",
+      "dataset": "Transformer-384D",
+      "total_edges": 1457079,
+      "memory_mb": 114.477,
+      "points": [
+        {
+          "ef_search": 16,
+          "recall_at_1": 0.929,
+          "recall_at_10": 0.9249,
+          "recall_at_100": 0.85904,
+          "qps": 14789.2,
+          "mean_dist_evals": 1018.91,
+          "p50_latency_ms": 0.6646,
+          "p95_latency_ms": 1.227,
+          "p99_latency_ms": 1.6265
+        },
+        {
+          "ef_search": 32,
+          "recall_at_1": 0.929,
+          "recall_at_10": 0.9249,
+          "recall_at_100": 0.85904,
+          "qps": 15330.7,
+          "mean_dist_evals": 1018.91,
+          "p50_latency_ms": 0.5724,
+          "p95_latency_ms": 1.2455,
+          "p99_latency_ms": 1.9621
+        },
+        {
+          "ef_search": 64,
+          "recall_at_1": 0.929,
+          "recall_at_10": 0.9249,
+          "recall_at_100": 0.85904,
+          "qps": 13658.4,
+          "mean_dist_evals": 1018.91,
+          "p50_latency_ms": 0.6297,
+          "p95_latency_ms": 1.5103,
+          "p99_latency_ms": 2.0197
+        },
+        {
+          "ef_search": 128,
+          "recall_at_1": 0.94,
+          "recall_at_10": 0.9382,
+          "recall_at_100": 0.88623,
+          "qps": 12940,
+          "mean_dist_evals": 1170.51,
+          "p50_latency_ms": 0.6768,
+          "p95_latency_ms": 1.6547,
+          "p99_latency_ms": 2.5757
+        },
+        {
+          "ef_search": 256,
+          "recall_at_1": 0.959,
+          "recall_at_10": 0.9582,
+          "recall_at_100": 0.93102,
+          "qps": 11933.4,
+          "mean_dist_evals": 1644.37,
+          "p50_latency_ms": 0.6841,
+          "p95_latency_ms": 1.6352,
+          "p99_latency_ms": 2.5473
+        }
+      ]
+    }
+  ]
+}

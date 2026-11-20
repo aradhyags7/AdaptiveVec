@@ -1,0 +1,514 @@
+{
+  "timestamp": "2026-11-20T12:45:00Z",
+  "dataset": "SIFT-100K",
+  "num_samples": 5000,
+  "global_mean_directional_redundancy": 0.278735,
+  "fraction_redundant_neighbor_pairs": 0.0737567,
+  "correlations": {
+    "lid_vs_directional_redundancy": 0.430465,
+    "density_vs_directional_redundancy": 0.606274,
+    "out_degree_vs_directional_redundancy": 0.360835
+  },
+  "sampled_nodes": [
+    {
+      "id": 0,
+      "lid": 4,
+      "density": 1,
+      "score": 0,
+      "out_degree": 32,
+      "in_degree": 0,
+      "mean_directional_redundancy": 0.240903,
+      "fraction_redundant_pairs": 0.0141129
+    },
+    {
+      "id": 997,
+      "lid": 15.4864,
+      "density": 374.632,
+      "score": 0.509914,
+      "out_degree": 48,
+      "in_degree": 3,
+      "mean_directional_redundancy": 0.350997,
+      "fraction_redundant_pairs": 0.146277
+    },
+    {
+      "id": 1994,
+      "lid": 4.69634,
+      "density": 250.338,
+      "score": -1.25002,
+      "out_degree": 16,
+      "in_degree": 0,
+      "mean_directional_redundancy": 0.233328,
+      "fraction_redundant_pairs": 0.0166667
+    },
+    {
+      "id": 2991,
+      "lid": 24.1556,
+      "density": 360.346,
+      "score": 0.986182,
+      "out_degree": 48,
+      "in_degree": 27,
+      "mean_directional_redundancy": 0.252271,
+      "fraction_redundant_pairs": 0.0150709
+    },
+    {
+      "id": 3988,
+      "lid": 27.0507,
+      "density": 349.355,
+      "score": 1.05908,
+      "out_degree": 39,
+      "in_degree": 16,
+      "mean_directional_redundancy": 0.382808,
+      "fraction_redundant_pairs": 0.176788
+    },
+    {
+      "id": 4985,
+      "lid": 30.7253,
+      "density": 292.311,
+      "score": 0.69927,
+      "out_degree": 41,
+      "in_degree": 22,
+      "mean_directional_redundancy": 0.329112,
+      "fraction_redundant_pairs": 0.0817073
+    },
+    {
+      "id": 5982,
+      "lid": 26.6462,
+      "density": 357.495,
+      "score": 1.20574,
+      "out_degree": 46,
+      "in_degree": 28,
+      "mean_directional_redundancy": 0.343161,
+      "fraction_redundant_pairs": 0.133333
+    },
+    {
+      "id": 6979,
+      "lid": 15.9428,
+      "density": 295.734,
+      "score": 0.0143153,
+      "out_degree": 32,
+      "in_degree": 14,
+      "mean_directional_redundancy": 0.245536,
+      "fraction_redundant_pairs": 0.0322581
+    },
+    {
+      "id": 7976,
+      "lid": 8.41671,
+      "density": 306.843,
+      "score": -0.308644,
+      "out_degree": 22,
+      "in_degree": 16,
+      "mean_directional_redundancy": 0.274813,
+      "fraction_redundant_pairs": 0.0519481
+    },
+    {
+      "id": 8973,
+      "lid": 32.9987,
+      "density": 260.801,
+      "score": 0.726707,
+      "out_degree": 48,
+      "in_degree": 25,
+      "mean_directional_redundancy": 0.306338,
+      "fraction_redundant_pairs": 0.0797872
+    },
+    {
+      "id": 9970,
+      "lid": 5.92581,
+      "density": 275.136,
+      "score": -0.740527,
+      "out_degree": 16,
+      "in_degree": 13,
+      "mean_directional_redundancy": 0.237938,
+      "fraction_redundant_pairs": 0.0333333
+    },
+    {
+      "id": 10967,
+      "lid": 14.9492,
+      "density": 222.334,
+      "score": -0.698834,
+      "out_degree": 16,
+      "in_degree": 0,
+      "mean_directional_redundancy": 0.244587,
+      "fraction_redundant_pairs": 0.0333333
+    },
+    {
+      "id": 11964,
+      "lid": 20.5289,
+      "density": 376.865,
+      "score": 1.10111,
+      "out_degree": 48,
+      "in_degree": 35,
+      "mean_directional_redundancy": 0.302776,
+      "fraction_redundant_pairs": 0.0789007
+    },
+    {
+      "id": 12961,
+      "lid": 12.0042,
+      "density": 237.776,
+      "score": -0.746987,
+      "out_degree": 16,
+      "in_degree": 5,
+      "mean_directional_redundancy": 0.232914,
+      "fraction_redundant_pairs": 0.025
+    },
+    {
+      "id": 13958,
+      "lid": 23.7247,
+      "density": 280.352,
+      "score": 0.350454,
+      "out_degree": 44,
+      "in_degree": 31,
+      "mean_directional_redundancy": 0.253921,
+      "fraction_redundant_pairs": 0.0190275
+    },
+    {
+      "id": 14955,
+      "lid": 6.8905,
+      "density": 244.925,
+      "score": -0.958376,
+      "out_degree": 16,
+      "in_degree": 11,
+      "mean_directional_redundancy": 0.26832,
+      "fraction_redundant_pairs": 0.05
+    },
+    {
+      "id": 15952,
+      "lid": 5.84471,
+      "density": 301.437,
+      "score": -0.424846,
+      "out_degree": 13,
+      "in_degree": 8,
+      "mean_directional_redundancy": 0.314179,
+      "fraction_redundant_pairs": 0.102564
+    },
+    {
+      "id": 16949,
+      "lid": 13.4178,
+      "density": 236.106,
+      "score": -0.631004,
+      "out_degree": 16,
+      "in_degree": 8,
+      "mean_directional_redundancy": 0.22678,
+      "fraction_redundant_pairs": 0.025
+    },
+    {
+      "id": 17946,
+      "lid": 20.6238,
+      "density": 288.236,
+      "score": 0.306998,
+      "out_degree": 38,
+      "in_degree": 27,
+      "mean_directional_redundancy": 0.338053,
+      "fraction_redundant_pairs": 0.0825036
+    },
+    {
+      "id": 18943,
+      "lid": 6.91503,
+      "density": 233.025,
+      "score": -1.04621,
+      "out_degree": 16,
+      "in_degree": 11,
+      "mean_directional_redundancy": 0.253625,
+      "fraction_redundant_pairs": 0.0416667
+    },
+    {
+      "id": 19940,
+      "lid": 21.0994,
+      "density": 304.853,
+      "score": 0.497513,
+      "out_degree": 43,
+      "in_degree": 34,
+      "mean_directional_redundancy": 0.311783,
+      "fraction_redundant_pairs": 0.0941307
+    },
+    {
+      "id": 20937,
+      "lid": 7.62678,
+      "density": 251.499,
+      "score": -0.821506,
+      "out_degree": 16,
+      "in_degree": 14,
+      "mean_directional_redundancy": 0.216881,
+      "fraction_redundant_pairs": 0.025
+    },
+    {
+      "id": 21934,
+      "lid": 19.8937,
+      "density": 244.049,
+      "score": -0.224466,
+      "out_degree": 24,
+      "in_degree": 19,
+      "mean_directional_redundancy": 0.30645,
+      "fraction_redundant_pairs": 0.0905797
+    },
+    {
+      "id": 22931,
+      "lid": 7.89706,
+      "density": 296.666,
+      "score": -0.321914,
+      "out_degree": 22,
+      "in_degree": 17,
+      "mean_directional_redundancy": 0.322687,
+      "fraction_redundant_pairs": 0.103896
+    },
+    {
+      "id": 23928,
+      "lid": 6.17427,
+      "density": 335.359,
+      "score": 0.00671422,
+      "out_degree": 30,
+      "in_degree": 20,
+      "mean_directional_redundancy": 0.293912,
+      "fraction_redundant_pairs": 0.11954
+    },
+    {
+      "id": 24925,
+      "lid": 12.3987,
+      "density": 227.415,
+      "score": -0.775352,
+      "out_degree": 16,
+      "in_degree": 14,
+      "mean_directional_redundancy": 0.228523,
+      "fraction_redundant_pairs": 0.025
+    },
+    {
+      "id": 25922,
+      "lid": 11.5446,
+      "density": 141.037,
+      "score": -1.72824,
+      "out_degree": 16,
+      "in_degree": 10,
+      "mean_directional_redundancy": 0.210888,
+      "fraction_redundant_pairs": 0.0583333
+    },
+    {
+      "id": 26919,
+      "lid": 22.9341,
+      "density": 367.555,
+      "score": 1.2894,
+      "out_degree": 45,
+      "in_degree": 31,
+      "mean_directional_redundancy": 0.358735,
+      "fraction_redundant_pairs": 0.140404
+    },
+    {
+      "id": 27916,
+      "lid": 7.4839,
+      "density": 253.136,
+      "score": -0.772029,
+      "out_degree": 16,
+      "in_degree": 13,
+      "mean_directional_redundancy": 0.225471,
+      "fraction_redundant_pairs": 0
+    },
+    {
+      "id": 28913,
+      "lid": 12.3842,
+      "density": 241.05,
+      "score": -0.627633,
+      "out_degree": 16,
+      "in_degree": 9,
+      "mean_directional_redundancy": 0.278531,
+      "fraction_redundant_pairs": 0.108333
+    },
+    {
+      "id": 29910,
+      "lid": 8.3854,
+      "density": 108.153,
+      "score": -2.24757,
+      "out_degree": 16,
+      "in_degree": 12,
+      "mean_directional_redundancy": 0.237103,
+      "fraction_redundant_pairs": 0.1
+    },
+    {
+      "id": 30907,
+      "lid": 23.7335,
+      "density": 271.278,
+      "score": 0.343859,
+      "out_degree": 40,
+      "in_degree": 31,
+      "mean_directional_redundancy": 0.29852,
+      "fraction_redundant_pairs": 0.0705128
+    },
+    {
+      "id": 31904,
+      "lid": 77.8305,
+      "density": 303.307,
+      "score": 2.5,
+      "out_degree": 42,
+      "in_degree": 31,
+      "mean_directional_redundancy": 0.325308,
+      "fraction_redundant_pairs": 0.0917538
+    },
+    {
+      "id": 32901,
+      "lid": 7.17961,
+      "density": 242.762,
+      "score": -0.880456,
+      "out_degree": 14,
+      "in_degree": 12,
+      "mean_directional_redundancy": 0.202829,
+      "fraction_redundant_pairs": 0.032967
+    },
+    {
+      "id": 33898,
+      "lid": 24.9318,
+      "density": 265.198,
+      "score": 0.320155,
+      "out_degree": 42,
+      "in_degree": 37,
+      "mean_directional_redundancy": 0.271417,
+      "fraction_redundant_pairs": 0.047619
+    },
+    {
+      "id": 34895,
+      "lid": 37.9431,
+      "density": 246.236,
+      "score": 0.820366,
+      "out_degree": 34,
+      "in_degree": 25,
+      "mean_directional_redundancy": 0.275229,
+      "fraction_redundant_pairs": 0.057041
+    },
+    {
+      "id": 35892,
+      "lid": 12.9695,
+      "density": 285.021,
+      "score": -0.148916,
+      "out_degree": 27,
+      "in_degree": 26,
+      "mean_directional_redundancy": 0.276956,
+      "fraction_redundant_pairs": 0.048433
+    },
+    {
+      "id": 36889,
+      "lid": 8.36534,
+      "density": 286.807,
+      "score": -0.377737,
+      "out_degree": 14,
+      "in_degree": 10,
+      "mean_directional_redundancy": 0.307031,
+      "fraction_redundant_pairs": 0.0989011
+    },
+    {
+      "id": 37886,
+      "lid": 11.5312,
+      "density": 260.128,
+      "score": -0.475133,
+      "out_degree": 14,
+      "in_degree": 12,
+      "mean_directional_redundancy": 0.263871,
+      "fraction_redundant_pairs": 0.032967
+    },
+    {
+      "id": 38883,
+      "lid": 4.87682,
+      "density": 73.9066,
+      "score": -2.5,
+      "out_degree": 16,
+      "in_degree": 16,
+      "mean_directional_redundancy": 0.117254,
+      "fraction_redundant_pairs": 0.00833333
+    },
+    {
+      "id": 39880,
+      "lid": 23.1077,
+      "density": 297.211,
+      "score": 0.584087,
+      "out_degree": 35,
+      "in_degree": 21,
+      "mean_directional_redundancy": 0.340397,
+      "fraction_redundant_pairs": 0.127731
+    },
+    {
+      "id": 40877,
+      "lid": 19.2054,
+      "density": 282.653,
+      "score": 0.236489,
+      "out_degree": 39,
+      "in_degree": 29,
+      "mean_directional_redundancy": 0.246841,
+      "fraction_redundant_pairs": 0.0566802
+    },
+    {
+      "id": 41874,
+      "lid": 7.182,
+      "density": 254.36,
+      "score": -0.678113,
+      "out_degree": 16,
+      "in_degree": 13,
+      "mean_directional_redundancy": 0.286803,
+      "fraction_redundant_pairs": 0.0666667
+    },
+    {
+      "id": 42871,
+      "lid": 32.5238,
+      "density": 255.245,
+      "score": 0.71813,
+      "out_degree": 48,
+      "in_degree": 39,
+      "mean_directional_redundancy": 0.257915,
+      "fraction_redundant_pairs": 0.0390071
+    },
+    {
+      "id": 43868,
+      "lid": 21.6099,
+      "density": 227.365,
+      "score": -0.133637,
+      "out_degree": 28,
+      "in_degree": 21,
+      "mean_directional_redundancy": 0.306991,
+      "fraction_redundant_pairs": 0.124339
+    },
+    {
+      "id": 44865,
+      "lid": 16.9373,
+      "density": 217.264,
+      "score": -0.470473,
+      "out_degree": 16,
+      "in_degree": 13,
+      "mean_directional_redundancy": 0.239859,
+      "fraction_redundant_pairs": 0.0416667
+    },
+    {
+      "id": 45862,
+      "lid": 8.13647,
+      "density": 205.114,
+      "score": -1.06301,
+      "out_degree": 11,
+      "in_degree": 10,
+      "mean_directional_redundancy": 0.346844,
+      "fraction_redundant_pairs": 0.254545
+    },
+    {
+      "id": 46859,
+      "lid": 12.7282,
+      "density": 276.418,
+      "score": -0.14083,
+      "out_degree": 22,
+      "in_degree": 22,
+      "mean_directional_redundancy": 0.30094,
+      "fraction_redundant_pairs": 0.0692641
+    },
+    {
+      "id": 47856,
+      "lid": 35.8477,
+      "density": 310.841,
+      "score": 1.45576,
+      "out_degree": 32,
+      "in_degree": 25,
+      "mean_directional_redundancy": 0.319066,
+      "fraction_redundant_pairs": 0.114919
+    },
+    {
+      "id": 48853,
+      "lid": 21.6654,
+      "density": 310.627,
+      "score": 0.669344,
+      "out_degree": 26,
+      "in_degree": 20,
+      "mean_directional_redundancy": 0.381595,
+      "fraction_redundant_pairs": 0.166154
+    }
+  ]
+}

@@ -194,6 +194,13 @@ struct PolicyConfig {
     bool enable_rerank = true;            // Re-rank top candidates with FP32
     uint64_t global_seed = 1337;          // Deterministic seed for level generation
     bool use_deterministic_level_hash = true; // Use SplitMix64 hash on (seed, node_id)
+    
+    // Phase 5.1: Geometry-Conditioned Pruning (GCP)
+    bool enable_geometry_pruning = false;
+    float pruning_alpha_base = 1.0f;       // Base pruning threshold (1.0 = standard RNG)
+    float pruning_lid_weight = 0.0f;       // Modulate alpha by standardized LID (+gamma_LID)
+    float pruning_density_weight = 0.0f;   // Modulate alpha by standardized density (-gamma_dens)
+    bool keep_pruned_connections = true;   // Default true (HNSW). If false, discard pruned candidates.
 };
 
 struct NodeParams {
@@ -755,6 +762,7 @@ public:
     std::vector<std::vector<std::vector<tableint>>> graphs;
     std::vector<int> node_levels;
     std::vector<NodeParams> node_params;
+    std::vector<NodeParams> preassigned_node_params;
     
     // Hubness regulation: layer-0 in-degree tracking
     std::vector<uint32_t> in_degrees;
@@ -802,6 +810,7 @@ public:
         other->quantizer_sq4 = quantizer_sq4;
         other->node_levels = node_levels;
         other->node_params = node_params;
+        other->preassigned_node_params = preassigned_node_params;
         other->in_degrees = in_degrees;
         other->bridge_scores = bridge_scores;
         other->deleted = deleted;
@@ -1573,12 +1582,13 @@ public:
         return avg_bridge_deg / std::max(1.0f, avg_all_deg);
     }
     
-    // Algorithm 4: SELECT-NEIGHBORS-HEURISTIC with Bridge-Aware Hubness Regulation
+    // Algorithm 4: SELECT-NEIGHBORS-HEURISTIC with Geometry-Conditioned Pruning (Phase 5.1)
     std::vector<tableint> select_neighbors_heuristic(
         const float* /* query */,
         const std::vector<Candidate>& candidates,
         int m_limit,
-        int lc
+        int lc,
+        tableint base_node_id = (tableint)-1
     ) const {
         std::vector<Candidate> sorted_c = candidates;
         
@@ -1590,6 +1600,24 @@ public:
             mean_deg = (float)total_in_degrees / (float)std::max((size_t)1, num_elements);
             mean_deg = std::max(1.0f, mean_deg);
         }
+
+        // Phase 5.1: Compute effective alpha for diversity pruning
+        float effective_alpha = policy.pruning_alpha_base;
+        if (policy.enable_geometry_pruning && base_node_id != (tableint)-1 && base_node_id < node_params.size()) {
+            float z_lid = 0.0f;
+            if (policy.lid_std > 1e-4f) {
+                z_lid = (node_params[base_node_id].lid - policy.lid_mean) / policy.lid_std;
+            }
+            float z_dens = 0.0f;
+            if (policy.density_std > 1e-4f) {
+                z_dens = (node_params[base_node_id].density - policy.density_mean) / policy.density_std;
+            }
+            // Higher LID / sparse boundary -> higher alpha (relax pruning, keep shortcuts)
+            // Lower LID / dense cluster -> lower alpha (strict pruning, drop collinear edges)
+            effective_alpha += policy.pruning_lid_weight * z_lid - policy.pruning_density_weight * z_dens;
+            effective_alpha = std::max(0.60f, std::min(1.80f, effective_alpha));
+        }
+        float alpha_sq_inv = 1.0f / (effective_alpha * effective_alpha);
         
         std::vector<tableint> result;
         std::vector<Candidate> discarded;
@@ -1602,7 +1630,6 @@ public:
                 dist_t dist_c_r = get_node_to_node_distance_sq(c.id, r_id);
                 
                 // Hubness Regulation: Penalize high-degree hubs from shadowing diverse neighbors
-                // Stage 2: Bridge-Aware attenuation: d_eff = d * [1 + mu * H(v) * (1 - alpha * B(v))]
                 if (policy.enable_hubness_regulation && lc == 0 && !in_degrees.empty()) {
                     float deg_r = (r_id < in_degrees.size()) ? (float)in_degrees[r_id] : 0.0f;
                     float h_r = deg_r / mean_deg;
@@ -1612,7 +1639,7 @@ public:
                     dist_c_r *= (penalty * penalty);
                 }
                 
-                if (dist_c_r < c.dist) {
+                if (dist_c_r < alpha_sq_inv * c.dist) {
                     is_diverse = false;
                     break;
                 }
@@ -1625,9 +1652,11 @@ public:
             }
         }
         
-        for (const auto& d : discarded) {
-            if ((int)result.size() >= m_limit) break;
-            result.push_back(d.id);
+        if (policy.keep_pruned_connections) {
+            for (const auto& d : discarded) {
+                if ((int)result.size() >= m_limit) break;
+                result.push_back(d.id);
+            }
         }
         
         return result;
@@ -1713,7 +1742,9 @@ public:
         
         // Online Signal Estimation & Streaming Tracking
         NodeParams params;
-        if (is_adaptive) {
+        if (!preassigned_node_params.empty() && q_idx < preassigned_node_params.size()) {
+            params = preassigned_node_params[q_idx];
+        } else if (is_adaptive) {
             int probe_lc = std::min(top_level, q_level);
             int probe_budget = std::min(25, std::max(10, policy.ef_c_base / 4));
             auto probe_w = search_layer(vec, {curr_ep}, probe_budget, probe_lc, false, false);
@@ -1746,7 +1777,7 @@ public:
             auto w = search_layer(vec, {curr_ep}, params.ef_construction, lc, false, false);
             
             int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
-            auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc);
+            auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc, q_idx);
             
             graphs[lc][q_idx] = neighbors;
             
@@ -1766,7 +1797,7 @@ public:
                     }
                     std::vector<float> n_buf;
                     const float* n_vec = get_vector_or_reconstruct(neighbor, n_buf);
-                    auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc);
+                    auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc, neighbor);
                     
                     if (lc == 0) {
                         std::unordered_set<tableint> kept(pruned.begin(), pruned.end());
@@ -1937,7 +1968,7 @@ public:
             for (int lc = std::min(top_level, q_level); lc >= 0; --lc) {
                 auto w = search_layer(vec, {curr_ep}, params.ef_construction, lc, false, false, true);
                 int m_curr = params.get_m_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer);
-                auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc);
+                auto neighbors = select_neighbors_heuristic(vec, w, m_curr, lc, q_idx);
 
                 {
                     std::lock_guard<std::mutex> lk(node_locks[q_idx % NUM_NODE_LOCKS]);
@@ -1962,7 +1993,7 @@ public:
                         }
                         std::vector<float> n_buf;
                         const float* n_vec = get_vector_or_reconstruct(neighbor, n_buf);
-                        auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc);
+                        auto pruned = select_neighbors_heuristic(n_vec, n_candidates, n_limit, lc, neighbor);
 
                         if (lc == 0) {
                             std::unordered_set<tableint> kept(pruned.begin(), pruned.end());

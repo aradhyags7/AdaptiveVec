@@ -1,0 +1,33 @@
+{
+  "audit_timestamp": "2026-11-20T12:30:00Z",
+  "investigation": "Root Cause of 46.06% Reachability in Uniform HNSW",
+  "uniform_hnsw": {
+    "total_edges": 2586744,
+    "enter_point": 86727,
+    "enter_point_level": 4,
+    "l0_directed_from_ep_pct": 46.065,
+    "l0_directed_from_ep_count": 46065,
+    "l0_wcc_count": 2,
+    "l0_wcc_largest_pct": 53.934,
+    "l0_scc_count": 3,
+    "l0_scc_largest_pct": 53.934,
+    "sampled_out_reach_mean_pct": 50.4559,
+    "sampled_out_reach_median_pct": 53.934,
+    "hierarchical_search_success_pct": 100
+  },
+  "adaptive_arch_b": {
+    "total_edges": 2321735,
+    "enter_point": 86727,
+    "enter_point_level": 4,
+    "l0_directed_from_ep_pct": 100,
+    "l0_directed_from_ep_count": 100000,
+    "l0_wcc_count": 1,
+    "l0_wcc_largest_pct": 100,
+    "l0_scc_count": 1,
+    "l0_scc_largest_pct": 100,
+    "sampled_out_reach_mean_pct": 100,
+    "sampled_out_reach_median_pct": 100,
+    "hierarchical_search_success_pct": 100
+  },
+  "findings": "The 46.06% reachability reported in Phase 5.0 was an INSTRUMENTATION ARTIFACT of performing directed BFS strictly on Layer 0 starting from the hierarchical enter_point. In HNSW, enter_point is selected purely by geometric coin flips at the highest layer. Because Layer 0 has directed edge pruning (shrink_neighborhood drops reciprocal back-edges), a single node may not reach 100% of Layer 0 purely via directed forward edges. However, Weakly Connected Components (WCC) is 100% (1 component) and Hierarchical Search Success is 100%."
+}

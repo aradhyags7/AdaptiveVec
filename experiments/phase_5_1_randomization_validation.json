@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-11-20T12:35:00Z",
+  "geometry_aware_baseline": {
+    "correlation_score_vs_m": 0.900832,
+    "total_edges": 2418571,
+    "recall_at_10": 0.9829,
+    "qps": 31019.2,
+    "mean_dist_evals": 891.319
+  },
+  "randomized_trials": [
+    {
+      "seed": 42,
+      "correlation_score_vs_m": -0.00372453,
+      "total_edges": 2376511,
+      "in_degree_variance": 60.9757,
+      "jaccard_edge_overlap": 0.45603,
+      "recall_at_10": 0.98098,
+      "qps": 30591.5,
+      "mean_dist_evals": 924.855
+    },
+    {
+      "seed": 101,
+      "correlation_score_vs_m": -0.00138141,
+      "total_edges": 2378235,
+      "in_degree_variance": 61.1706,
+      "jaccard_edge_overlap": 0.456525,
+      "recall_at_10": 0.98126,
+      "qps": 32718.1,
+      "mean_dist_evals": 923.971
+    },
+    {
+      "seed": 2024,
+      "correlation_score_vs_m": 0.00605947,
+      "total_edges": 2379212,
+      "in_degree_variance": 61.1608,
+      "jaccard_edge_overlap": 0.432674,
+      "recall_at_10": 0.94055,
+      "qps": 33582.8,
+      "mean_dist_evals": 918.361
+    },
+    {
+      "seed": 777,
+      "correlation_score_vs_m": 0.000155687,
+      "total_edges": 2376852,
+      "in_degree_variance": 61.0242,
+      "jaccard_edge_overlap": 0.456466,
+      "recall_at_10": 0.98122,
+      "qps": 31197.2,
+      "mean_dist_evals": 922.846
+    },
+    {
+      "seed": 9999,
+      "correlation_score_vs_m": -0.00669442,
+      "total_edges": 2377164,
+      "in_degree_variance": 61.073,
+      "jaccard_edge_overlap": 0.455523,
+      "recall_at_10": 0.98049,
+      "qps": 31099.6,
+      "mean_dist_evals": 924.685
+    }
+  ]
+}
