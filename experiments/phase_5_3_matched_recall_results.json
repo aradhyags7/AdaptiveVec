@@ -1,0 +1,85 @@
+{
+  "experiment_name": "Phase 5.3 Matched Recall Search Sweeps",
+  "schemes": [
+    {
+      "experiment_tag": "Approach-A-Uniform",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.99382, "qps": 19196, "mean_dist_evals": 1243.04, "p95_ms": 0.9659},
+        {"ef_search": 32, "recall_at_10": 0.99382, "qps": 20717.3, "mean_dist_evals": 1243.04, "p95_ms": 0.9747},
+        {"ef_search": 64, "recall_at_10": 0.99382, "qps": 17860.5, "mean_dist_evals": 1243.04, "p95_ms": 1.0976},
+        {"ef_search": 128, "recall_at_10": 0.9961, "qps": 19205, "mean_dist_evals": 1418.58, "p95_ms": 1.0886},
+        {"ef_search": 256, "recall_at_10": 0.99855, "qps": 13474.8, "mean_dist_evals": 2000.21, "p95_ms": 1.6142}
+      ]
+    },
+    {
+      "experiment_tag": "Approach-B-Original-Clipped",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.99518, "qps": 5757.79, "mean_dist_evals": 1234.41, "p95_ms": 3.5514},
+        {"ef_search": 32, "recall_at_10": 0.99518, "qps": 6227.69, "mean_dist_evals": 1234.41, "p95_ms": 2.8968},
+        {"ef_search": 64, "recall_at_10": 0.99518, "qps": 5151.89, "mean_dist_evals": 1234.41, "p95_ms": 4.8448},
+        {"ef_search": 128, "recall_at_10": 0.99709, "qps": 5606.49, "mean_dist_evals": 1412.55, "p95_ms": 3.4601},
+        {"ef_search": 256, "recall_at_10": 0.99919, "qps": 4264.96, "mean_dist_evals": 2020.26, "p95_ms": 4.5068}
+      ]
+    },
+    {
+      "experiment_tag": "Approach-C-Normalized-Linear",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.9951, "qps": 5322.9, "mean_dist_evals": 1242.17, "p95_ms": 3.79},
+        {"ef_search": 32, "recall_at_10": 0.9951, "qps": 6961.32, "mean_dist_evals": 1242.17, "p95_ms": 2.6517},
+        {"ef_search": 64, "recall_at_10": 0.9951, "qps": 5994.02, "mean_dist_evals": 1242.17, "p95_ms": 3.1279},
+        {"ef_search": 128, "recall_at_10": 0.99694, "qps": 5524.97, "mean_dist_evals": 1415.05, "p95_ms": 3.7953},
+        {"ef_search": 256, "recall_at_10": 0.99901, "qps": 4093.17, "mean_dist_evals": 2016.52, "p95_ms": 4.928}
+      ]
+    },
+    {
+      "experiment_tag": "Approach-D-Normalized-Exponential",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.99489, "qps": 22165.2, "mean_dist_evals": 1236.38, "p95_ms": 1.0412},
+        {"ef_search": 32, "recall_at_10": 0.99489, "qps": 21259.4, "mean_dist_evals": 1236.38, "p95_ms": 1.0438},
+        {"ef_search": 64, "recall_at_10": 0.99489, "qps": 21180.4, "mean_dist_evals": 1236.38, "p95_ms": 1.1418},
+        {"ef_search": 128, "recall_at_10": 0.99704, "qps": 19449, "mean_dist_evals": 1411.53, "p95_ms": 1.2315},
+        {"ef_search": 256, "recall_at_10": 0.99909, "qps": 14822, "mean_dist_evals": 2014.52, "p95_ms": 1.6954}
+      ]
+    },
+    {
+      "experiment_tag": "Approach-E-Quantile",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.99497, "qps": 23937.2, "mean_dist_evals": 1234.77, "p95_ms": 0.982},
+        {"ef_search": 32, "recall_at_10": 0.99497, "qps": 23351.1, "mean_dist_evals": 1234.77, "p95_ms": 0.9853},
+        {"ef_search": 64, "recall_at_10": 0.99497, "qps": 21728.1, "mean_dist_evals": 1234.77, "p95_ms": 1.0712},
+        {"ef_search": 128, "recall_at_10": 0.99689, "qps": 21006.1, "mean_dist_evals": 1410.31, "p95_ms": 1.1608},
+        {"ef_search": 256, "recall_at_10": 0.99903, "qps": 15153.2, "mean_dist_evals": 2017.68, "p95_ms": 1.6809}
+      ]
+    },
+    {
+      "experiment_tag": "Control-1-Randomized-Budget",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.99321, "qps": 23716.1, "mean_dist_evals": 1243.13, "p95_ms": 0.9831},
+        {"ef_search": 32, "recall_at_10": 0.99321, "qps": 23728.3, "mean_dist_evals": 1243.13, "p95_ms": 0.981},
+        {"ef_search": 64, "recall_at_10": 0.99321, "qps": 22395.3, "mean_dist_evals": 1243.13, "p95_ms": 1.0184},
+        {"ef_search": 128, "recall_at_10": 0.99532, "qps": 19628.3, "mean_dist_evals": 1416.29, "p95_ms": 1.2602},
+        {"ef_search": 256, "recall_at_10": 0.99779, "qps": 15332, "mean_dist_evals": 2000.7, "p95_ms": 1.6316}
+      ]
+    },
+    {
+      "experiment_tag": "Control-2-Reversed-Geometry",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.99203, "qps": 23626.2, "mean_dist_evals": 1237.01, "p95_ms": 1.0059},
+        {"ef_search": 32, "recall_at_10": 0.99203, "qps": 24061.6, "mean_dist_evals": 1237.01, "p95_ms": 0.9779},
+        {"ef_search": 64, "recall_at_10": 0.99203, "qps": 22195.6, "mean_dist_evals": 1237.01, "p95_ms": 0.9852},
+        {"ef_search": 128, "recall_at_10": 0.99451, "qps": 21325.8, "mean_dist_evals": 1405.12, "p95_ms": 1.1495},
+        {"ef_search": 256, "recall_at_10": 0.99784, "qps": 14651.9, "mean_dist_evals": 1983.95, "p95_ms": 1.5699}
+      ]
+    },
+    {
+      "experiment_tag": "Control-3-Official-hnswlib",
+      "sweeps": [
+        {"ef_search": 16, "recall_at_10": 0.99514, "qps": 37051.7, "mean_dist_evals": 0, "p95_ms": 0.3884},
+        {"ef_search": 32, "recall_at_10": 0.99514, "qps": 37466.5, "mean_dist_evals": 0, "p95_ms": 0.3791},
+        {"ef_search": 64, "recall_at_10": 0.99514, "qps": 37232.8, "mean_dist_evals": 0, "p95_ms": 0.3809},
+        {"ef_search": 128, "recall_at_10": 0.99719, "qps": 30593.8, "mean_dist_evals": 0, "p95_ms": 0.4781},
+        {"ef_search": 256, "recall_at_10": 0.99948, "qps": 17750.1, "mean_dist_evals": 0, "p95_ms": 0.8753}
+      ]
+    }
+  ]
+}

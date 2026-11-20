@@ -1,0 +1,69 @@
+{
+  "experiment_name": "Phase 5.3 Cross-Dataset Scalability & Validation Suite",
+  "results": [
+    {
+      "experiment_tag": "SIFT500K-Uniform-StrictRNG",
+      "scheme_name": "Uniform Allocation on SIFT-500K (M=16, B0=8.0M)",
+      "dataset": "SIFT-500K",
+      "n_vectors": 500000,
+      "dim": 128,
+      "assigned_degree_budget": 8000000,
+      "total_edges": 12507239,
+      "layer0_edges": 12069323,
+      "recall_at_10": 0.9842,
+      "qps": 11176.6,
+      "mean_dist_evals": 1576.9,
+      "p95_latency_ms": 2.1904,
+      "build_time_s": 130.505,
+      "graph_memory_mb": 178.526
+    },
+    {
+      "experiment_tag": "SIFT500K-Normalized-Exponential",
+      "scheme_name": "Normalized Exponential on SIFT-500K (Exact B0=8.0M)",
+      "dataset": "SIFT-500K",
+      "n_vectors": 500000,
+      "dim": 128,
+      "assigned_degree_budget": 8000000,
+      "total_edges": 12506570,
+      "layer0_edges": 12068654,
+      "recall_at_10": 0.9848,
+      "qps": 12901.6,
+      "mean_dist_evals": 1561.41,
+      "p95_latency_ms": 1.27,
+      "build_time_s": 121.436,
+      "graph_memory_mb": 178.424
+    },
+    {
+      "experiment_tag": "TF384D-Uniform-StrictRNG",
+      "scheme_name": "Uniform Allocation on Transformer-384D (M=16)",
+      "dataset": "Transformer-384D",
+      "n_vectors": 57893,
+      "dim": 384,
+      "assigned_degree_budget": 926288,
+      "total_edges": 1473476,
+      "layer0_edges": 1420490,
+      "recall_at_10": 0.9418,
+      "qps": 15982.2,
+      "mean_dist_evals": 1021.51,
+      "p95_latency_ms": 1.1876,
+      "build_time_s": 16.0525,
+      "graph_memory_mb": 18.3595
+    },
+    {
+      "experiment_tag": "TF384D-Normalized-Exponential",
+      "scheme_name": "Normalized Exponential on Transformer-384D (Exact B0)",
+      "dataset": "Transformer-384D",
+      "n_vectors": 57893,
+      "dim": 384,
+      "assigned_degree_budget": 926288,
+      "total_edges": 1468163,
+      "layer0_edges": 1415177,
+      "recall_at_10": 0.9453,
+      "qps": 11525.1,
+      "mean_dist_evals": 1022.92,
+      "p95_latency_ms": 1.9303,
+      "build_time_s": 16.0413,
+      "graph_memory_mb": 18.3273
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "experiment_name": "Phase 5.3 Geometric Feature Utility Analysis",
+  "features": [
+    {
+      "feature_config": "Feature-LID-Only",
+      "overall_recall_at_10": 0.99513,
+      "dense_query_recall": 0.999224,
+      "boundary_query_recall": 0.994524,
+      "boundary_delta_pct": 0.146941,
+      "mean_dist_evals": 1254.46,
+      "qps": 21957
+    },
+    {
+      "feature_config": "Feature-Sparsity-Only",
+      "overall_recall_at_10": 0.99426,
+      "dense_query_recall": 0.999224,
+      "boundary_query_recall": 0.993525,
+      "boundary_delta_pct": 0.0470669,
+      "mean_dist_evals": 1216.22,
+      "qps": 17510.4
+    },
+    {
+      "feature_config": "Approach-D-Normalized-Exponential",
+      "overall_recall_at_10": 0.99489,
+      "dense_query_recall": 0.999224,
+      "boundary_query_recall": 0.994249,
+      "boundary_delta_pct": 0.119389,
+      "mean_dist_evals": 1236.38,
+      "qps": 21180.4
+    }
+  ]
+}

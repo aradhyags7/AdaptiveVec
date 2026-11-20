@@ -1989,7 +1989,9 @@ public:
 
             // Online Signal Estimation
             NodeParams params;
-            if (is_adaptive) {
+            if (!preassigned_node_params.empty() && q_idx < preassigned_node_params.size()) {
+                params = preassigned_node_params[q_idx];
+            } else if (is_adaptive) {
                 int probe_lc = std::min(top_level, q_level);
                 int probe_budget = std::min(25, std::max(10, policy.ef_c_base / 4));
                 auto probe_w = search_layer(vec, {curr_ep}, probe_budget, probe_lc, false, false, true);

@@ -1,0 +1,109 @@
+{
+  "experiment_name": "Phase 5.3 Physical Memory Accounting",
+  "breakdowns": [
+    {
+      "scheme": "Approach-A-Uniform",
+      "logical_edges": 2481840,
+      "logical_edge_bytes": 9927360,
+      "allocated_adj_capacity_bytes": 33465904,
+      "unused_adj_capacity_bytes": 6864544,
+      "per_node_metadata_bytes": 4100000,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 37565904,
+      "total_owned_index_bytes": 88831440,
+      "process_working_set_mb": 161.363,
+      "peak_working_set_mb": 161.363
+    },
+    {
+      "scheme": "Approach-B-Original-Clipped",
+      "logical_edges": 2480473,
+      "logical_edge_bytes": 9921892,
+      "allocated_adj_capacity_bytes": 33359708,
+      "unused_adj_capacity_bytes": 6763816,
+      "per_node_metadata_bytes": 4100000,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 37459708,
+      "total_owned_index_bytes": 88725244,
+      "process_working_set_mb": 160.945,
+      "peak_working_set_mb": 162.176
+    },
+    {
+      "scheme": "Approach-C-Normalized-Linear",
+      "logical_edges": 2483119,
+      "logical_edge_bytes": 9932476,
+      "allocated_adj_capacity_bytes": 33439432,
+      "unused_adj_capacity_bytes": 6832956,
+      "per_node_metadata_bytes": 4100000,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 37539432,
+      "total_owned_index_bytes": 88804968,
+      "process_working_set_mb": 161.27,
+      "peak_working_set_mb": 162.176
+    },
+    {
+      "scheme": "Approach-D-Normalized-Exponential",
+      "logical_edges": 2477317,
+      "logical_edge_bytes": 9909268,
+      "allocated_adj_capacity_bytes": 33392620,
+      "unused_adj_capacity_bytes": 6809352,
+      "per_node_metadata_bytes": 4100000,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 37492620,
+      "total_owned_index_bytes": 88758156,
+      "process_working_set_mb": 161.777,
+      "peak_working_set_mb": 162.176
+    },
+    {
+      "scheme": "Approach-E-Quantile",
+      "logical_edges": 2474475,
+      "logical_edge_bytes": 9897900,
+      "allocated_adj_capacity_bytes": 33342772,
+      "unused_adj_capacity_bytes": 6770872,
+      "per_node_metadata_bytes": 4100000,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 37442772,
+      "total_owned_index_bytes": 88708308,
+      "process_working_set_mb": 161.992,
+      "peak_working_set_mb": 162.176
+    },
+    {
+      "scheme": "Control-1-Randomized-Budget",
+      "logical_edges": 2464360,
+      "logical_edge_bytes": 9857440,
+      "allocated_adj_capacity_bytes": 33328848,
+      "unused_adj_capacity_bytes": 6797408,
+      "per_node_metadata_bytes": 4100000,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 37428848,
+      "total_owned_index_bytes": 88694384,
+      "process_working_set_mb": 162.176,
+      "peak_working_set_mb": 162.469
+    },
+    {
+      "scheme": "Control-2-Reversed-Geometry",
+      "logical_edges": 2461029,
+      "logical_edge_bytes": 9844116,
+      "allocated_adj_capacity_bytes": 33313528,
+      "unused_adj_capacity_bytes": 6795412,
+      "per_node_metadata_bytes": 4100000,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 37413528,
+      "total_owned_index_bytes": 88679064,
+      "process_working_set_mb": 162.363,
+      "peak_working_set_mb": 162.57
+    },
+    {
+      "scheme": "Control-3-Official-hnswlib",
+      "logical_edges": 1931205,
+      "logical_edge_bytes": 7724820,
+      "allocated_adj_capacity_bytes": 19200000,
+      "unused_adj_capacity_bytes": 0,
+      "per_node_metadata_bytes": 0,
+      "vector_storage_bytes": 51200000,
+      "total_owned_graph_bytes": 19600000,
+      "total_owned_index_bytes": 70800000,
+      "process_working_set_mb": 155.164,
+      "peak_working_set_mb": 163.199
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "experiment_name": "Phase 5.3 Component Ablation Suite",
+  "results": [
+    {
+      "experiment_tag": "Comp1-Native-StrictRNG",
+      "scheme_name": "Native Uniform (Strict RNG, keep_pruned=false)",
+      "total_edges": 1925264,
+      "layer0_edges": 1843947,
+      "recall_at_10": 0.99302,
+      "qps": 19376.4,
+      "mean_dist_evals": 1184.43,
+      "in_degree_var": 35.2302,
+      "fallback_rate_pct": 0
+    },
+    {
+      "experiment_tag": "Comp2-Native-Fallback",
+      "scheme_name": "Native Uniform with Fallback Retention (keep_pruned=true)",
+      "total_edges": 2694602,
+      "layer0_edges": 2586744,
+      "recall_at_10": 0.99448,
+      "qps": 16962.7,
+      "mean_dist_evals": 1264.69,
+      "in_degree_var": 38.4369,
+      "fallback_rate_pct": 96.3876
+    },
+    {
+      "experiment_tag": "Comp3-StrictRNG-Hubness",
+      "scheme_name": "Native Strict RNG + Hubness Regulation (mu=0.15)",
+      "total_edges": 2481840,
+      "layer0_edges": 2400523,
+      "recall_at_10": 0.99382,
+      "qps": 17549.6,
+      "mean_dist_evals": 1243.04,
+      "in_degree_var": 37.2819,
+      "fallback_rate_pct": 0
+    },
+    {
+      "experiment_tag": "Comp4-StrictRNG-Adaptive-efC",
+      "scheme_name": "Native Strict RNG + Adaptive efConstruction",
+      "total_edges": 1840579,
+      "layer0_edges": 1752017,
+      "recall_at_10": 0.9927,
+      "qps": 21625.4,
+      "mean_dist_evals": 1125.92,
+      "in_degree_var": 41.3453,
+      "fallback_rate_pct": 0
+    },
+    {
+      "experiment_tag": "Comp5-StrictRNG-Monolithic-AdaptiveM",
+      "scheme_name": "Native Strict RNG + Monolithic Adaptive Degree",
+      "total_edges": 1824241,
+      "layer0_edges": 1751942,
+      "recall_at_10": 0.99265,
+      "qps": 23245.1,
+      "mean_dist_evals": 1112.27,
+      "in_degree_var": 41.3302,
+      "fallback_rate_pct": 0
+    },
+    {
+      "experiment_tag": "Comp6-StrictRNG-Layer-Decoupled",
+      "scheme_name": "Native Strict RNG + Layer-Decoupled Adaptive Degree",
+      "total_edges": 1833951,
+      "layer0_edges": 1751985,
+      "recall_at_10": 0.99269,
+      "qps": 15782.5,
+      "mean_dist_evals": 1121.78,
+      "in_degree_var": 41.3118,
+      "fallback_rate_pct": 0
+    },
+    {
+      "experiment_tag": "Comp7-Full-Combined-Decoupled",
+      "scheme_name": "Full Combined Architecture (Layer-Decoupled + Strict RNG + Hubness)",
+      "total_edges": 2361573,
+      "layer0_edges": 2279587,
+      "recall_at_10": 0.99401,
+      "qps": 17333,
+      "mean_dist_evals": 1191.96,
+      "in_degree_var": 51.9932,
+      "fallback_rate_pct": 0
+    }
+  ]
+}

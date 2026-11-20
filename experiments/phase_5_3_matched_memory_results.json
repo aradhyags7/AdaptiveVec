@@ -1,0 +1,26 @@
+{
+  "experiment_name": "Phase 5.3 Matched Memory & Edge Budget Results",
+  "comparisons": [
+    {
+      "baseline": "Approach-A-Uniform",
+      "baseline_assigned_budget": 1600000,
+      "baseline_realized_edges": 2481840,
+      "baseline_recall_at_10": 0.99382,
+      "baseline_qps": 17860.5,
+      "baseline_dist_evals": 1243.04,
+      "baseline_graph_bytes": 37565904,
+      "candidate": "Approach-D-Normalized-Exponential",
+      "candidate_assigned_budget": 1600000,
+      "candidate_realized_edges": 2477317,
+      "candidate_recall_at_10": 0.99489,
+      "candidate_qps": 21180.4,
+      "candidate_dist_evals": 1236.38,
+      "candidate_graph_bytes": 37492620,
+      "budget_delta_pct": 0,
+      "recall_delta_pct": 0.107,
+      "qps_speedup_pct": 18.588,
+      "dist_reduction_pct": 0.535655,
+      "graph_memory_delta_pct": -0.195081
+    }
+  ]
+}
