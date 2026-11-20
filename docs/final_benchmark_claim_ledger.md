@@ -1,8 +1,8 @@
 # AdaptiveVec — Master Benchmark Claim Ledger
 
-**Document Status:** Final Research Freeze (Release Defense)  
-**Branch:** `release/december-12-research-defense`  
-**Commit:** `4fcbd40`  
+**Document Status:** Phase 6.2 Engineering Closure & Presentation Ready  
+**Branch:** `phase-6.2-comprehensive-engineering-closure`  
+**Parent Checkpoint:** `7f2a862` (Phase 6.1 Defense Freeze)  
 **Standardized Hardware Environment:** Intel Core 5 210H (8 physical cores, 12 logical threads, AVX2/FMA, 16 GB RAM), Windows 11 Build 26100, GCC 14.2.0 (`g++ -O3 -mavx2 -mfma -fopenmp -std=c++17`).
 
 ---
@@ -17,11 +17,14 @@
 | **CLM-04** | Pure SQ8 ADC slashes vector memory by **75.0%** with **+70.13% higher QPS** (47,576 vs 27,965 QPS) at 99.54% recall | SIFT-10K ($N=10\text{K}, D=128$) | Pure FP32 Storage ($5.12\text{ MB}$ vector payload) | Pure SQ8 Storage ($1.28\text{ MB}$ vector payload, purged FP32) | `experiments/phase_6_1_quantization_memory_audit.json` | `.\cpp\phase6_1_evidence_runner.exe` | **VERIFIED** |
 | **CLM-05** | Pure SQ4 ADC achieves **8.0x vector compression** ($0.64\text{ MB}$ vs $5.12\text{ MB}$) with 99.74% recall | SIFT-10K ($N=10\text{K}, D=128$) | Pure FP32 Storage | Pure SQ4 Storage (4-bit packed integer vectors) | `experiments/phase_6_1_quantization_memory_audit.json` | `.\cpp\phase6_1_evidence_runner.exe` | **VERIFIED** |
 | **CLM-06** | Local healing prevents graph disconnectivity, maintaining **99.44% recall (+0.46% lift)** under 50% node churn | SIFT-100K ($N=100\text{K}, D=128$) | Unhealed Tombstones (0.9898 recall) | Active 2-Hop Local Healing (`mark_deleted(i, true)`) | `experiments/final_reproduction_manifest.json` | `.\cpp\defense_evidence_runner.exe` | **VERIFIED** |
-| **CLM-07** | Physical compaction reclaims 100% of deleted memory with an exclusive-lock pause of **6.5 to 7.2 ms** | SIFT-100K ($N=100\text{K}, D=128$) | Full Index Rebuild (8,365 ms) | Dual-Buffer Compaction (`compact()`) | `experiments/final_reproduction_manifest.json` | `.\cpp\defense_evidence_runner.exe` | **VERIFIED** |
+| **CLM-07** | Physical compaction reclaims 100% of deleted memory with an exclusive-lock pause of **4.3 to 7.2 ms** | SIFT-10K / 100K | Full Index Rebuild (8,365 ms) | Dual-Buffer Compaction (`compact()`) | `experiments/phase_6_2_compaction_correctness.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
 | **CLM-08** | Multi-threaded search is thread-safe during concurrent streaming updates (**7,933 queries served, 0 errors**) | SIFT-100K ($N=100\text{K}, D=128$) | Sequential Execution | 4 Search Threads + 1 Ingestion Thread + 1 Delete/Heal Thread | `experiments/phase_6_1_concurrency_validation.json` | `.\cpp\phase6_1_evidence_runner.exe` | **VERIFIED** |
 | **CLM-09** | `AutoCalibrator` solves multi-objective SLA constraints in **<13 seconds** with 95% bootstrap CI validation | SIFT-10K ($N=10\text{K}, D=128$) | Manual Grid Tuning | Automated 3-Stage Optimizer (Lower Bound -> Build -> Search) | `experiments/phase_6_1_calibration_constraints.json` | `.\cpp\phase6_1_evidence_runner.exe` | **VERIFIED** |
 | **CLM-10** | `AutoCalibrator` strictly rejects impossible constraints as `InfeasibleWithinSearchSpace` | SIFT-10K ($N=10\text{K}, D=128$) | Feasible Execution | Constraints: Recall $\ge 99.9\%$, Memory $\le 1\text{ MB}$, P99 $\le 0.1\text{ ms}$ | `experiments/final_reproduction_manifest.json` | `.\cpp\defense_evidence_runner.exe` | **VERIFIED** |
-| **CLM-11** | End-to-end integration succeeds across all four milestones on Transformer-384D | Transformer-384D ($N=57\text{K}, D=384$) | Separate Unit Tests | Integrated Pipeline: AutoCalib -> Build -> Stream -> Heal -> Compact | `experiments/final_integrated_demonstration.json` | `.\cpp\defense_evidence_runner.exe` | **VERIFIED** |
+| **CLM-11** | End-to-end integration succeeds across all four milestones on Transformer-384D | Transformer-384D ($N=57\text{K}, D=384$) | Separate Unit Tests | Integrated Pipeline: AutoCalib -> Build -> Stream -> Heal -> Compact | `experiments/phase_6_2_full_corpus_integration.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
+| **CLM-12** | AutoCalibrator Feasibility Integrity guarantees zero false feasibility with 6 formal states | SIFT-10K ($N=10\text{K}, D=128$) | Legacy Flawed Selection | Decoupled candidate tracking (`best_feasible_trial` vs `best_fallback_trial`) | `experiments/phase_6_2_calibrator_correctness.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
+| **CLM-13** | Compaction degree replenishment eliminates isolated nodes ($\min \text{deg} \ge 8$) and preserves navigability | SIFT-10K ($N=10\text{K}, D=128$) | Legacy Unreplenished Pruning | Bounded 2-hop neighbor replenishment & entry-point integrity | `experiments/phase_6_2_compaction_correctness.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
+| **CLM-14** | Direct OS Working Set audit confirms memory reclamation and quantifies heap allocator overhead | SIFT-10K ($N=10\text{K}, D=128$) | Internal Buffer-Only Metrics | Windows PSAPI `GetProcessMemoryInfo` runtime measurement | `experiments/phase_6_2_process_memory_audit.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
 
 ---
 

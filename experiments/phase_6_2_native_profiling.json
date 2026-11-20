@@ -1,0 +1,17 @@
+{
+  "benchmark": "Phase 6.2 Native Profiling and Software Instrumentation Attribution",
+  "dataset": "SIFT-10K",
+  "instrumentation_type": "Software QuerySearchStats Counters (not hardware PMC/perf counters)",
+  "timing_profile": {
+    "mean_query_latency_us": 51.1814,
+    "mean_nanoseconds_per_distance_eval": 73.4721
+  },
+  "software_counters": {
+    "mean_hops": 55.468,
+    "mean_visited_nodes": 696.61,
+    "mean_layer0_evals": 654.378,
+    "mean_upper_layer_evals": 42.232,
+    "mean_total_evals": 696.61,
+    "layer0_eval_fraction": 0.939375
+  }
+}

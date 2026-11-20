@@ -40,17 +40,23 @@ inline OptimizationGoal parse_optimization_goal(const std::string& str) {
 }
 
 enum class FeasibilityStatus {
-    Feasible = 0,                    // Strictly satisfies recall (including 95% bootstrap lower bound), memory, and latency
-    ProvisionallyFeasible = 1,       // Satisfies mean recall, memory, and latency, but 95% bootstrap lower bound dips below target
-    InfeasibleWithinSearchSpace = 2  // One or more hard constraints violated by all evaluated configurations in search space
+    VerifiedFeasible = 0,            // Strictly satisfies recall (including 95% bootstrap lower bound), memory, and latency on calibration queries, and passes validation
+    ProvisionallyFeasible = 1,       // Satisfies mean recall, memory, and latency, but 95% bootstrap lower bound dips below target or marginal
+    ValidationFailed = 2,            // Passed calibration queries, but failed held-out validation queries
+    InfeasibleWithinSearchSpace = 3, // One or more hard constraints violated by all evaluated configurations in search space
+    InvalidRequirements = 4,         // Target recall, memory budget, or latency constraint is invalid (< 0, > 1.0, etc.)
+    EvaluationError = 5              // Evaluation aborted due to null inputs or execution error
 };
 
 inline std::string to_string(FeasibilityStatus status) {
     switch (status) {
-        case FeasibilityStatus::Feasible: return "Feasible";
-        case FeasibilityStatus::ProvisionallyFeasible: return "ProvisionallyFeasible";
-        case FeasibilityStatus::InfeasibleWithinSearchSpace: return "InfeasibleWithinSearchSpace";
-        default: return "Unknown";
+        case FeasibilityStatus::VerifiedFeasible: return "VERIFIED_FEASIBLE";
+        case FeasibilityStatus::ProvisionallyFeasible: return "PROVISIONALLY_FEASIBLE";
+        case FeasibilityStatus::ValidationFailed: return "VALIDATION_FAILED";
+        case FeasibilityStatus::InfeasibleWithinSearchSpace: return "INFEASIBLE_WITHIN_SEARCH_SPACE";
+        case FeasibilityStatus::InvalidRequirements: return "INVALID_REQUIREMENTS";
+        case FeasibilityStatus::EvaluationError: return "EVALUATION_ERROR";
+        default: return "UNKNOWN";
     }
 }
 
@@ -196,7 +202,7 @@ struct CalibrationReport {
         ss << "=== AdaptiveVec Calibration Report ===\n";
         ss << "Dataset: " << dataset_name << "\n";
         ss << "Status: " << to_string(status) << "\n";
-        if (status != FeasibilityStatus::Feasible && !violated_constraints.empty()) {
+        if (status != FeasibilityStatus::VerifiedFeasible && !violated_constraints.empty()) {
             ss << "Violated Constraints:\n";
             for (const auto& vc : violated_constraints) {
                 ss << "  - " << vc << "\n";
@@ -337,9 +343,24 @@ public:
         auto t_start = std::chrono::high_resolution_clock::now();
         CalibrationReport report;
         report.dataset_name = dataset_name;
+
+        // Input parameter validation
+        if (constraints.target_recall <= 0.0f || constraints.target_recall > 1.0f ||
+            constraints.max_memory_mb <= 0.0 || constraints.target_p99_latency_ms <= 0.0f) {
+            report.status = FeasibilityStatus::InvalidRequirements;
+            report.is_feasible = false;
+            report.violated_constraints.push_back("Invalid constraint parameters supplied.");
+            return report;
+        }
+        if (!base_vectors || n_vectors == 0 || !query_vectors || n_queries == 0) {
+            report.status = FeasibilityStatus::EvaluationError;
+            report.is_feasible = false;
+            report.violated_constraints.push_back("Null or empty dataset / query vectors.");
+            return report;
+        }
         
-        size_t n_calib_q = n_queries / 2;
-        size_t n_val_q = n_queries - n_calib_q;
+        size_t n_calib_q = (n_queries > 1) ? (n_queries / 2) : 1;
+        size_t n_val_q = (n_queries > 1) ? (n_queries - n_calib_q) : 1;
         report.num_calibration_queries = n_calib_q;
         report.num_validation_queries = n_val_q;
         
@@ -377,7 +398,6 @@ public:
         
         // -------------------------------------------------------------
         // Stage 4 Phase B: Construction Configuration via Bounded Candidate Ladder
-        // Expanded to include lower connectivity options (M=8, 12, 16, 24)
         // -------------------------------------------------------------
         struct BuildCandidate {
             int m;
@@ -390,10 +410,17 @@ public:
             {24, 100}
         };
         
-        std::unique_ptr<AdaptiveHNSWIndex> best_index = nullptr;
-        CalibrationTrial best_trial;
-        bool found_feasible = false;
-        bool found_provisional = false;
+        CalibrationTrial best_feasible_trial;
+        std::unique_ptr<AdaptiveHNSWIndex> best_feasible_index = nullptr;
+        bool has_feasible = false;
+
+        CalibrationTrial best_provisional_trial;
+        std::unique_ptr<AdaptiveHNSWIndex> best_provisional_index = nullptr;
+        bool has_provisional = false;
+
+        CalibrationTrial best_fallback_trial;
+        std::unique_ptr<AdaptiveHNSWIndex> best_fallback_index = nullptr;
+        bool has_fallback = false;
         
         for (const auto& prec_str : candidate_precisions) {
             for (const auto& bc : build_candidates) {
@@ -460,15 +487,14 @@ public:
                     for (int ef_s : ef_sweeps) {
                         auto trial_t0 = std::chrono::high_resolution_clock::now();
                         
-                        std::vector<float> per_query_recall(n_val_q, 0.0f);
-                        std::vector<double> latencies_ms(n_val_q, 0.0);
+                        std::vector<float> per_query_recall(n_calib_q, 0.0f);
+                        std::vector<double> latencies_ms(n_calib_q, 0.0);
                         
-                        double val_search_t0 = omp_get_wtime();
+                        double calib_search_t0 = omp_get_wtime();
                         
                         #pragma omp parallel for schedule(dynamic, 16)
-                        for (int q = 0; q < (int)n_val_q; ++q) {
-                            size_t query_idx = n_calib_q + q;
-                            const float* q_ptr = &query_vectors[query_idx * dim];
+                        for (int q = 0; q < (int)n_calib_q; ++q) {
+                            const float* q_ptr = &query_vectors[q * dim];
                             
                             auto q_start = std::chrono::high_resolution_clock::now();
                             auto res = index->search(q_ptr, constraints.k, ef_s);
@@ -476,9 +502,9 @@ public:
                             
                             latencies_ms[q] = std::chrono::duration<double, std::milli>(q_end - q_start).count();
                             
-                            if (query_idx < ground_truth.size() && !ground_truth[query_idx].empty()) {
+                            if (q < (int)ground_truth.size() && !ground_truth[q].empty()) {
                                 size_t match_cnt = 0;
-                                const auto& gt = ground_truth[query_idx];
+                                const auto& gt = ground_truth[q];
                                 size_t compare_k = std::min((size_t)constraints.k, gt.size());
                                 for (const auto& cand : res) {
                                     for (size_t g = 0; g < compare_k; ++g) {
@@ -492,13 +518,13 @@ public:
                             }
                         }
                         
-                        double val_search_t1 = omp_get_wtime();
-                        double total_val_time_s = val_search_t1 - val_search_t0;
-                        double measured_qps = n_val_q / std::max(1e-6, total_val_time_s);
+                        double calib_search_t1 = omp_get_wtime();
+                        double total_calib_time_s = calib_search_t1 - calib_search_t0;
+                        double measured_qps = n_calib_q / std::max(1e-6, total_calib_time_s);
                         
                         double r_sum = 0.0;
                         for (float r : per_query_recall) r_sum += r;
-                        float mean_recall = static_cast<float>(r_sum / std::max((size_t)1, n_val_q));
+                        float mean_recall = static_cast<float>(r_sum / std::max((size_t)1, n_calib_q));
                         auto [ci_low, ci_high] = bootstrap_confidence_interval(per_query_recall, 1000, 0.05f);
                         
                         std::sort(latencies_ms.begin(), latencies_ms.end());
@@ -519,11 +545,9 @@ public:
                         FeasibilityStatus trial_status = FeasibilityStatus::InfeasibleWithinSearchSpace;
                         if (satisfies_mean_recall && satisfies_memory && satisfies_latency) {
                             if (satisfies_ci_recall || !constraints.require_conservative_recall) {
-                                trial_status = FeasibilityStatus::Feasible;
-                                found_feasible = true;
+                                trial_status = FeasibilityStatus::VerifiedFeasible;
                             } else {
                                 trial_status = FeasibilityStatus::ProvisionallyFeasible;
-                                found_provisional = true;
                             }
                         }
                         
@@ -548,7 +572,7 @@ public:
                         trial.qps = measured_qps;
                         trial.p99_latency_ms = p99_lat;
                         trial.trial_duration_s = trial_sec;
-                        trial.is_feasible = (trial_status == FeasibilityStatus::Feasible);
+                        trial.is_feasible = (trial_status == FeasibilityStatus::VerifiedFeasible);
                         trial.conservative_feasible = satisfies_ci_recall;
                         trial.status = trial_status;
                         trial.violations = nv;
@@ -556,84 +580,406 @@ public:
                         
                         report.evaluated_trials.push_back(trial);
                         
-                        // Selection logic
-                        bool should_replace = false;
-                        if (trial_status == FeasibilityStatus::Feasible) {
-                            if (!found_feasible) {
+                        // Rigorous candidate selection logic strictly partitioned by status
+                        if (trial_status == FeasibilityStatus::VerifiedFeasible) {
+                            bool should_replace = false;
+                            if (!has_feasible) {
                                 should_replace = true;
                             } else {
                                 switch (constraints.optimization_goal) {
                                     case OptimizationGoal::MaxThroughput:
-                                        should_replace = (trial.qps > best_trial.qps);
+                                        should_replace = (trial.qps > best_feasible_trial.qps);
                                         break;
                                     case OptimizationGoal::MinMemory:
-                                        should_replace = (trial.memory_mb < best_trial.memory_mb) ||
-                                                         (std::abs(trial.memory_mb - best_trial.memory_mb) < 0.1 && trial.qps > best_trial.qps);
+                                        should_replace = (trial.memory_mb < best_feasible_trial.memory_mb) ||
+                                                         (std::abs(trial.memory_mb - best_feasible_trial.memory_mb) < 0.1 && trial.qps > best_feasible_trial.qps);
                                         break;
                                     case OptimizationGoal::MinLatency:
-                                        should_replace = (trial.p99_latency_ms < best_trial.p99_latency_ms);
+                                        should_replace = (trial.p99_latency_ms < best_feasible_trial.p99_latency_ms);
                                         break;
                                     case OptimizationGoal::MaxRecall:
-                                        should_replace = (trial.recall_mean > best_trial.recall_mean);
+                                        should_replace = (trial.recall_mean > best_feasible_trial.recall_mean);
                                         break;
                                 }
                             }
-                        } else if (!found_feasible && trial_status == FeasibilityStatus::ProvisionallyFeasible) {
-                            if (!found_provisional || trial.qps > best_trial.qps) {
-                                should_replace = true;
+                            if (should_replace) {
+                                has_feasible = true;
+                                best_feasible_trial = trial;
+                                best_feasible_index = index->clone();
+                                best_feasible_index->policy.enable_ada_ef = trial.enable_ada_ef;
                             }
-                        } else if (!found_feasible && !found_provisional) {
-                            // Track configuration minimizing normalized constraint violations
-                            if (best_trial.trial_id == 0 || trial.violations.v_total < best_trial.violations.v_total) {
-                                should_replace = true;
+                        } else if (trial_status == FeasibilityStatus::ProvisionallyFeasible) {
+                            if (!has_provisional || trial.qps > best_provisional_trial.qps) {
+                                has_provisional = true;
+                                best_provisional_trial = trial;
+                                best_provisional_index = index->clone();
+                                best_provisional_index->policy.enable_ada_ef = trial.enable_ada_ef;
                             }
                         }
                         
-                        if (should_replace) {
-                            best_trial = trial;
-                            best_index = std::move(index);
-                            index = best_index->clone();
+                        // Update fallback strictly among non-feasible candidates (or if none yet)
+                        if (!has_fallback || trial.violations.v_total < best_fallback_trial.violations.v_total) {
+                            has_fallback = true;
+                            best_fallback_trial = trial;
+                            best_fallback_index = index->clone();
+                            best_fallback_index->policy.enable_ada_ef = trial.enable_ada_ef;
                         }
                     }
                 }
             }
         }
         
-        auto t_end = std::chrono::high_resolution_clock::now();
-        report.total_calibration_time_s = std::chrono::duration<double>(t_end - t_start).count();
-        report.is_feasible = found_feasible;
-        report.status = found_feasible ? FeasibilityStatus::Feasible 
-                     : (found_provisional ? FeasibilityStatus::ProvisionallyFeasible 
-                                          : FeasibilityStatus::InfeasibleWithinSearchSpace);
-        report.selected_config = best_trial;
-        
-        if (report.status != FeasibilityStatus::Feasible) {
-            if (best_trial.recall_mean < constraints.target_recall) {
+        // -------------------------------------------------------------
+        // Independent Held-Out Validation Query Evaluation
+        // -------------------------------------------------------------
+        if (has_feasible && best_feasible_index) {
+            size_t val_start_idx = (n_queries > 1) ? n_calib_q : 0;
+            std::vector<float> val_per_query_recall(n_val_q, 0.0f);
+            std::vector<double> val_latencies(n_val_q, 0.0);
+            best_feasible_index->policy.enable_ada_ef = best_feasible_trial.enable_ada_ef;
+            
+            #pragma omp parallel for schedule(dynamic, 16)
+            for (int q = 0; q < (int)n_val_q; ++q) {
+                size_t q_idx = val_start_idx + q;
+                const float* q_ptr = &query_vectors[q_idx * dim];
+                auto q_start = std::chrono::high_resolution_clock::now();
+                auto res = best_feasible_index->search(q_ptr, constraints.k, best_feasible_trial.ef_search);
+                auto q_end = std::chrono::high_resolution_clock::now();
+                val_latencies[q] = std::chrono::duration<double, std::milli>(q_end - q_start).count();
+                
+                if (q_idx < ground_truth.size() && !ground_truth[q_idx].empty()) {
+                    size_t match_cnt = 0;
+                    const auto& gt = ground_truth[q_idx];
+                    size_t comp_k = std::min((size_t)constraints.k, gt.size());
+                    for (const auto& cand : res) {
+                        for (size_t g = 0; g < comp_k; ++g) {
+                            if (cand.id == gt[g]) {
+                                match_cnt++;
+                                break;
+                            }
+                        }
+                    }
+                    val_per_query_recall[q] = static_cast<float>(match_cnt) / static_cast<float>(comp_k);
+                }
+            }
+            
+            double val_r_sum = 0.0;
+            for (float r : val_per_query_recall) val_r_sum += r;
+            float val_mean_recall = static_cast<float>(val_r_sum / std::max((size_t)1, n_val_q));
+            
+            std::sort(val_latencies.begin(), val_latencies.end());
+            size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
+            if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
+            float val_p99_lat = static_cast<float>(val_latencies[p99_idx]);
+            
+            if (val_mean_recall >= constraints.target_recall * 0.98f && val_p99_lat <= constraints.target_p99_latency_ms * 1.10f) {
+                report.is_feasible = true;
+                report.status = FeasibilityStatus::VerifiedFeasible;
+                best_feasible_trial.status = FeasibilityStatus::VerifiedFeasible;
+                report.selected_config = best_feasible_trial;
+                out_calibrated_index = std::move(best_feasible_index);
+            } else {
+                report.is_feasible = false;
+                report.status = FeasibilityStatus::ValidationFailed;
+                best_feasible_trial.status = FeasibilityStatus::ValidationFailed;
+                report.selected_config = best_feasible_trial;
+                report.violated_constraints.push_back("Held-out validation failed: Validation Recall=" + 
+                    std::to_string(val_mean_recall) + " vs target=" + std::to_string(constraints.target_recall) +
+                    ", Validation p99=" + std::to_string(val_p99_lat) + " ms vs target=" + std::to_string(constraints.target_p99_latency_ms) + " ms");
+                out_calibrated_index = std::move(best_feasible_index);
+            }
+        } else if (has_provisional && best_provisional_index) {
+            report.is_feasible = false;
+            report.status = FeasibilityStatus::ProvisionallyFeasible;
+            report.selected_config = best_provisional_trial;
+            report.violated_constraints.push_back("Selected configuration is provisionally feasible (mean recall met, but bootstrap CI lower bound dips below target).");
+            out_calibrated_index = std::move(best_provisional_index);
+        } else {
+            report.is_feasible = false;
+            report.status = FeasibilityStatus::InfeasibleWithinSearchSpace;
+            report.selected_config = best_fallback_trial;
+            if (best_fallback_trial.recall_mean < constraints.target_recall) {
                 report.violated_constraints.push_back("Target recall " + std::to_string(constraints.target_recall) + 
-                    " not achieved (best achieved: " + std::to_string(best_trial.recall_mean) + 
-                    ", normalized violation: " + std::to_string(best_trial.violations.v_recall) + ")");
+                    " not achieved (best achieved: " + std::to_string(best_fallback_trial.recall_mean) + 
+                    ", normalized violation: " + std::to_string(best_fallback_trial.violations.v_recall) + ")");
             }
-            if (best_trial.memory_mb > constraints.max_memory_mb) {
+            if (best_fallback_trial.memory_mb > constraints.max_memory_mb) {
                 report.violated_constraints.push_back("Memory budget " + std::to_string(constraints.max_memory_mb) + 
-                    " MB exceeded (best achieved: " + std::to_string(best_trial.memory_mb) + 
-                    " MB, normalized violation: " + std::to_string(best_trial.violations.v_memory) + ")");
+                    " MB exceeded (best achieved: " + std::to_string(best_fallback_trial.memory_mb) + 
+                    " MB, normalized violation: " + std::to_string(best_fallback_trial.violations.v_memory) + ")");
             }
-            if (best_trial.p99_latency_ms > constraints.target_p99_latency_ms) {
+            if (best_fallback_trial.p99_latency_ms > constraints.target_p99_latency_ms) {
                 report.violated_constraints.push_back("p99 latency target " + std::to_string(constraints.target_p99_latency_ms) + 
-                    " ms exceeded (best achieved: " + std::to_string(best_trial.p99_latency_ms) + 
-                    " ms, normalized violation: " + std::to_string(best_trial.violations.v_latency) + ")");
+                    " ms exceeded (best achieved: " + std::to_string(best_fallback_trial.p99_latency_ms) + 
+                    " ms, normalized violation: " + std::to_string(best_fallback_trial.violations.v_latency) + ")");
+            }
+            if (best_fallback_index) {
+                out_calibrated_index = std::move(best_fallback_index);
             }
         }
+        
+        auto t_end = std::chrono::high_resolution_clock::now();
+        report.total_calibration_time_s = std::chrono::duration<double>(t_end - t_start).count();
         
         // Compute Pareto frontier & fallback Pareto set
         compute_pareto_frontier(report.evaluated_trials, report.pareto_frontier);
         compute_fallback_pareto_set(report.evaluated_trials, report.fallback_pareto_set);
         
-        if (best_index) {
-            best_index->policy.enable_ada_ef = best_trial.enable_ada_ef;
-            out_calibrated_index = std::move(best_index);
+        return report;
+    }
+
+    static CalibrationReport calibrate_search(
+        AdaptiveHNSWIndex& existing_index,
+        const float* query_vectors,
+        size_t n_queries,
+        const std::vector<std::vector<tableint>>& ground_truth,
+        const CalibrationConstraints& constraints,
+        const std::string& dataset_name = "PrebuiltGraph"
+    ) {
+        auto t_start = std::chrono::high_resolution_clock::now();
+        CalibrationReport report;
+        report.dataset_name = dataset_name;
+
+        if (constraints.target_recall <= 0.0f || constraints.target_recall > 1.0f ||
+            constraints.max_memory_mb <= 0.0 || constraints.target_p99_latency_ms <= 0.0f) {
+            report.status = FeasibilityStatus::InvalidRequirements;
+            report.is_feasible = false;
+            report.violated_constraints.push_back("Invalid constraint parameters supplied.");
+            return report;
         }
-        
+        if (!query_vectors || n_queries == 0) {
+            report.status = FeasibilityStatus::EvaluationError;
+            report.is_feasible = false;
+            report.violated_constraints.push_back("Null or empty query vectors.");
+            return report;
+        }
+
+        size_t n_calib_q = (n_queries > 1) ? (n_queries / 2) : 1;
+        size_t n_val_q = (n_queries > 1) ? (n_queries - n_calib_q) : 1;
+        report.num_calibration_queries = n_calib_q;
+        report.num_validation_queries = n_val_q;
+
+        MemoryBreakdown mb = existing_index.get_memory_breakdown();
+        double measured_memory_mb = mb.total_owned_bytes / (1024.0 * 1024.0);
+
+        std::vector<int> ef_sweeps = {16, 32, 64, 96, 128};
+        std::vector<bool> ada_ef_sweeps = {false, true};
+
+        CalibrationTrial best_feasible_trial;
+        bool has_feasible = false;
+        CalibrationTrial best_provisional_trial;
+        bool has_provisional = false;
+        CalibrationTrial best_fallback_trial;
+        bool has_fallback = false;
+
+        int trial_counter = 1;
+        size_t dim = existing_index.dim;
+
+        for (bool ada_val : ada_ef_sweeps) {
+            existing_index.policy.enable_ada_ef = ada_val;
+            for (int ef_s : ef_sweeps) {
+                auto trial_t0 = std::chrono::high_resolution_clock::now();
+                std::vector<float> per_query_recall(n_calib_q, 0.0f);
+                std::vector<double> latencies_ms(n_calib_q, 0.0);
+
+                double calib_search_t0 = omp_get_wtime();
+                #pragma omp parallel for schedule(dynamic, 16)
+                for (int q = 0; q < (int)n_calib_q; ++q) {
+                    const float* q_ptr = &query_vectors[q * dim];
+                    auto q_start = std::chrono::high_resolution_clock::now();
+                    auto res = existing_index.search(q_ptr, constraints.k, ef_s);
+                    auto q_end = std::chrono::high_resolution_clock::now();
+                    latencies_ms[q] = std::chrono::duration<double, std::milli>(q_end - q_start).count();
+
+                    if (q < (int)ground_truth.size() && !ground_truth[q].empty()) {
+                        size_t match_cnt = 0;
+                        const auto& gt = ground_truth[q];
+                        size_t comp_k = std::min((size_t)constraints.k, gt.size());
+                        for (const auto& cand : res) {
+                            for (size_t g = 0; g < comp_k; ++g) {
+                                if (cand.id == gt[g]) {
+                                    match_cnt++;
+                                    break;
+                                }
+                            }
+                        }
+                        per_query_recall[q] = static_cast<float>(match_cnt) / static_cast<float>(comp_k);
+                    }
+                }
+                double calib_search_t1 = omp_get_wtime();
+                double total_calib_time_s = calib_search_t1 - calib_search_t0;
+                double measured_qps = n_calib_q / std::max(1e-6, total_calib_time_s);
+
+                double r_sum = 0.0;
+                for (float r : per_query_recall) r_sum += r;
+                float mean_recall = static_cast<float>(r_sum / std::max((size_t)1, n_calib_q));
+                auto [ci_low, ci_high] = bootstrap_confidence_interval(per_query_recall, 1000, 0.05f);
+
+                std::sort(latencies_ms.begin(), latencies_ms.end());
+                size_t p99_idx = static_cast<size_t>(std::floor(0.99 * latencies_ms.size()));
+                if (p99_idx >= latencies_ms.size()) p99_idx = latencies_ms.size() - 1;
+                float p99_lat = static_cast<float>(latencies_ms[p99_idx]);
+
+                auto trial_t1 = std::chrono::high_resolution_clock::now();
+                double trial_sec = std::chrono::duration<double>(trial_t1 - trial_t0).count();
+
+                NormalizedViolations nv = compute_normalized_violations(mean_recall, measured_memory_mb, p99_lat, constraints);
+
+                bool satisfies_mean_recall = (mean_recall >= constraints.target_recall);
+                bool satisfies_ci_recall = (ci_low >= constraints.target_recall);
+                bool satisfies_memory = (measured_memory_mb <= constraints.max_memory_mb);
+                bool satisfies_latency = (p99_lat <= constraints.target_p99_latency_ms);
+
+                FeasibilityStatus trial_status = FeasibilityStatus::InfeasibleWithinSearchSpace;
+                if (satisfies_mean_recall && satisfies_memory && satisfies_latency) {
+                    if (satisfies_ci_recall || !constraints.require_conservative_recall) {
+                        trial_status = FeasibilityStatus::VerifiedFeasible;
+                    } else {
+                        trial_status = FeasibilityStatus::ProvisionallyFeasible;
+                    }
+                }
+
+                CalibrationTrial trial;
+                trial.trial_id = trial_counter++;
+                trial.stage = "SearchSweep";
+                trial.m = existing_index.policy.m_base;
+                trial.ef_construction = existing_index.policy.ef_c_base;
+                trial.ef_search = ef_s;
+                trial.precision = existing_index.policy.enable_sq4 ? "SQ4" : (existing_index.policy.enable_sq8 ? "SQ8" : "FP32");
+                trial.enable_adaptive = existing_index.policy.enable_hubness_regulation;
+                trial.enable_ada_ef = ada_val;
+                trial.memory_mb = measured_memory_mb;
+                trial.recall_mean = mean_recall;
+                trial.recall_ci_lower = ci_low;
+                trial.recall_ci_upper = ci_high;
+                trial.qps = measured_qps;
+                trial.p99_latency_ms = p99_lat;
+                trial.trial_duration_s = trial_sec;
+                trial.is_feasible = (trial_status == FeasibilityStatus::VerifiedFeasible);
+                trial.conservative_feasible = satisfies_ci_recall;
+                trial.status = trial_status;
+                trial.violations = nv;
+
+                report.evaluated_trials.push_back(trial);
+
+                if (trial_status == FeasibilityStatus::VerifiedFeasible) {
+                    bool should_replace = false;
+                    if (!has_feasible) {
+                        should_replace = true;
+                    } else {
+                        switch (constraints.optimization_goal) {
+                            case OptimizationGoal::MaxThroughput:
+                                should_replace = (trial.qps > best_feasible_trial.qps);
+                                break;
+                            case OptimizationGoal::MinMemory:
+                                should_replace = (trial.memory_mb < best_feasible_trial.memory_mb) ||
+                                                 (std::abs(trial.memory_mb - best_feasible_trial.memory_mb) < 0.1 && trial.qps > best_feasible_trial.qps);
+                                break;
+                            case OptimizationGoal::MinLatency:
+                                should_replace = (trial.p99_latency_ms < best_feasible_trial.p99_latency_ms);
+                                break;
+                            case OptimizationGoal::MaxRecall:
+                                should_replace = (trial.recall_mean > best_feasible_trial.recall_mean);
+                                break;
+                        }
+                    }
+                    if (should_replace) {
+                        has_feasible = true;
+                        best_feasible_trial = trial;
+                    }
+                } else if (trial_status == FeasibilityStatus::ProvisionallyFeasible) {
+                    if (!has_provisional || trial.qps > best_provisional_trial.qps) {
+                        has_provisional = true;
+                        best_provisional_trial = trial;
+                    }
+                }
+
+                if (!has_fallback || trial.violations.v_total < best_fallback_trial.violations.v_total) {
+                    has_fallback = true;
+                    best_fallback_trial = trial;
+                }
+            }
+        }
+
+        // Held-out validation check
+        if (has_feasible) {
+            size_t val_start_idx = (n_queries > 1) ? n_calib_q : 0;
+            std::vector<float> val_per_query_recall(n_val_q, 0.0f);
+            std::vector<double> val_latencies(n_val_q, 0.0);
+            existing_index.policy.enable_ada_ef = best_feasible_trial.enable_ada_ef;
+
+            #pragma omp parallel for schedule(dynamic, 16)
+            for (int q = 0; q < (int)n_val_q; ++q) {
+                size_t q_idx = val_start_idx + q;
+                const float* q_ptr = &query_vectors[q_idx * dim];
+                auto q_start = std::chrono::high_resolution_clock::now();
+                auto res = existing_index.search(q_ptr, constraints.k, best_feasible_trial.ef_search);
+                auto q_end = std::chrono::high_resolution_clock::now();
+                val_latencies[q] = std::chrono::duration<double, std::milli>(q_end - q_start).count();
+
+                if (q_idx < ground_truth.size() && !ground_truth[q_idx].empty()) {
+                    size_t match_cnt = 0;
+                    const auto& gt = ground_truth[q_idx];
+                    size_t comp_k = std::min((size_t)constraints.k, gt.size());
+                    for (const auto& cand : res) {
+                        for (size_t g = 0; g < comp_k; ++g) {
+                            if (cand.id == gt[g]) {
+                                match_cnt++;
+                                break;
+                            }
+                        }
+                    }
+                    val_per_query_recall[q] = static_cast<float>(match_cnt) / static_cast<float>(comp_k);
+                }
+            }
+
+            double val_r_sum = 0.0;
+            for (float r : val_per_query_recall) val_r_sum += r;
+            float val_mean_recall = static_cast<float>(val_r_sum / std::max((size_t)1, n_val_q));
+
+            std::sort(val_latencies.begin(), val_latencies.end());
+            size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
+            if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
+            float val_p99_lat = static_cast<float>(val_latencies[p99_idx]);
+
+            if (val_mean_recall >= constraints.target_recall * 0.98f && val_p99_lat <= constraints.target_p99_latency_ms * 1.10f) {
+                report.is_feasible = true;
+                report.status = FeasibilityStatus::VerifiedFeasible;
+                best_feasible_trial.status = FeasibilityStatus::VerifiedFeasible;
+                report.selected_config = best_feasible_trial;
+            } else {
+                report.is_feasible = false;
+                report.status = FeasibilityStatus::ValidationFailed;
+                best_feasible_trial.status = FeasibilityStatus::ValidationFailed;
+                report.selected_config = best_feasible_trial;
+                report.violated_constraints.push_back("Held-out validation failed: Validation Recall=" + 
+                    std::to_string(val_mean_recall) + " vs target=" + std::to_string(constraints.target_recall));
+            }
+        } else if (has_provisional) {
+            report.is_feasible = false;
+            report.status = FeasibilityStatus::ProvisionallyFeasible;
+            report.selected_config = best_provisional_trial;
+            report.violated_constraints.push_back("Configuration is provisionally feasible but 95% CI dips below target.");
+        } else {
+            report.is_feasible = false;
+            report.status = FeasibilityStatus::InfeasibleWithinSearchSpace;
+            report.selected_config = best_fallback_trial;
+            if (best_fallback_trial.recall_mean < constraints.target_recall) {
+                report.violated_constraints.push_back("Target recall " + std::to_string(constraints.target_recall) + " not achieved.");
+            }
+            if (best_fallback_trial.memory_mb > constraints.max_memory_mb) {
+                report.violated_constraints.push_back("Memory budget " + std::to_string(constraints.max_memory_mb) + " MB exceeded.");
+            }
+            if (best_fallback_trial.p99_latency_ms > constraints.target_p99_latency_ms) {
+                report.violated_constraints.push_back("p99 latency target " + std::to_string(constraints.target_p99_latency_ms) + " ms exceeded.");
+            }
+        }
+
+        auto t_end = std::chrono::high_resolution_clock::now();
+        report.total_calibration_time_s = std::chrono::duration<double>(t_end - t_start).count();
+        compute_pareto_frontier(report.evaluated_trials, report.pareto_frontier);
+        compute_fallback_pareto_set(report.evaluated_trials, report.fallback_pareto_set);
+
         return report;
     }
 };

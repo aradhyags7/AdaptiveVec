@@ -1,0 +1,69 @@
+{
+  "benchmark": "Phase 6.2 AutoCalibrator Correctness & Feasibility Verification",
+  "dataset": "SIFT-10K",
+  "verification_rules": {
+    "partitioned_selection": true,
+    "zero_false_feasibility": true,
+    "six_formal_states": true
+  },
+  "scenarios": [
+    {
+      "scenario": "1. Memory-Constrained Deployment",
+      "target_recall": 0.95,
+      "max_memory_mb": 50.0,
+      "target_p99_latency_ms": 10.0,
+      "optimization_goal": "MinMemory",
+      "selected_m": 8,
+      "selected_efC": 30,
+      "selected_efS": 64,
+      "selected_precision": "SQ8",
+      "measured_memory_mb": 3.69376,
+      "measured_recall": 0.967552,
+      "measured_p99_ms": 0.4524,
+      "measured_qps": 41666.4,
+      "feasibility_status": "VERIFIED_FEASIBLE",
+      "is_feasible": true,
+      "calibration_duration_sec": 5.67997
+    },
+    {
+      "scenario": "2. Latency-Constrained Deployment",
+      "target_recall": 0.92,
+      "max_memory_mb": 120.0,
+      "target_p99_latency_ms": 2.0,
+      "optimization_goal": "MinLatency",
+      "selected_m": 24,
+      "selected_efC": 100,
+      "selected_efS": 16,
+      "selected_precision": "SQ8",
+      "measured_memory_mb": 4.67747,
+      "measured_recall": 0.973979,
+      "measured_p99_ms": 0.5188,
+      "measured_qps": 31249.5,
+      "feasibility_status": "VERIFIED_FEASIBLE",
+      "is_feasible": true,
+      "calibration_duration_sec": 5.72994
+    },
+    {
+      "scenario": "3. High-Recall Combined SLA Deployment",
+      "target_recall": 0.98,
+      "max_memory_mb": 80.0,
+      "target_p99_latency_ms": 5.0,
+      "optimization_goal": "MaxThroughput",
+      "selected_m": 8,
+      "selected_efC": 30,
+      "selected_efS": 96,
+      "selected_precision": "FP32",
+      "measured_memory_mb": 7.27957,
+      "measured_recall": 0.985584,
+      "measured_p99_ms": 0.5219,
+      "measured_qps": 41668,
+      "feasibility_status": "VERIFIED_FEASIBLE",
+      "is_feasible": true,
+      "calibration_duration_sec": 5.46322
+    }
+  ],
+  "guard_tests": {
+    "invalid_target_recall_status": "INVALID_REQUIREMENTS",
+    "invalid_target_recall_passed": true
+  }
+}

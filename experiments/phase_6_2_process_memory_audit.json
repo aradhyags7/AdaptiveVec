@@ -1,0 +1,40 @@
+{
+  "benchmark": "Phase 6.2 Process Resident Set Size (RSS) and Heap Accounting Audit",
+  "platform_api": "Windows GetProcessMemoryInfo (PROCESS_MEMORY_COUNTERS_EX)",
+  "baseline_working_set_mb": 154.422,
+  "indexes": [
+    {
+      "precision": "FP32",
+      "owned_vector_bytes": 5120000,
+      "owned_graph_bytes": 2459912,
+      "owned_total_bytes": 8024728,
+      "owned_total_mb": 7.65298,
+      "process_working_set_mb": 162.344,
+      "process_private_mb": 158.148,
+      "process_peak_working_set_mb": 187.742,
+      "rss_to_owned_ratio": 21.2132
+    },
+    {
+      "precision": "SQ8",
+      "owned_vector_bytes": 1280000,
+      "owned_graph_bytes": 2459912,
+      "owned_total_bytes": 9384728,
+      "owned_total_mb": 8.94997,
+      "process_working_set_mb": 172.359,
+      "process_private_mb": 169.266,
+      "process_peak_working_set_mb": 187.742,
+      "rss_to_owned_ratio": 19.2581
+    },
+    {
+      "precision": "SQ4",
+      "owned_vector_bytes": 640000,
+      "owned_graph_bytes": 2459912,
+      "owned_total_bytes": 8744728,
+      "owned_total_mb": 8.33962,
+      "process_working_set_mb": 180.508,
+      "process_private_mb": 177.387,
+      "process_peak_working_set_mb": 187.742,
+      "rss_to_owned_ratio": 21.6446
+    }
+  ]
+}

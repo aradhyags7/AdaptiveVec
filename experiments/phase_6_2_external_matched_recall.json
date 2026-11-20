@@ -1,0 +1,36 @@
+{
+  "benchmark": "Phase 6.2 External Baseline Matched-Recall Comparison",
+  "dataset": "SIFT-20K",
+  "sweeps": [
+    {
+      "ef_search": 16,
+      "adaptivevec_strict_rng": {"recall_at_10": 0.293, "qps": 10732.1, "dist_evals": 982.524},
+      "uniform_hnsw_control": {"recall_at_10": 0.2938, "qps": 10001.6, "dist_evals": 988.1},
+      "official_hnswlib": {"recall_at_10": 0.2774, "qps": 55337.9}
+    },
+    {
+      "ef_search": 32,
+      "adaptivevec_strict_rng": {"recall_at_10": 0.293, "qps": 10735.5, "dist_evals": 982.524},
+      "uniform_hnsw_control": {"recall_at_10": 0.2938, "qps": 9826.89, "dist_evals": 988.1},
+      "official_hnswlib": {"recall_at_10": 0.2914, "qps": 31082.9}
+    },
+    {
+      "ef_search": 64,
+      "adaptivevec_strict_rng": {"recall_at_10": 0.293, "qps": 9813.74, "dist_evals": 982.524},
+      "uniform_hnsw_control": {"recall_at_10": 0.2938, "qps": 10723.4, "dist_evals": 988.1},
+      "official_hnswlib": {"recall_at_10": 0.2942, "qps": 21206.4}
+    },
+    {
+      "ef_search": 100,
+      "adaptivevec_strict_rng": {"recall_at_10": 0.293, "qps": 11375.2, "dist_evals": 982.524},
+      "uniform_hnsw_control": {"recall_at_10": 0.2938, "qps": 10862.1, "dist_evals": 988.1},
+      "official_hnswlib": {"recall_at_10": 0.2944, "qps": 15135.9}
+    },
+    {
+      "ef_search": 150,
+      "adaptivevec_strict_rng": {"recall_at_10": 0.293, "qps": 8834.67, "dist_evals": 1175.81},
+      "uniform_hnsw_control": {"recall_at_10": 0.2942, "qps": 8369.5, "dist_evals": 1173.23},
+      "official_hnswlib": {"recall_at_10": 0.295, "qps": 10517}
+    }
+  ]
+}

@@ -2455,16 +2455,27 @@ public:
         node_levels = std::move(new_levels);
         node_params = std::move(new_params);
 
-        // Compact graphs and re-map node IDs
-        std::vector<std::vector<std::vector<tableint>>> new_graphs(graphs.size());
-        for (size_t l = 0; l < graphs.size(); ++l) {
+        // Recompute max_level strictly from surviving nodes
+        int actual_max_level = -1;
+        for (tableint u = 0; u < new_count; ++u) {
+            if (node_levels[u] > actual_max_level) {
+                actual_max_level = node_levels[u];
+            }
+        }
+        max_level = (actual_max_level >= 0) ? actual_max_level : 0;
+
+        // Compact graphs and re-map node IDs up to actual_max_level
+        std::vector<std::vector<std::vector<tableint>>> new_graphs(max_level + 1);
+        for (size_t l = 0; l <= (size_t)max_level; ++l) {
             new_graphs[l].resize(new_count);
-            for (tableint i = 0; i < graphs[l].size() && i < num_elements; ++i) {
-                if (id_map[i] != (tableint)-1) {
-                    tableint new_u = id_map[i];
-                    for (tableint v : graphs[l][i]) {
-                        if (v < num_elements && id_map[v] != (tableint)-1) {
-                            new_graphs[l][new_u].push_back(id_map[v]);
+            if (l < graphs.size()) {
+                for (tableint i = 0; i < graphs[l].size() && i < num_elements; ++i) {
+                    if (id_map[i] != (tableint)-1) {
+                        tableint new_u = id_map[i];
+                        for (tableint v : graphs[l][i]) {
+                            if (v < num_elements && id_map[v] != (tableint)-1) {
+                                new_graphs[l][new_u].push_back(id_map[v]);
+                            }
                         }
                     }
                 }
@@ -2475,6 +2486,130 @@ public:
         num_elements = new_count;
         num_deleted = 0;
         deleted.assign(new_count, 0);
+
+        // Bounded degree replenishment for depleted nodes in Layer 0
+        int min_deg_target = std::max(6, policy.m_base / 2);
+        for (tableint u = 0; u < new_count; ++u) {
+            int max_deg_u = (u < node_params.size()) ? node_params[u].m_max0 : (policy.m_base * 2);
+            if ((int)graphs[0][u].size() < min_deg_target) {
+                // Collect 2-hop candidate neighbors
+                std::vector<tableint> candidates;
+                for (tableint v : graphs[0][u]) {
+                    if (v >= new_count) continue;
+                    for (tableint w : graphs[0][v]) {
+                        if (w != u && w < new_count) {
+                            if (std::find(graphs[0][u].begin(), graphs[0][u].end(), w) == graphs[0][u].end() &&
+                                std::find(candidates.begin(), candidates.end(), w) == candidates.end()) {
+                                candidates.push_back(w);
+                                if (candidates.size() >= 32) break;
+                            }
+                        }
+                    }
+                    if (candidates.size() >= 32) break;
+                }
+                
+                // If 2-hop candidates are insufficient or empty, sample active nodes
+                if (candidates.size() < 16 && new_count > 1) {
+                    for (int s = 0; s < 32; ++s) {
+                        tableint rand_w = (u + s * 97 + 1) % new_count;
+                        if (rand_w != u && std::find(graphs[0][u].begin(), graphs[0][u].end(), rand_w) == graphs[0][u].end() &&
+                            std::find(candidates.begin(), candidates.end(), rand_w) == candidates.end()) {
+                            candidates.push_back(rand_w);
+                        }
+                    }
+                }
+                
+                if (!candidates.empty()) {
+                    std::vector<std::pair<dist_t, tableint>> cand_dists;
+                    cand_dists.reserve(candidates.size());
+                    for (tableint w : candidates) {
+                        dist_t d = get_node_to_node_distance_sq(u, w);
+                        cand_dists.push_back({d, w});
+                    }
+                    std::sort(cand_dists.begin(), cand_dists.end());
+                    
+                    int needed = min_deg_target - (int)graphs[0][u].size();
+                    int added = 0;
+                    for (const auto& cd : cand_dists) {
+                        if (added >= needed || (int)graphs[0][u].size() >= max_deg_u) break;
+                        tableint w = cd.second;
+                        graphs[0][u].push_back(w);
+                        added++;
+                        
+                        // Add reciprocal link if w has capacity
+                        int max_deg_w = (w < node_params.size()) ? node_params[w].m_max0 : (policy.m_base * 2);
+                        if ((int)graphs[0][w].size() < max_deg_w) {
+                            if (std::find(graphs[0][w].begin(), graphs[0][w].end(), u) == graphs[0][w].end()) {
+                                graphs[0][w].push_back(u);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Upper-layer connectivity preservation: avoid isolated nodes at higher layers
+        for (int lc = 1; lc <= max_level; ++lc) {
+            std::vector<tableint> active_at_level;
+            for (tableint u = 0; u < new_count; ++u) {
+                if (u < node_levels.size() && node_levels[u] >= lc) {
+                    active_at_level.push_back(u);
+                }
+            }
+            for (tableint u : active_at_level) {
+                if (graphs[lc][u].empty() && active_at_level.size() > 1) {
+                    tableint best_w = u;
+                    dist_t min_d = 1e9f;
+                    for (tableint w : active_at_level) {
+                        if (w != u) {
+                            dist_t d = get_node_to_node_distance_sq(u, w);
+                            if (d < min_d) {
+                                min_d = d;
+                                best_w = w;
+                            }
+                        }
+                    }
+                    if (best_w != u) {
+                        graphs[lc][u].push_back(best_w);
+                        graphs[lc][best_w].push_back(u);
+                    }
+                }
+            }
+        }
+
+        // Ensure valid enter_point strictly at max_level
+        tableint best_ep = 0;
+        size_t max_deg = 0;
+        bool found_ep = false;
+        
+        if (max_level >= 0 && max_level < (int)graphs.size()) {
+            if (enter_point < id_map.size() && id_map[enter_point] != (tableint)-1) {
+                tableint mapped_ep = id_map[enter_point];
+                if (mapped_ep < node_levels.size() && node_levels[mapped_ep] == max_level) {
+                    best_ep = mapped_ep;
+                    found_ep = true;
+                }
+            }
+            if (!found_ep) {
+                for (tableint u = 0; u < new_count; ++u) {
+                    if (u < node_levels.size() && node_levels[u] == max_level) {
+                        size_t deg = graphs[max_level][u].size();
+                        if (!found_ep || deg > max_deg) {
+                            best_ep = u;
+                            max_deg = deg;
+                            found_ep = true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (found_ep) {
+            enter_point = best_ep;
+        } else {
+            enter_point = 0;
+            max_level = (new_count > 0) ? 0 : -1;
+        }
 
         in_degrees.assign(new_count, 0);
         bridge_scores.assign(new_count, 0.0f);
@@ -2490,12 +2625,6 @@ public:
         total_in_degrees = total;
         if (policy.enable_bridge_aware) {
             update_bridge_scores();
-        }
-
-        if (enter_point < id_map.size() && id_map[enter_point] != (tableint)-1) {
-            enter_point = id_map[enter_point];
-        } else {
-            migrate_entry_point();
         }
     }
     

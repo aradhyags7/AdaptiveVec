@@ -1,0 +1,42 @@
+{
+  "benchmark": "Phase 6.2 Lifecycle Scalability Across Churn Rates",
+  "dataset": "SIFT-10K",
+  "results": [
+    {
+      "churn_fraction": 0.1,
+      "deleted_count": 1000,
+      "surviving_count": 9000,
+      "deletion_duration_ms": 71.3821,
+      "compaction_duration_ms": 7.6152,
+      "recall_healed": 0.995,
+      "recall_compacted": 0.9952,
+      "pre_compaction_memory_mb": 7.65298,
+      "post_compaction_memory_mb": 6.73116,
+      "reclaimed_memory_mb": 0.921814
+    },
+    {
+      "churn_fraction": 0.25,
+      "deleted_count": 2500,
+      "surviving_count": 7500,
+      "deletion_duration_ms": 133.821,
+      "compaction_duration_ms": 5.8359,
+      "recall_healed": 0.9964,
+      "recall_compacted": 0.9952,
+      "pre_compaction_memory_mb": 7.65298,
+      "post_compaction_memory_mb": 5.63314,
+      "reclaimed_memory_mb": 2.01984
+    },
+    {
+      "churn_fraction": 0.5,
+      "deleted_count": 5000,
+      "surviving_count": 5000,
+      "deletion_duration_ms": 234.972,
+      "compaction_duration_ms": 3.8624,
+      "recall_healed": 0.9662,
+      "recall_compacted": 0.9598,
+      "pre_compaction_memory_mb": 7.65298,
+      "post_compaction_memory_mb": 3.67884,
+      "reclaimed_memory_mb": 3.97414
+    }
+  ]
+}

@@ -63,7 +63,74 @@ int main() {
     auto res = index->search(query_vecs.data(), 5, report.selected_config.ef_search);
     std::cout << "Calibrated index search returned " << res.size() << " candidates. Top candidate ID: " << res[0].id << std::endl;
     assert(!res.empty());
-    
-    std::cout << "AutoCalibrator basic test PASSED!" << std::endl;
+
+    // -------------------------------------------------------------
+    // Additional Test 1: Invalid Requirements Gate
+    // -------------------------------------------------------------
+    std::cout << "\nTesting AutoCalibrator Invalid Requirements Gate..." << std::endl;
+    CalibrationConstraints invalid_c;
+    invalid_c.target_recall = 1.25f; // Invalid recall > 1.0
+    std::unique_ptr<AdaptiveHNSWIndex> inv_idx = nullptr;
+    CalibrationReport inv_rep = AutoCalibrator::calibrate(
+        base_vecs.data(), n, dim, SpaceType::L2,
+        query_vecs.data(), n_q, gt,
+        invalid_c, inv_idx, "Invalid-Recall-Test"
+    );
+    assert(inv_rep.status == FeasibilityStatus::InvalidRequirements);
+    assert(!inv_rep.is_feasible);
+    std::cout << "Invalid requirements properly flagged: " << to_string(inv_rep.status) << std::endl;
+
+    // -------------------------------------------------------------
+    // Additional Test 2: Infeasible Search Space Classification
+    // -------------------------------------------------------------
+    std::cout << "\nTesting AutoCalibrator Infeasible Classification..." << std::endl;
+    CalibrationConstraints infeasible_c;
+    infeasible_c.target_recall = 0.999f;
+    infeasible_c.max_memory_mb = 0.0001; // Impossibly tiny memory budget
+    std::unique_ptr<AdaptiveHNSWIndex> inf_idx = nullptr;
+    CalibrationReport inf_rep = AutoCalibrator::calibrate(
+        base_vecs.data(), n, dim, SpaceType::L2,
+        query_vecs.data(), n_q, gt,
+        infeasible_c, inf_idx, "Infeasible-Memory-Test"
+    );
+    assert(inf_rep.status == FeasibilityStatus::InfeasibleWithinSearchSpace);
+    assert(!inf_rep.is_feasible);
+    std::cout << "Infeasible budget properly flagged: " << to_string(inf_rep.status) << std::endl;
+
+    // -------------------------------------------------------------
+    // Additional Test 3: Feasibility Guarantee Under MinMemory
+    // -------------------------------------------------------------
+    std::cout << "\nTesting AutoCalibrator Feasibility Integrity..." << std::endl;
+    CalibrationConstraints min_mem_c;
+    min_mem_c.target_recall = 0.85f;
+    min_mem_c.max_memory_mb = 50.0;
+    min_mem_c.optimization_goal = OptimizationGoal::MinMemory;
+    std::unique_ptr<AdaptiveHNSWIndex> mm_idx = nullptr;
+    CalibrationReport mm_rep = AutoCalibrator::calibrate(
+        base_vecs.data(), n, dim, SpaceType::L2,
+        query_vecs.data(), n_q, gt,
+        min_mem_c, mm_idx, "MinMemory-Integrity-Test"
+    );
+    if (mm_rep.is_feasible) {
+        assert(mm_rep.status == FeasibilityStatus::VerifiedFeasible);
+        assert(mm_rep.selected_config.recall_mean >= min_mem_c.target_recall);
+        assert(mm_rep.selected_config.memory_mb <= min_mem_c.max_memory_mb);
+        assert(mm_rep.selected_config.p99_latency_ms <= min_mem_c.target_p99_latency_ms);
+    }
+    std::cout << "MinMemory integrity passed: status = " << to_string(mm_rep.status) << std::endl;
+
+    // -------------------------------------------------------------
+    // Additional Test 4: Calibrate Search On Prebuilt Index
+    // -------------------------------------------------------------
+    std::cout << "\nTesting AutoCalibrator calibrate_search on Prebuilt Graph..." << std::endl;
+    CalibrationReport cs_rep = AutoCalibrator::calibrate_search(
+        *index, query_vecs.data(), n_q, gt, min_mem_c, "Prebuilt-Search-Calib"
+    );
+    assert(!cs_rep.evaluated_trials.empty());
+    std::cout << "Prebuilt search calibration passed: status = " << to_string(cs_rep.status) << std::endl;
+
+    std::cout << "\n===========================================================" << std::endl;
+    std::cout << " ALL AUTOCALIBRATOR UNIT & CORRECTNESS TESTS PASSED!" << std::endl;
+    std::cout << "===========================================================" << std::endl;
     return 0;
 }

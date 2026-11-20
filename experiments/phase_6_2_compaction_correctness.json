@@ -1,0 +1,29 @@
+{
+  "benchmark": "Phase 6.2 Compaction Correctness & Degree Replenishment",
+  "initial_elements": 10000,
+  "deleted_elements": 5000,
+  "surviving_elements": 5000,
+  "tombstones_after_compaction": 0,
+  "compaction_duration_ms": 4.3149,
+  "recall_at_10": {
+    "pre_deletion_baseline": 0.9948,
+    "post_deletion_healed": 0.9676,
+    "post_compaction": 0.9588,
+    "recall_delta_vs_healed": -0.0088,
+    "degradation_detected": true
+  },
+  "memory_reclamation": {
+    "pre_compaction_owned_bytes": 8024616,
+    "post_compaction_owned_bytes": 3855960,
+    "reclaimed_bytes": 4168656,
+    "reclamation_ratio": 0.519484
+  },
+  "degree_replenishment_audit": {
+    "min_layer0_degree": 8,
+    "mean_layer0_degree": 25.2078,
+    "max_layer0_degree": 32,
+    "enter_point_id": 759,
+    "enter_point_level": 2,
+    "index_max_level": 2
+  }
+}

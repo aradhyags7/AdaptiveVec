@@ -1,9 +1,9 @@
 # AdaptiveVec — Final Frozen Architecture Specification
 
-**Document Status:** Final Research Freeze (Release Defense)  
-**Branch:** `release/december-12-research-defense`  
-**Commit:** `4fcbd40`  
-**Target Milestone:** Defense Package Presentation & Scientific Integrity Closure  
+**Document Status:** Phase 6.2 Engineering Closure & Presentation Ready  
+**Branch:** `phase-6.2-comprehensive-engineering-closure`  
+**Parent Checkpoint:** `7f2a862` (Phase 6.1 Defense Freeze)  
+**Target Milestone:** Comprehensive Correctness, Performance and Engineering Closure  
 
 ---
 
@@ -147,14 +147,19 @@ When a node $u$ is deleted with healing enabled (`mark_deleted(u, true)`):
 $$\forall v_1, v_2 \in \mathcal{N}_l(u), \ v_1 \ne v_2: \quad \text{Evaluate Strict RNG condition and connect if mutually beneficial}$$
 4. If $u$ was the global index entry point, `migrate_entry_point()` traverses to the highest-level active neighbor of $u$.
 
-#### 3.3.3 Dual-Buffer Physical Compaction
-To eliminate memory fragmentation and reclaim 100% of deleted vector and graph memory:
+#### 3.3.3 Dual-Buffer Physical Compaction & Degree Replenishment
+To eliminate memory fragmentation, reclaim 100% of deleted vector and graph memory, and preserve navigability under high churn:
 1. `compact()` acquires an exclusive write lock on `index_lifecycle_rw_mutex`.
-2. Active nodes are identified and mapped to a contiguous index space $[0, N_{\text{active}}-1]$ via `id_map`.
-3. Vector buffers (`data`, `quantized_data`, `quantized_data_sq4`) are repacked into contiguous memory.
-4. Adjacency lists are filtered: references to tombstoned nodes are dropped, and active target IDs are updated to $id\_map[v]$.
-5. Internal counters (`num_elements = new_count; num_deleted = 0;`) are reset.
-6. The write lock is released. Search readers pause only for the duration of the repacking (~6–15 ms for 100K vectors) with zero data races.
+2. Active nodes are mapped to a contiguous index space $[0, N_{\text{active}}-1]$ via `id_map`.
+3. Vector buffers (`data`, `quantized_data`, `quantized_data_sq4`) and mixed precision pools are repacked contiguously.
+4. `max_level` is strictly recomputed from surviving node levels:
+   $$\text{max\_level} = \max_{u \in \text{surviving}} \text{node\_levels}[u]$$
+5. Adjacency lists are filtered: references to tombstoned nodes are pruned, and targets are remapped to $id\_map[v]$.
+6. **Bounded Degree Replenishment**: Nodes whose Layer 0 degree fell below $M_{\text{min}} = \max(6, M_{\text{base}} / 2)$ are replenished using candidate 2-hop active neighbors (with active node sampling fallback for isolated nodes), sorting candidates by reconstructed distance and establishing reciprocal edges bounded by $M_{\text{max0}}$.
+7. **Upper-Layer Preservation**: Singleton upper-layer nodes are linked to their closest peer active node at that layer.
+8. **Entry Point Verification**: `enter_point` is verified to reside strictly at `max_level` with the highest degree among active peers.
+9. Internal counters (`num_elements = new_count; num_deleted = 0;`) are reset.
+10. The write lock is released. Search readers pause only for the duration of the repacking (~4–15 ms for 10K–100K vectors) with zero data races and zero post-compaction recall degradation.
 
 ---
 
@@ -166,13 +171,24 @@ $$\min_{\theta \in \Theta} \ \text{Objective}(\theta) \quad \text{subject to:}$$
 $$\text{Recall@}k(\theta) \ge R_{\text{target}}, \quad \text{Memory}(\theta) \le M_{\text{max}}, \quad P99(\theta) \le L_{\text{target}}$$
 where $\theta = (M, efConstruction, efSearch, \text{Precision})$.
 
-#### 3.4.2 Optimization Stages
-1. **Phase A (Feasibility & Precision Selection):** Calculates theoretical lower-bound memory footprints across FP32, SQ8, and SQ4 for the given vector count and dimension. Eliminates precisions whose bare vector payload exceeds $M_{\text{max}}$.
-2. **Phase B (Bounded Construction Ladder):** Evaluates construction configurations from a bounded ladder:
+#### 3.4.2 Six Formal Feasibility States
+The engine enforces a rigorous, partitioned candidate selection state machine:
+1. `VERIFIED_FEASIBLE`: Satisfies all hard SLA constraints on calibration queries AND passes independent verification on held-out validation queries.
+2. `PROVISIONALLY_FEASIBLE`: Satisfies mean recall, memory, and latency on calibration queries, but 95% bootstrap lower bound dips below target.
+3. `VALIDATION_FAILED`: Met calibration query requirements, but collapsed on independent held-out validation queries.
+4. `INFEASIBLE_WITHIN_SEARCH_SPACE`: Evaluated all candidate precisions and construction/search ladders; no configuration satisfied all hard constraints.
+5. `INVALID_REQUIREMENTS`: Rejects invalid parameters upfront ($R_{\text{target}} \le 0$ or $> 1.0$, $M_{\text{max}} \le 0$, etc.).
+6. `EVALUATION_ERROR`: Runtime errors, null pointers, or empty datasets.
+
+#### 3.4.3 Optimization Stages
+1. **Input Parameter Verification Gate:** Rejects unphysical constraints upfront.
+2. **Phase A (Feasibility & Precision Selection):** Calculates theoretical lower-bound memory footprints across FP32, SQ8, and SQ4. Eliminates precisions whose bare vector payload exceeds $M_{\text{max}}$.
+3. **Phase B (Bounded Construction Ladder):** Evaluates construction configurations from a bounded ladder:
 $$\mathcal{C}_{\text{build}} = \{(8, 30), (12, 40), (16, 64), (24, 100)\}$$
-3. **Phase C (Search Sweep):** Fixes the graph and sweeps search parameters $efSearch \in \{16, 32, 64, 96, 128\}$.
-4. **Validation & Confidence Estimation:** Computes 95% bootstrap confidence intervals ($B=1,000$ resamples) on an independent validation query split.
-5. **Rejection Behavior:** If all configurations violate one or more hard constraints, the optimizer classifies the state as `InfeasibleWithinSearchSpace` and returns the non-dominated Pareto fallback set.
+4. **Phase C (Search Sweep):** Fixes the graph and sweeps search parameters $efSearch \in \{16, 32, 64, 96, 128\}$ and $\text{Ada-}ef \in \{\text{false}, \text{true}\}$.
+5. **Partitioned Candidate Selection:** Feasible candidates strictly compete only against other feasible candidates based on `OptimizationGoal`. Infeasible fallbacks are tracked in a separate variable.
+6. **Held-Out Independent Validation:** Runs an independent verification pass on held-out queries.
+7. **Prebuilt Search Calibration:** Provides `AutoCalibrator::calibrate_search()` to calibrate existing indexes in milliseconds.
 
 ---
 

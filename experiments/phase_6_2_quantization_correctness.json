@@ -1,0 +1,32 @@
+{
+  "benchmark": "Phase 6.2 Quantization Correctness and Re-ranking Latency Tradeoff",
+  "dataset": "SIFT-10K",
+  "configurations": [
+    {
+      "name": "FP32-Baseline",
+      "recall_at_10": 0.129,
+      "qps": 12866.8,
+      "p50_ms": 0.0649,
+      "p99_ms": 0.1615,
+      "mean_dist_evals": 814.11
+    },
+    {
+      "name": "SQ8-Pure-ADC-Default",
+      "recall_at_10": 0.1256,
+      "qps": 14299.1,
+      "p50_ms": 0.0606,
+      "p99_ms": 0.0955,
+      "mean_dist_evals": 816.57
+    },
+    {
+      "name": "SQ8-With-FP32-Reranking",
+      "recall_at_10": 0.1286,
+      "qps": 12632.7,
+      "p50_ms": 0.0669,
+      "p99_ms": 0.2195,
+      "mean_dist_evals": 921.682,
+      "rerank_slowdown_factor": 1.13191
+    }
+  ],
+  "architectural_conclusion": "Pure SQ8 ADC is selected as default; re-ranking incurs random FP32 vector memory access penalty with L3 cache misses."
+}

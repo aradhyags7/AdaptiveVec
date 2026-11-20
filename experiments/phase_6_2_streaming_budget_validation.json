@@ -1,0 +1,9 @@
+{
+  "benchmark": "Phase 6.2 Streaming Degree Budget Bounds Validation",
+  "m_base": 16,
+  "m_max0_limit": 32,
+  "max_observed_degree": 32,
+  "all_degree_bounds_strictly_respected": true,
+  "initial_total_edges": 128049,
+  "final_total_edges": 130445
+}

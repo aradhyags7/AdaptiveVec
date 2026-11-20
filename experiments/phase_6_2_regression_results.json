@@ -1,0 +1,16 @@
+{
+  "benchmark": "Phase 6.2 Complete Engineering & Scientific Regression Matrix",
+  "status": "VERIFIED_CLOSED",
+  "regression_gates": [
+    {"gate": "ISSUE-01: AutoCalibrator Feasibility Model", "result": "PASS", "detail": "Separated candidate selection strictly prevents infeasible trial from winning; zero false feasibility reports."},
+    {"gate": "ISSUE-02: Multi-Scenario Constraint Validation", "result": "PASS", "detail": "Tested 5 distinct SLAs including tight memory, tight latency, and impossible constraint negative control."},
+    {"gate": "ISSUE-03: Prebuilt Graph Parameter Sweeps", "result": "PASS", "detail": "Implemented calibrate_search() evaluating full efSearch in {16, 32, 64, 96, 128}."},
+    {"gate": "ISSUE-04: Post-Compaction Recall Preservation", "result": "PASS", "detail": "Bounded degree replenishment and max_level/enter_point integrity eliminate post-compaction recall degradation."},
+    {"gate": "ISSUE-05: Process-Level RSS Audit", "result": "PASS", "detail": "Windows psapi integration confirms working set memory and heap reclamation after compaction."},
+    {"gate": "ISSUE-06: SQ8 Pure ADC vs Re-Ranking", "result": "PASS", "detail": "Quantified random-access FP32 latency regression; confirmed pure SQ8 ADC as the high-throughput default."},
+    {"gate": "ISSUE-07: Software Instrumentation Attribution", "result": "PASS", "detail": "Properly labeled QuerySearchStats as software counters and reported wall-clock timing."},
+    {"gate": "ISSUE-08: External Matched-Recall Gap", "result": "PASS", "detail": "Benchmarked against official hnswlib and Uniform HNSW control across efSearch sweep."},
+    {"gate": "ISSUE-09: Geometry Controls Scientific Ledger", "result": "PASS", "detail": "Reported actual realized degree distribution and scientifically grounded reversed geometric allocation."},
+    {"gate": "ISSUE-10: Streaming Budget Bounds", "result": "PASS", "detail": "Verified bounded degree enforcement (m_max0 limit respected under edge replenishment)."}
+  ]
+}

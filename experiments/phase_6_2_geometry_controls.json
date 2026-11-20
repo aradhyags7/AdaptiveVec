@@ -1,0 +1,22 @@
+{
+  "benchmark": "Phase 6.2 Geometry Controls and Scientific Edge Allocation Investigation",
+  "dataset": "SIFT-20K",
+  "configurations": [
+    {
+      "name": "Strict-RNG-Control",
+      "recall_at_10": 0.293,
+      "qps": 6641.2,
+      "mean_dist_evals": 985.512,
+      "in_degree_variance": 111.332,
+      "total_edges": 437154
+    },
+    {
+      "name": "Uniform-HNSW-Control",
+      "recall_at_10": 0.2946,
+      "qps": 5679.88,
+      "mean_dist_evals": 988.194,
+      "total_edges": 508490
+    }
+  ],
+  "scientific_verdict": "Reversed geometric allocation achieved higher recall in Phase 6.1 due to hubness alleviation; geometry-aware allocation is not universally superior across all density distributions."
+}
