@@ -1,0 +1,10 @@
+{
+  "experiment": "External Baselines Comparison on SIFT-100K",
+  "baselines": [
+    {"engine": "Official hnswlib (v0.8.0)", "precision": "FP32", "recall_at_10": 0.9951, "qps": 37232.8, "edges": 1931205, "memory_mb": 70.80},
+    {"engine": "AdaptiveVec (Strict RNG Uniform)", "precision": "FP32", "recall_at_10": 0.9930, "qps": 19376.4, "edges": 1925264, "memory_mb": 88.83},
+    {"engine": "AdaptiveVec (Normalized Exponential)", "precision": "FP32", "recall_at_10": 0.9949, "qps": 21180.4, "edges": 2477317, "memory_mb": 88.76},
+    {"engine": "AdaptiveVec (SQ8 + FP32 Rerank)", "precision": "INT8", "recall_at_10": 0.9912, "qps": 18450.0, "edges": 2477317, "memory_mb": 49.20}
+  ],
+  "competitiveness_analysis": "Official hnswlib achieves higher raw QPS in pure FP32 on SIFT-100K due to packed contiguous C-array allocations. However, AdaptiveVec provides native dynamic self-healing, zero-rebuild compaction, and automatic resource calibration that hnswlib lacks."
+}

@@ -1,0 +1,45 @@
+{
+  "milestone": "MILESTONE III: Dynamic and Self-Healing Index",
+  "n_vectors": 5000,
+  "churn_trials": [
+    {
+      "delete_percentage": 10,
+      "original_recall": 0.9988,
+      "unhealed_recall": 0.999,
+      "healed_recall": 0.999,
+      "post_compaction_recall": 0.9962,
+      "full_rebuild_recall": 0.9982,
+      "healing_time_ms": 28.5234,
+      "compaction_time_ms": 2.4552,
+      "full_rebuild_time_ms": 265.087,
+      "compaction_speedup_vs_rebuild": 107.97,
+      "memory_reclaimed_bytes": 2465016
+    },
+    {
+      "delete_percentage": 25,
+      "original_recall": 0.9988,
+      "unhealed_recall": 0.9988,
+      "healed_recall": 0.9994,
+      "post_compaction_recall": 0.9972,
+      "full_rebuild_recall": 0.9978,
+      "healing_time_ms": 56.8995,
+      "compaction_time_ms": 2.6925,
+      "full_rebuild_time_ms": 213.51,
+      "compaction_speedup_vs_rebuild": 79.2979,
+      "memory_reclaimed_bytes": 3073328
+    },
+    {
+      "delete_percentage": 50,
+      "original_recall": 0.9988,
+      "unhealed_recall": 0.997,
+      "healed_recall": 0.9998,
+      "post_compaction_recall": 0.996,
+      "full_rebuild_recall": 0.9988,
+      "healing_time_ms": 96.0589,
+      "compaction_time_ms": 2.2143,
+      "full_rebuild_time_ms": 129.696,
+      "compaction_speedup_vs_rebuild": 58.5719,
+      "memory_reclaimed_bytes": 4065664
+    }
+  ]
+}

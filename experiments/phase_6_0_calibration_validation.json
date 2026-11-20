@@ -1,0 +1,18 @@
+{
+  "milestone": "MILESTONE IV: Automatic Resource-Constrained Optimization",
+  "target_recall": 0.95,
+  "max_memory_mb": 120,
+  "target_p99_latency_ms": 5,
+  "selected_configuration": {
+    "m": 16,
+    "ef_construction": 64,
+    "ef_search": 64,
+    "precision": "SQ8",
+    "measured_recall": 0.0904,
+    "measured_throughput_qps": 25000,
+    "measured_memory_mb": 4.06684,
+    "feasibility_status": "InfeasibleWithinSearchSpace"
+  },
+  "calibration_time_s": 5.68111,
+  "configurations_evaluated": 80
+}

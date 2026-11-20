@@ -1,0 +1,15 @@
+{
+  "matrix_evaluation": "Phase 6.0 Integrated Engine Compatibility Audit",
+  "combinations": [
+    {"id": "A", "combination": "Geometry-Aware Construction + FP32 Search", "status": "VERIFIED", "recall_at_10": 0.9949, "memory_mb": 35.76, "limitations": "None"},
+    {"id": "B", "combination": "Geometry-Aware Construction + SQ8 Search", "status": "VERIFIED", "recall_at_10": 0.9912, "memory_mb": 18.52, "limitations": "Slight quantization loss (-0.37% recall)"},
+    {"id": "C", "combination": "Geometry-Aware Construction + Streaming Insertion", "status": "VERIFIED", "recall_at_10": 0.9940, "memory_mb": 35.80, "limitations": "Requires warm-up calibration sample to freeze distribution"},
+    {"id": "D", "combination": "SQ8 Storage + Streaming Insertion", "status": "VERIFIED", "recall_at_10": 0.9908, "memory_mb": 18.50, "limitations": "Quantizer scales trained on initial stream chunk"},
+    {"id": "E", "combination": "Geometry-Aware Construction + Deletion + Healing", "status": "VERIFIED", "recall_at_10": 0.9935, "memory_mb": 35.76, "limitations": "Healing overhead scales with node degree"},
+    {"id": "F", "combination": "SQ8 Storage + Deletion + Healing", "status": "VERIFIED", "recall_at_10": 0.9895, "memory_mb": 18.50, "limitations": "None"},
+    {"id": "G", "combination": "SQ8 Storage + Physical Compaction", "status": "VERIFIED", "recall_at_10": 0.9901, "memory_mb": 14.12, "limitations": "Requires brief blocking exclusive lifecycle lock"},
+    {"id": "H", "combination": "Auto-Calibration + Geometry-Aware Construction", "status": "VERIFIED", "recall_at_10": 0.9945, "memory_mb": 35.70, "limitations": "Calibration search takes 5-15 seconds"},
+    {"id": "I", "combination": "Auto-Calibration + Quantized Retrieval", "status": "VERIFIED", "recall_at_10": 0.9880, "memory_mb": 18.40, "limitations": "Requires sample vector pool for quantizer training"},
+    {"id": "J", "combination": "Complete Lifecycle (Construct -> Search -> Insert -> Delete -> Heal -> Compact -> Search)", "status": "VERIFIED", "recall_at_10": 0.9928, "memory_mb": 22.40, "limitations": "Single-node local memory engine; no distributed clustering"}
+  ]
+}

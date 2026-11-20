@@ -1,0 +1,31 @@
+{
+  "milestone": "MILESTONE II: Resource-Efficient Vector Retrieval",
+  "n_vectors": 10000,
+  "dim": 128,
+  "modes": [
+    {
+      "name": "Native FP32",
+      "recall_at_10": 0.9967,
+      "qps": 36670.7,
+      "vector_bytes": 5120000,
+      "graph_bytes": 2234780,
+      "total_owned_bytes": 7825132
+    },
+    {
+      "name": "Native SQ8 + FP32 Rerank",
+      "recall_at_10": 0.996,
+      "qps": 32483.2,
+      "vector_bytes": 2097152,
+      "graph_bytes": 2235404,
+      "total_owned_bytes": 9922908
+    },
+    {
+      "name": "Native SQ4 + FP32 Rerank",
+      "recall_at_10": 0.9967,
+      "qps": 27542.8,
+      "vector_bytes": 1048576,
+      "graph_bytes": 2190280,
+      "total_owned_bytes": 8829208
+    }
+  ]
+}

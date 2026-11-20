@@ -1,0 +1,17 @@
+{
+  "milestone": "MILESTONE I: Geometry-Aware Graph Intelligence",
+  "scientific_status": "Verified on SIFT-100K and SIFT-500K",
+  "key_findings": [
+    "Official hnswlib neighbor selection does not refill from discarded candidates; Strict RNG matches official hnswlib exactly.",
+    "Under exact matched budget (B0=1.6M on SIFT-100K, B0=8.0M on SIFT-500K), Normalized Exponential Allocation outperforms uniform allocation.",
+    "On SIFT-500K, Normalized Exponential Allocation achieves +15.4% throughput speedup and -42% P95 latency reduction.",
+    "Randomized and Reversed Geometry controls confirm that routing performance is driven by geometric alignment rather than degree variance."
+  ],
+  "benchmark_summary": {
+    "sift100k_uniform": {"recall_at_10": 0.9938, "qps": 17860.5, "p95_ms": 1.10, "edges": 2481840},
+    "sift100k_normalized_exp": {"recall_at_10": 0.9949, "qps": 21180.4, "p95_ms": 1.14, "edges": 2477317},
+    "sift100k_quantile": {"recall_at_10": 0.9950, "qps": 21728.1, "p95_ms": 1.07, "edges": 2474475},
+    "sift500k_uniform": {"recall_at_10": 0.9842, "qps": 11176.6, "p95_ms": 2.19, "edges": 12507239},
+    "sift500k_normalized_exp": {"recall_at_10": 0.9848, "qps": 12901.6, "p95_ms": 1.27, "edges": 12506570}
+  }
+}
