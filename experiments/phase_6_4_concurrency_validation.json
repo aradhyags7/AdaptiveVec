@@ -1,0 +1,12 @@
+{
+  "benchmark": "Phase 6.4 Concurrency & Dynamic Growth Stress Test",
+  "initial_elements": 1000,
+  "concurrent_inserts": 2000,
+  "final_elements": 3000,
+  "reader_threads": 4,
+  "writer_threads": 2,
+  "total_concurrent_queries": 19598,
+  "dynamic_growth_occurred": true,
+  "crashes_or_faults": 0,
+  "sanitizer_disclosure": "ThreadSanitizer (TSan) is inherently unavailable on native Windows MSVC/UCRT GCC. Thread safety was verified via recursive insertion serialization and reader-writer capacity locking, tested under high reader-writer contention."
+}

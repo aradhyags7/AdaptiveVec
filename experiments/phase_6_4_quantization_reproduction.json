@@ -1,0 +1,21 @@
+{
+  "benchmark": "Phase 6.4 Quantization Precision & Attribution Benchmark",
+  "provenance_audit": {
+    "historical_values": {"sq4_qps": 40262.2, "sq8_qps": 47576.0, "sq8_rerank_qps": 5036.0},
+    "actual_dataset": "SIFT-10K",
+    "actual_cardinality": 10000,
+    "actual_dimension": 128,
+    "actual_commit": "4fcbd40",
+    "actual_source_artifact": "experiments/phase_6_1_quantization_memory_audit.json"
+  },
+  "reproduction_experiments": [
+    {
+      "dataset": "SIFT-100K",
+      "cardinality": 100000,
+      "dimension": 128,
+      "fp32": {"recall": 0.9814, "qps": 3331.18, "p99_ms": 3.2123, "owned_mb": 96.7834, "working_set_mb": 229.176},
+      "pure_sq8": {"recall": 0.978, "qps": 3391.12, "p99_ms": 1.4412, "owned_mb": 47.9553, "working_set_mb": 272.77},
+      "pure_sq4": {"recall": 0.8744, "qps": 3584.21, "p99_ms": 1.53, "owned_mb": 47.9553, "working_set_mb": 311.527}
+    }
+  ]
+}

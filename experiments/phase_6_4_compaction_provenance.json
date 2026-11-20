@@ -1,0 +1,63 @@
+{
+  "benchmark": "Phase 6.4 Genuine SIFT-100K Lifecycle & Timing Provenance Audit",
+  "cardinality": 100000,
+  "dimension": 128,
+  "timer_unit": "milliseconds",
+  "provenance_note": "Phase 6.3 reported timings on N=10,000 with 1,000, 2,500, and 5,000 deletions labeled under SIFT-100K heading. This benchmark executes GENUINE N=100,000 with 10,000, 25,000, and 50,000 deletions.",
+  "genuine_100k_experiments": [
+    {
+      "churn_fraction": 0.1,
+      "deleted_count": 10000,
+      "surviving_count": 90000,
+      "recall_initial": 0.9915,
+      "recall_healed": 0.994,
+      "recall_compacted": 0.9895,
+      "recall_full_rebuild": 0.991,
+      "compaction_delta_pp": -0.45,
+      "recall_preservation_target_met": false,
+      "healing_time_ms": 1953.59,
+      "compaction_time_ms": 147.002,
+      "exclusive_lock_duration_ms": 147.002,
+      "total_maintenance_ms": 2100.6,
+      "full_rebuild_time_ms": 18327.1,
+      "maintenance_speedup": 8.72473,
+      "reclaimed_memory_mb": 9.35792
+    },
+    {
+      "churn_fraction": 0.25,
+      "deleted_count": 25000,
+      "surviving_count": 75000,
+      "recall_initial": 0.985,
+      "recall_healed": 0.9865,
+      "recall_compacted": 0.979,
+      "recall_full_rebuild": 0.99,
+      "compaction_delta_pp": -0.75,
+      "recall_preservation_target_met": false,
+      "healing_time_ms": 2961.6,
+      "compaction_time_ms": 129.249,
+      "exclusive_lock_duration_ms": 129.249,
+      "total_maintenance_ms": 3090.85,
+      "full_rebuild_time_ms": 16584.6,
+      "maintenance_speedup": 5.36571,
+      "reclaimed_memory_mb": 20.6691
+    },
+    {
+      "churn_fraction": 0.5,
+      "deleted_count": 50000,
+      "surviving_count": 50000,
+      "recall_initial": 0.9845,
+      "recall_healed": 0.984,
+      "recall_compacted": 0.9695,
+      "recall_full_rebuild": 0.9925,
+      "compaction_delta_pp": -1.45,
+      "recall_preservation_target_met": false,
+      "healing_time_ms": 6197.55,
+      "compaction_time_ms": 140.147,
+      "exclusive_lock_duration_ms": 140.147,
+      "total_maintenance_ms": 6337.7,
+      "full_rebuild_time_ms": 10420.6,
+      "maintenance_speedup": 1.64423,
+      "reclaimed_memory_mb": 39.6575
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "benchmark": "Phase 6.4 Matched-Recall and Beam Clamping Audit",
+  "memory_accounting_correction": {
+    "dataset": "SIFT-100K",
+    "raw_vector_payload_mb": 48.828,
+    "official_hnswlib_actual_index_mb": 64.828,
+    "faiss_actual_index_mb": 65.500,
+    "clarification": "Phase 6.3 reported hnswlib at 26.5 MB by quoting graph-only bytes or 10K test data. Full index-owned memory for 100K 128D FP32 vectors is ~65 MB."
+  },
+  "beam_clamping_reconciliation": {
+    "root_cause_explanation": "In Phase 6.3, evaluate_multi_recall_mapped requested k=100. Because search_beam = max(k, efSearch), all efSearch < 100 were overridden and clamped to 100 (or 400 with SQ8 rerank), producing identical recall at ef=16, 48, 96. When k=10, efSearch scales genuinely across [16, 128]."
+  },
+  "matched_recall_sweep": [
+    {
+      "requested_ef_search": 16,
+      "effective_search_beam": 16,
+      "adaptivevec_recall_10": 0.8852,
+      "adaptivevec_qps": 10938.4,
+      "adaptivevec_mean_evals": 428.398,
+      "hnswlib_recall_10": 0.8274,
+      "hnswlib_qps": 16202
+    },
+    {
+      "requested_ef_search": 32,
+      "effective_search_beam": 32,
+      "adaptivevec_recall_10": 0.954,
+      "adaptivevec_qps": 6395.5,
+      "adaptivevec_mean_evals": 659.214,
+      "hnswlib_recall_10": 0.9228,
+      "hnswlib_qps": 9455.16
+    },
+    {
+      "requested_ef_search": 48,
+      "effective_search_beam": 48,
+      "adaptivevec_recall_10": 0.975,
+      "adaptivevec_qps": 5203.07,
+      "adaptivevec_mean_evals": 857.386,
+      "hnswlib_recall_10": 0.9622,
+      "hnswlib_qps": 7450.35
+    },
+    {
+      "requested_ef_search": 64,
+      "effective_search_beam": 64,
+      "adaptivevec_recall_10": 0.9826,
+      "adaptivevec_qps": 4284.25,
+      "adaptivevec_mean_evals": 1016.46,
+      "hnswlib_recall_10": 0.9774,
+      "hnswlib_qps": 5420.11
+    },
+    {
+      "requested_ef_search": 96,
+      "effective_search_beam": 96,
+      "adaptivevec_recall_10": 0.9884,
+      "adaptivevec_qps": 2303.01,
+      "adaptivevec_mean_evals": 1277.64,
+      "hnswlib_recall_10": 0.9892,
+      "hnswlib_qps": 3930.57
+    },
+    {
+      "requested_ef_search": 128,
+      "effective_search_beam": 128,
+      "adaptivevec_recall_10": 0.9914,
+      "adaptivevec_qps": 2546.54,
+      "adaptivevec_mean_evals": 1493.73,
+      "hnswlib_recall_10": 0.9934,
+      "hnswlib_qps": 2586.01
+    }
+  ]
+}

@@ -203,6 +203,22 @@ public:
         return largest_remainder_discretization(continuous_m, total_budget, m_min, m_max);
     }
 
+    // Direct interface to apply normalized exponential budget allocation to an AdaptiveHNSWIndex
+    static void apply_normalized_exponential(
+        AdaptiveHNSWIndex& index,
+        const std::vector<GeometrySignal>& signals,
+        int m_base = 16, int m_min = 8, int m_max = 24, float beta = 0.5f
+    ) {
+        std::vector<int> alloc = allocate_normalized_exponential(signals, m_base, m_min, m_max, beta);
+        std::vector<float> lids(signals.size());
+        std::vector<float> densities(signals.size());
+        for (size_t i = 0; i < signals.size(); ++i) {
+            lids[i] = signals[i].lid;
+            densities[i] = signals[i].density;
+        }
+        index.assign_preassigned_degrees(alloc, &lids, &densities);
+    }
+
     // Approach E: Geometry Quantile Allocation (5 Quintiles)
     static std::vector<int> allocate_quantile(
         const std::vector<GeometrySignal>& signals,

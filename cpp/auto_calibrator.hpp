@@ -687,7 +687,7 @@ public:
             if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
             float val_p99_lat = static_cast<float>(val_latencies[p99_idx]);
             
-            if (val_mean_recall >= constraints.target_recall * 0.98f && val_p99_lat <= constraints.target_p99_latency_ms * 1.10f) {
+            if (val_mean_recall >= constraints.target_recall && val_p99_lat <= constraints.target_p99_latency_ms) {
                 report.is_feasible = true;
                 report.status = FeasibilityStatus::VerifiedFeasible;
                 best_feasible_trial.status = FeasibilityStatus::VerifiedFeasible;
@@ -704,11 +704,61 @@ public:
                 out_calibrated_index = std::move(best_feasible_index);
             }
         } else if (has_provisional && best_provisional_index) {
-            report.is_feasible = false;
-            report.status = FeasibilityStatus::ProvisionallyFeasible;
-            report.selected_config = best_provisional_trial;
-            report.violated_constraints.push_back("Selected configuration is provisionally feasible (mean recall met, but bootstrap CI lower bound dips below target).");
-            out_calibrated_index = std::move(best_provisional_index);
+            // Held-out validation check for provisional candidate
+            size_t val_start_idx = (n_queries > 1) ? n_calib_q : 0;
+            std::vector<float> val_per_query_recall(n_val_q, 0.0f);
+            std::vector<double> val_latencies(n_val_q, 0.0);
+            best_provisional_index->policy.enable_ada_ef = best_provisional_trial.enable_ada_ef;
+
+            #pragma omp parallel for schedule(dynamic, 16)
+            for (int q = 0; q < (int)n_val_q; ++q) {
+                size_t q_idx = val_start_idx + q;
+                const float* q_ptr = &query_vectors[q_idx * dim];
+                auto q_start = std::chrono::high_resolution_clock::now();
+                auto res = best_provisional_index->search(q_ptr, constraints.k, best_provisional_trial.ef_search);
+                auto q_end = std::chrono::high_resolution_clock::now();
+                val_latencies[q] = std::chrono::duration<double, std::milli>(q_end - q_start).count();
+
+                if (q_idx < ground_truth.size() && !ground_truth[q_idx].empty()) {
+                    size_t match_cnt = 0;
+                    const auto& gt = ground_truth[q_idx];
+                    size_t comp_k = std::min((size_t)constraints.k, gt.size());
+                    for (const auto& cand : res) {
+                        for (size_t g = 0; g < comp_k; ++g) {
+                            if (cand.id == gt[g]) {
+                                match_cnt++;
+                                break;
+                            }
+                        }
+                    }
+                    val_per_query_recall[q] = static_cast<float>(match_cnt) / static_cast<float>(comp_k);
+                }
+            }
+
+            double val_r_sum = 0.0;
+            for (float r : val_per_query_recall) val_r_sum += r;
+            float val_mean_recall = static_cast<float>(val_r_sum / std::max((size_t)1, n_val_q));
+
+            std::sort(val_latencies.begin(), val_latencies.end());
+            size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
+            if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
+            float val_p99_lat = static_cast<float>(val_latencies[p99_idx]);
+
+            if (val_mean_recall >= constraints.target_recall && val_p99_lat <= constraints.target_p99_latency_ms) {
+                report.is_feasible = false;
+                report.status = FeasibilityStatus::ProvisionallyFeasible;
+                best_provisional_trial.status = FeasibilityStatus::ProvisionallyFeasible;
+                report.selected_config = best_provisional_trial;
+                report.violated_constraints.push_back("Selected configuration is provisionally feasible (mean recall met on calibration and validation, but bootstrap CI lower bound dips below target).");
+                out_calibrated_index = std::move(best_provisional_index);
+            } else {
+                report.is_feasible = false;
+                report.status = FeasibilityStatus::ValidationFailed;
+                best_provisional_trial.status = FeasibilityStatus::ValidationFailed;
+                report.selected_config = best_provisional_trial;
+                report.violated_constraints.push_back("Provisional candidate failed held-out validation point estimate.");
+                out_calibrated_index = std::move(best_provisional_index);
+            }
         } else {
             report.is_feasible = false;
             report.status = FeasibilityStatus::InfeasibleWithinSearchSpace;
@@ -957,7 +1007,7 @@ public:
             if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
             float val_p99_lat = static_cast<float>(val_latencies[p99_idx]);
 
-            if (val_mean_recall >= constraints.target_recall * 0.98f && val_p99_lat <= constraints.target_p99_latency_ms * 1.10f) {
+            if (val_mean_recall >= constraints.target_recall && val_p99_lat <= constraints.target_p99_latency_ms) {
                 report.is_feasible = true;
                 report.status = FeasibilityStatus::VerifiedFeasible;
                 best_feasible_trial.status = FeasibilityStatus::VerifiedFeasible;
@@ -968,7 +1018,8 @@ public:
                 best_feasible_trial.status = FeasibilityStatus::ValidationFailed;
                 report.selected_config = best_feasible_trial;
                 report.violated_constraints.push_back("Held-out validation failed: Validation Recall=" + 
-                    std::to_string(val_mean_recall) + " vs target=" + std::to_string(constraints.target_recall));
+                    std::to_string(val_mean_recall) + " vs target=" + std::to_string(constraints.target_recall) +
+                    ", Validation p99=" + std::to_string(val_p99_lat) + " ms vs target=" + std::to_string(constraints.target_p99_latency_ms) + " ms");
             }
         } else if (has_provisional) {
             report.is_feasible = false;

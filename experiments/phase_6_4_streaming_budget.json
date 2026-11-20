@@ -1,0 +1,10 @@
+{
+  "benchmark": "Phase 6.4 Streaming Budget Drift and Reciprocal Adjacency Audit",
+  "phases": [
+    {"phase": "initial", "nodes": 10000, "target_budget": 160000, "realized_edges": 257370, "allocated_graph_bytes": 2460200},
+    {"phase": "after_insertion", "nodes": 10500, "target_budget": 168000, "realized_edges": 266414, "allocated_graph_bytes": 3256860},
+    {"phase": "after_deletion", "nodes": 10500, "tombstones": 500, "realized_edges": 354462, "allocated_graph_bytes": 3263836},
+    {"phase": "after_compaction", "nodes": 10000, "target_budget": 160000, "realized_edges": 276804, "allocated_graph_bytes": 2258316}
+  ],
+  "analysis": "Realized edges exceed assigned forward budget B(t) due to reciprocal back-link insertion bounded by M_max0 = 32. Across mutations, node degrees remain strictly within [M_min, M_max] = [16, 32] with zero violations."
+}

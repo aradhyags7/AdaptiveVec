@@ -1,8 +1,8 @@
 # AdaptiveVec — Operational Limitations, Failure Modes, and Future Work
 
-**Document Status:** Phase 6.3 Final Integrated Acceptance & Presentation Ready  
-**Branch:** `phase-6.3-final-integrated-acceptance`  
-**Parent Checkpoint:** `ff09dff` (Phase 6.2 Engineering Closure)  
+**Document Status:** Phase 6.4 Final SLA Integrity & Presentation Ready  
+**Branch:** `phase-6.4-final-correctness-closure`  
+**Parent Checkpoint:** `cece8fc` (Phase 6.3 Integrated Acceptance)  
 **Target Milestone:** Residual Engineering Defects and Final Integrated Acceptance  
 
 ---
@@ -48,14 +48,14 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
 ## 3. Performance Tradeoffs
 
 ### 3.1 Raw Vector Re-ranking Latency Regression
-- **The Issue:** Native SQ8 with 2x FP32 re-ranking achieves 99.54% recall, but drops throughput to 5,036 QPS (compared to 47,576 QPS for Pure SQ8 without re-ranking).
+- **The Issue:** Native SQ8 with 2x FP32 re-ranking achieves high precision, but drops throughput to 5,036 QPS on SIFT-10K and drives P99 latency to 26.75 ms on Transformer-384D. In Phase 6.4, purging raw FP32 vectors via `drop_raw_vectors()` eliminated cache thrashing, restoring sub-10 ms P99 latency (7.38 ms).
 - **The Mechanism:** Re-ranking requires non-sequential memory lookups to fetch full 128D FP32 vectors for $2k$ candidate IDs, causing severe L3 CPU cache misses that dominate total search latency.
 - **Guideline:** Deploy Pure SQ8 for memory-constrained, high-throughput search. Reserve re-ranking only for applications that strictly require exact float precision at lower query concurrency.
 
 ### 3.2 Compaction Write-Lock Pause Duration
 - **The Issue:** Physical compaction is not wait-free or "zero downtime."
 - **The Mechanism:** Acquiring `std::unique_lock<std::shared_mutex>` pauses concurrent search readers while active buffers are remapped and repointed.
-- **Measured Duration:** On SIFT-100K, the exclusive write-lock pause is **6.5 to 7.2 milliseconds**. While brief enough to prevent client timeouts, it represents a discrete latency spike during compaction execution.
+- **Measured Duration:** On SIFT-100K ($N=100,000$), the exclusive write-lock pause is **129.2 to 147.0 milliseconds** (and **127.5 milliseconds** on Transformer-57K). The previously reported 6.5–7.2 ms reflected a 10K vector slice. While brief enough to prevent client timeouts, it represents a discrete latency spike during compaction execution.
 
 ---
 

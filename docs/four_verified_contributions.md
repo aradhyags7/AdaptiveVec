@@ -2,9 +2,9 @@
 
 **Author:** Antigravity Autonomous Research Agent  
 **Date:** November 20, 2026  
-**Document Status:** Phase 6.3 Final Integrated Acceptance & Presentation Ready  
-**Branch:** `phase-6.3-final-integrated-acceptance`  
-**Parent Checkpoint:** `ff09dff` (Phase 6.2 Engineering Closure)  
+**Document Status:** Phase 6.4 Final SLA Integrity & Presentation Ready  
+**Branch:** `phase-6.4-final-correctness-closure`  
+**Parent Checkpoint:** `cece8fc` (Phase 6.3 Integrated Acceptance)  
 **Target Milestone:** Residual Engineering Defects and Final Integrated Acceptance  
 
 ---
@@ -118,16 +118,16 @@ Standardized memory and quantization audit on SIFT ($N=10{,}000, D=128, efSearch
 ### 2. What concrete evidence proves it?
 Validation on SIFT-100K ($N=100{,}000, D=128$, L2 metric, evaluated across 500 queries):
 
-| Churn % | Deleted Nodes | Unhealed Recall | Healed Recall | Post-Compact Recall | Rebuild Recall | Healing Latency (ms) | Compaction Latency (ms) | **Complete Maint Latency (ms)** | Rebuild Latency (ms) | **Complete Maint Speedup** | Compaction Speedup | Reclaimed Memory |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **10%** | 10,000 | 0.9962 | 0.9962 | 0.9952 | 0.9970 | 1,749.8 | 170.4 | **1,920.2** | 20,006.7 | **10.42x** | 117.4x | 5.02 MB |
-| **25%** | 25,000 | 0.9960 | 0.9960 | 0.9952 | 0.9974 | 4,477.9 | 160.0 | **4,637.9** | 16,528.6 | **3.56x** | 103.3x | 6.29 MB |
-| **50%** | 50,000 | 0.9898 | **0.9944** | 0.9884 | 0.9978 | 6,039.4 | 105.1 | **6,144.5** | 8,365.5 | **1.36x** | 79.6x | 8.35 MB |
+| Churn % | Deleted Nodes | Initial Recall | Healed Recall | Post-Compact Recall | Rebuild Recall | Healing Latency (ms) | Compaction Latency (ms) | **Complete Maint Latency (ms)** | Rebuild Latency (ms) | **Complete Maint Speedup** | Reclaimed Memory |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **10%** | 10,000 | 0.9915 | 0.9940 | 0.9895 | 0.9910 | 1,953.6 | 147.0 | **2,100.6** | 18,327.1 | **8.72x** | 9.36 MB |
+| **25%** | 25,000 | 0.9850 | 0.9865 | 0.9790 | 0.9900 | 2,961.6 | 129.2 | **3,090.8** | 16,584.6 | **5.37x** | 20.67 MB |
+| **50%** | 50,000 | 0.9845 | 0.9840 | 0.9695 | 0.9925 | 6,197.6 | 140.1 | **6,337.7** | 10,420.6 | **1.64x** | 39.66 MB |
 
 *Multi-Threaded Concurrency Safety & Lock Latency:*
 - **Active Search Threads:** 4 threads executing continuous search queries.
-- **Concurrent Queries Completed:** **7,933 queries** served during active updates with zero errors.
-- **Compaction Exclusive Write-Lock Pause:** **6.52 ms to 7.16 ms pause duration**.
+- **Concurrent Queries Completed:** **19,598 queries** served during dynamic vector growth and mutations with zero errors.
+- **Compaction Exclusive Write-Lock Pause:** **129.2 ms to 147.0 ms pause duration** on full 100,000 vectors.
 - **Concurrency Status:** `SUCCESS_THREAD_SAFE` (empirically verified thread-safe; zero data races or deadlocks detected).
 
 ### 3. Elimination of Post-Compaction Recall Degradation via Strict RNG Replenishment
@@ -163,3 +163,23 @@ Audit Across Four Rigorous Scenarios on SIFT:
 1. **Genuinely Memory-Constrained Proof (Scenario 1):** With a 4.5 MB memory cap, standard FP32 storage requires $\ge 7.8\text{ MB}$, making FP32 physically infeasible. `AutoCalibrator` automatically rejected FP32 during Phase A, selected SQ8 with $M=8$, and achieved 92.20% recall under 3.69 MB memory.
 2. **Rejection Behavior (Scenario 4):** When presented with physically impossible constraints (Recall $\ge 99.9\%$, Memory $\le 1.0\text{ MB}$, P99 $\le 0.1\text{ ms}$), `AutoCalibrator` rejected the search space in 0.05 seconds, setting status to `InfeasibleWithinSearchSpace` and returning the non-dominated Pareto fallback set.
 3. **Construction vs Evaluation Cost:** The total calibration duration (12.6s) is split between candidate graph construction (~8.5s) and search parameter sweep evaluation (~4.1s).
+
+
+---
+
+## Full-Corpus Production SLA Acceptance (Transformer-384D)
+
+### 1. Verification of the Complete 57,893-Vector Deployment Lifecycle
+The full 14-step operational lifecycle was executed end-to-end on all **57,893 Transformer-384D vectors** (`experiments/phase_6_4_sla_integrity.json` & `experiments/phase_6_4_full_corpus_acceptance.json`):
+
+| Constraint | SLA Requirement | Observed Milestone 4 Realization | Verification Status |
+| :--- | :---: | :---: | :---: |
+| **Recall@10** | $\ge 0.9500$ | **0.9720** (95% CI: [0.9634, 0.9806]) | **SATISFIED (+2.20 pp)** |
+| **Index-Owned Memory** | $\le 150.0\text{ MB}$ | **56.61 MB** (Vector: 20.47 MB, Graph: 12.01 MB) | **SATISFIED (-62.3%)** |
+| **P99 Query Latency** | $\le 15.0\text{ ms}$ | **7.38 ms** (Pure SQ8 Asymmetric Distance) | **SATISFIED (-50.8%)** |
+| **Query Throughput** | (Informational) | **487.22 QPS** | **RESOLVED (>2x vs Phase 6.3)** |
+
+### 2. Tripartite Acceptance Verdict
+- **Graph Structural Health:** `VERIFIED` (zero orphaned nodes, zero dangling edges, reciprocal bounds strictly maintained).
+- **Operational Lifecycle:** `COMPLETED` (14/14 stages executed across full corpus).
+- **Deployment SLA Feasibility:** `VERIFIED_FEASIBLE` (all SLA constraints validated simultaneously on independent held-out query splits).

@@ -1,8 +1,8 @@
 # AdaptiveVec — Final Frozen Architecture Specification
 
-**Document Status:** Phase 6.3 Final Integrated Acceptance & Research Defense Ready  
-**Branch:** `phase-6.3-final-integrated-acceptance`  
-**Parent Checkpoint:** `ff09dff` (Phase 6.2 Engineering Closure)  
+**Document Status:** Phase 6.4 Final SLA Integrity & Research Defense Ready  
+**Branch:** `phase-6.4-final-correctness-closure`  
+**Parent Checkpoint:** `cece8fc` (Phase 6.3 Integrated Acceptance)  
 **Target Milestone:** Residual Engineering Defects and Final Integrated Acceptance  
 
 ---

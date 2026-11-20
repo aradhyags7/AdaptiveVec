@@ -1,0 +1,15 @@
+{
+  "benchmark": "Phase 6.4 Geometry Implementation and Formula Audit",
+  "source_code_inspection": {
+    "file": "cpp/budget_allocator.hpp",
+    "formula_in_code": "w_i = exp(std::max(-2.0, std::min(2.0, beta * signals[i].combined_score)))",
+    "combined_score": "S_i = alpha_lid * s_lid + beta_spars * s_spars",
+    "weight_sign": "POSITIVE exponential (+beta * S_i)",
+    "documentation_correction": "Phase 6.3 dossier contained typographical negative sign in markdown prose. Actual C++ implementation has always used positive weighting.",
+    "active_signals": {"lid": true, "sparsity": true, "density": true},
+    "normalization_algorithm": "Hare-Niemeyer / Largest-Remainder Method",
+    "exact_conservation_guarantee": "sum(M_i) == N * M_base",
+    "reversed_geometry_direction": "Ascending score sorted to descending degree allocation (lowest scores receive highest degrees)",
+    "production_api_reachability": "AdaptiveHNSWIndex::assign_preassigned_degrees() and BudgetAllocator::apply_normalized_exponential() integrate normalization directly into index construction."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "benchmark": "Phase 6.4 Full-Corpus Integrated Lifecycle Acceptance",
+  "corpus": {
+    "dataset": "Transformer-384D",
+    "initial_vectors": 57893,
+    "surviving_vectors": 55893,
+    "dimension": 384
+  },
+  "final_results": {
+    "precision": "Pure_SQ8",
+    "recall_at_10": 0.972,
+    "p99_latency_ms": 7.3767,
+    "qps": 487.219,
+    "index_owned_memory_mb": 56.6092,
+    "process_working_set_mb": 217.672,
+    "graph_integrity": "VERIFIED (zero dangling edges, zero orphans)",
+    "deployment_sla_status": "VERIFIED_FEASIBLE"
+  }
+}

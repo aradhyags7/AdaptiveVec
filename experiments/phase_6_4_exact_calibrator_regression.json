@@ -1,0 +1,61 @@
+{
+  "benchmark": "Phase 6.4 AutoCalibrator Exact 10,000-Vector Regression Audit",
+  "cardinality": {
+    "calibration_cardinality": 10000,
+    "deployment_cardinality": 10000
+  },
+  "historical_strict_memory_sla": {
+    "target_recall": 0.92,
+    "max_memory_mb": 4.5,
+    "target_p99_latency_ms": 5.0,
+    "optimization_goal": "MinMemory",
+    "final_status": "VERIFIED_FEASIBLE",
+    "trial_1_falsely_selected": false,
+    "selected_config": {"trial_id": 10, "stage": "SearchSweep", "m": 8, "ef_construction": 30, "ef_search": 64, "precision": "SQ8", "enable_adaptive": false, "enable_ada_ef": true, "memory_mb": 3.6940, "recall_mean": 0.9380, "recall_ci_lower": 0.9190, "recall_ci_upper": 0.9550, "qps": 50003.6242, "p99_latency_ms": 0.3012, "trial_duration_s": 0.0018, "is_feasible": true, "conservative_feasible": false, "status": "VERIFIED_FEASIBLE", "violations": {"v_recall": 0.0000, "v_memory": 0.0000, "v_latency": 0.0000, "v_total": 0.0000}, "rejection_reason": ""},
+    "calibration_recall": 0.938,
+    "calibration_ci": [0.919, 0.955],
+    "calibration_memory_mb": 3.69398,
+    "actual_deployment_recall": 0.9416,
+    "actual_deployment_ci": [0.9334, 0.9494],
+    "actual_deployment_memory_mb": 3.37874,
+    "actual_deployment_p99_ms": 0.3255,
+    "actual_deployment_qps": 11311.8
+  },
+  "provenance_reconciliation": {
+    "phase_6_2_trial_6": "Trial 6 (M=8, efC=30, efSearch=128, SQ8) under 6-search-trial grid without Ada-ef",
+    "phase_6_3_trial_11": "Trial 11 (M=8, efC=30, efSearch=96, SQ8, Ada-ef=ON) under 12-search-trial grid with Ada-ef enabled",
+    "reconciliation_verdict": "Both trials share identical M=8, efC=30, SQ8 build candidate. Grid expansion from 6 to 12 trials selected optimal Ada-ef configuration."
+  },
+  "deterministic_state_tests": [
+    {
+      "test_name": "TEST_1_VERIFIED_FEASIBLE",
+      "observed_status": "VERIFIED_FEASIBLE",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_2_PROVISIONALLY_FEASIBLE",
+      "observed_status": "PROVISIONALLY_FEASIBLE",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_3_VALIDATION_FAILED",
+      "observed_status": "VALIDATION_FAILED",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_4_INFEASIBLE_WITHIN_SEARCH_SPACE",
+      "observed_status": "INFEASIBLE_WITHIN_SEARCH_SPACE",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_5_INVALID_REQUIREMENTS",
+      "observed_status": "INVALID_REQUIREMENTS",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_6_EVALUATION_ERROR",
+      "observed_status": "EVALUATION_ERROR",
+      "pass": true
+    }
+  ]
+}

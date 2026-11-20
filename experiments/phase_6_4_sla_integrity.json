@@ -1,0 +1,37 @@
+{
+  "benchmark": "Phase 6.4 Full-Corpus SLA Integrity and Final Classification Audit",
+  "requirements": {
+    "target_recall": 0.95,
+    "max_memory_mb": 150,
+    "target_p99_latency_ms": 15
+  },
+  "calibrator_pre_construction": {
+    "status": "VALIDATION_FAILED",
+    "held_out_recall": 0.954,
+    "reason": "Calibrator strictly validates held-out query split point estimate before certification."
+  },
+  "storage_reconciliation": {
+    "raw_fp32_purged": true,
+    "vector_storage_mb": 20.4686,
+    "graph_storage_mb": 12.0105,
+    "total_index_owned_mb": 56.6092,
+    "process_working_set_mb": 217.672,
+    "memory_sla_met": true
+  },
+  "latency_and_throughput_profile": {
+    "initial_recall": 0.887,
+    "initial_p99_ms": 3.6022,
+    "initial_qps": 593.771,
+    "post_compaction_recalibrated_ef": 96,
+    "post_compaction_recall": 0.972,
+    "post_compaction_p99_ms": 7.3767,
+    "post_compaction_qps": 487.219,
+    "latency_sla_met": true,
+    "recall_sla_met": true
+  },
+  "final_classifications": {
+    "graph_structural_health": "VERIFIED",
+    "operational_lifecycle": "COMPLETED",
+    "deployment_sla_feasibility": "VERIFIED_FEASIBLE"
+  }
+}

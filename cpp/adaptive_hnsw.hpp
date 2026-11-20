@@ -815,7 +815,8 @@ public:
     mutable std::atomic<uint64_t> heuristic_calls{0};
     mutable std::mutex entry_point_mutex;
     mutable std::mutex tracker_mutex;
-    mutable std::shared_mutex index_lifecycle_rw_mutex; // Global reader-writer lock for compaction safety
+    mutable std::recursive_mutex insertion_mutex;       // Recursive mutex serializing streaming insertions
+    mutable std::shared_mutex index_lifecycle_rw_mutex; // Global reader-writer lock for compaction & reallocation safety
     
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
         : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), quantizer_sq4(dimension), node_locks(NUM_NODE_LOCKS) {
@@ -832,6 +833,17 @@ public:
         deleted.reserve(n);
         if (graphs.empty()) graphs.resize(16);
         graphs[0].reserve(n);
+    }
+
+    void assign_preassigned_degrees(const std::vector<int>& degrees, const std::vector<float>* lids = nullptr, const std::vector<float>* densities = nullptr) {
+        preassigned_node_params.resize(degrees.size());
+        for (size_t i = 0; i < degrees.size(); ++i) {
+            int m_val = degrees[i];
+            int m_max0_val = m_val * 2;
+            float l = (lids && i < lids->size()) ? (*lids)[i] : 0.0f;
+            float d = (densities && i < densities->size()) ? (*densities)[i] : 0.0f;
+            preassigned_node_params[i] = NodeParams{m_val, m_val, m_max0_val, policy.ef_c_base, 0.0f, l, d};
+        }
     }
 
     std::unique_ptr<AdaptiveHNSWIndex> clone() const {
@@ -1717,6 +1729,25 @@ public:
     }
     
     tableint insert(const float* vec) {
+        std::unique_lock<std::recursive_mutex> insert_lock(insertion_mutex);
+
+        // Pre-check capacity growth under exclusive write lock if reallocation is necessary
+        size_t cur_n = num_elements;
+        bool needs_grow = (policy.keep_raw_vectors && (data.size() + dim > data.capacity())) ||
+                          (policy.enable_sq8 && (quantized_data.size() + dim > quantized_data.capacity())) ||
+                          (policy.enable_sq4 && (quantized_data_sq4.size() + (dim + 1) / 2 > quantized_data_sq4.capacity())) ||
+                          (cur_n + 1 > node_levels.capacity()) ||
+                          (cur_n + 1 > node_params.capacity()) ||
+                          (cur_n + 1 > in_degrees.capacity()) ||
+                          (cur_n + 1 > deleted.capacity()) ||
+                          (graphs.empty() || cur_n + 1 > graphs[0].capacity());
+
+        if (needs_grow) {
+            std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+            size_t new_cap = std::max((size_t)1024, cur_n * 2 + 1024);
+            reserve(new_cap);
+        }
+
         std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         tableint q_idx = (tableint)num_elements++;
         if (policy.keep_raw_vectors) {
@@ -1887,8 +1918,13 @@ public:
      * Parallelizes vector insertion across worker threads using striped node locking.
      */
     void batch_insert(const float* vectors, size_t n_vectors, int num_threads = 0) {
-        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         if (n_vectors == 0) return;
+
+        // Reserve memory up-front under write lock to ensure zero reallocation during insertion
+        {
+            std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+            reserve(num_elements + n_vectors);
+        }
         
         if (num_threads <= 0) {
             #if defined(_OPENMP)
@@ -1912,6 +1948,8 @@ public:
             insert(&vectors[i * dim]);
         }
         if (seed_count >= n_vectors) return;
+
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
 
         // Reserve and copy vector memory up-front
         size_t start_idx = num_elements;
