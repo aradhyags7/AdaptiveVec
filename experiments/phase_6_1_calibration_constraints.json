@@ -1,0 +1,53 @@
+{
+  "milestone": "MILESTONE IV: Automatic Resource-Constrained Optimization",
+  "scenarios": [
+    {
+      "scenario": "1. Memory-Constrained Deployment",
+      "target_recall": 0.95,
+      "max_memory_mb": 50.0,
+      "target_p99_latency_ms": 10.0,
+      "selected_m": 8,
+      "selected_efC": 30,
+      "selected_efS": 64,
+      "selected_precision": "SQ8",
+      "measured_memory_mb": 3.69376,
+      "measured_recall": 0.9548,
+      "measured_p99_ms": 0.3279,
+      "measured_qps": 62500.8,
+      "feasibility_status": "Feasible",
+      "calibration_duration_sec": 5.99483
+    },
+    {
+      "scenario": "2. Latency-Constrained Deployment",
+      "target_recall": 0.92,
+      "max_memory_mb": 120.0,
+      "target_p99_latency_ms": 2.0,
+      "selected_m": 8,
+      "selected_efC": 30,
+      "selected_efS": 32,
+      "selected_precision": "SQ8",
+      "measured_memory_mb": 3.69376,
+      "measured_recall": 0.922,
+      "measured_p99_ms": 0.6665,
+      "measured_qps": 24999.4,
+      "feasibility_status": "Feasible",
+      "calibration_duration_sec": 12.6091
+    },
+    {
+      "scenario": "3. High-Recall Combined SLA Deployment",
+      "target_recall": 0.98,
+      "max_memory_mb": 80.0,
+      "target_p99_latency_ms": 5.0,
+      "selected_m": 24,
+      "selected_efC": 100,
+      "selected_efS": 32,
+      "selected_precision": "FP32",
+      "measured_memory_mb": 8.26329,
+      "measured_recall": 0.9832,
+      "measured_p99_ms": 1.6302,
+      "measured_qps": 13157.9,
+      "feasibility_status": "Feasible",
+      "calibration_duration_sec": 12.5596
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "experiment": "Concurrency Safety & Search Lock-Contention Audit",
+  "active_search_threads": 4,
+  "completed_queries_during_updates": 7933,
+  "streaming_insertion_duration_ms": 727.845,
+  "deletion_and_healing_duration_ms": 247.098,
+  "compaction_exclusive_lock_duration_ms": 7.1616,
+  "concurrency_status": "SUCCESS_THREAD_SAFE",
+  "data_race_detected": false,
+  "deadlock_detected": false
+}

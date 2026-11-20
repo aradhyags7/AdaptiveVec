@@ -1,0 +1,20 @@
+{
+  "experiment": "Phase 6.1 Integrated End-to-End Acceptance Test",
+  "corpus": "Transformer-384D (all-MiniLM-L6-v2)",
+  "cardinality": 57893,
+  "dim": 384,
+  "steps": [
+    {"step": 1, "name": "Dataset Fingerprinting", "status": "SUCCESS", "vectors": 57893, "dim": 384},
+    {"step": 2, "name": "Specify Resource Constraints", "status": "SUCCESS", "target_recall": 0.95, "max_memory_mb": 100.0},
+    {"step": 3, "name": "Auto-Calibration Configuration Selection", "status": "SUCCESS", "selected_m": 16, "selected_efC": 100},
+    {"step": 4, "name": "Construct Geometry-Aware Proximity Index", "status": "SUCCESS", "initial_vectors": 5000, "build_time_s": 2.16514},
+    {"step": 5, "name": "Report Memory Footprint", "status": "SUCCESS", "memory_bytes": 14079324},
+    {"step": 6, "name": "Execute Initial Semantic Retrieval", "status": "SUCCESS", "recall_at_10": 0.9505},
+    {"step": 7, "name": "Streaming Ingestion of New Vectors", "status": "SUCCESS", "added_vectors": 1000, "time_s": 0.448042, "recall_at_10": 0.9615},
+    {"step": 8, "name": "Logical Node Deletion", "status": "SUCCESS", "deleted_count": 1000},
+    {"step": 9, "name": "Execute Local Graph Healing", "status": "SUCCESS", "healing_time_ms": 211.585, "recall_at_10": 0.9755},
+    {"step": 10, "name": "Perform Physical Zero-Downtime Compaction", "status": "SUCCESS", "compaction_time_ms": 12.3033, "memory_reclaimed_bytes": 5604832},
+    {"step": 11, "name": "Post-Compaction Retrieval Re-Evaluation", "status": "SUCCESS", "final_recall_at_10": 0.967},
+    {"step": 12, "name": "Comparative Baseline Parity", "status": "SUCCESS", "hnswlib_parity_verified": true}
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "milestone": "MILESTONE III: Dynamic and Self-Healing Index Scalability",
+  "base_cardinality": 10000,
+  "trials": [
+    {
+      "delete_percentage": 10,
+      "deleted_nodes": 1000,
+      "original_recall": 0.9962,
+      "unhealed_recall": 0.9962,
+      "healed_recall": 0.9962,
+      "clustered_healed_recall": 0.9962,
+      "post_compaction_recall": 0.9952,
+      "full_rebuild_recall": 0.997,
+      "healing_time_ms": 174.978,
+      "compaction_time_ms": 17.0443,
+      "full_rebuild_time_ms": 2000.67,
+      "compaction_speedup_vs_rebuild": 117.381,
+      "memory_reclaimed_bytes": 5021112
+    },
+    {
+      "delete_percentage": 25,
+      "deleted_nodes": 2500,
+      "original_recall": 0.9962,
+      "unhealed_recall": 0.996,
+      "healed_recall": 0.996,
+      "clustered_healed_recall": 0.996,
+      "post_compaction_recall": 0.9952,
+      "full_rebuild_recall": 0.9974,
+      "healing_time_ms": 447.788,
+      "compaction_time_ms": 16.0037,
+      "full_rebuild_time_ms": 1652.86,
+      "compaction_speedup_vs_rebuild": 103.28,
+      "memory_reclaimed_bytes": 6289032
+    },
+    {
+      "delete_percentage": 50,
+      "deleted_nodes": 5000,
+      "original_recall": 0.9962,
+      "unhealed_recall": 0.9898,
+      "healed_recall": 0.9944,
+      "clustered_healed_recall": 0.9944,
+      "post_compaction_recall": 0.9884,
+      "full_rebuild_recall": 0.9978,
+      "healing_time_ms": 603.939,
+      "compaction_time_ms": 10.5146,
+      "full_rebuild_time_ms": 836.547,
+      "compaction_speedup_vs_rebuild": 79.5605,
+      "memory_reclaimed_bytes": 8352744
+    }
+  ]
+}

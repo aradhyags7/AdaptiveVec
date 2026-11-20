@@ -1,0 +1,68 @@
+{
+  "experiment": "Milestone I: Geometry-Aware Graph Intelligence Reproduction",
+  "dataset": "SIFT-100K",
+  "cardinality": 100000,
+  "dim": 128,
+  "geometry_preprocessing_sec": 0.0203377,
+  "eval_queries": 1000,
+  "configurations": [
+    {
+      "name": "AdaptiveVec Strict RNG Uniform (Baseline Control)",
+      "recall_at_1": 0.997,
+      "recall_at_10": 0.9929,
+      "recall_at_100": 0.9496,
+      "recall_10_ci_95": [0.991055, 0.994367],
+      "qps": 2492.53,
+      "p50_latency_ms": 0.3008,
+      "p95_latency_ms": 0.7797,
+      "p99_latency_ms": 2.0618,
+      "mean_dist_evals": 1200.54,
+      "graph_memory_mb": 27.8908,
+      "build_time_sec": 30.0538
+    },
+    {
+      "name": "AdaptiveVec Normalized Exponential (Proposed)",
+      "recall_at_1": 0.997,
+      "recall_at_10": 0.9926,
+      "recall_at_100": 0.94585,
+      "recall_10_ci_95": [0.990721, 0.994101],
+      "qps": 3090.98,
+      "p50_latency_ms": 0.2705,
+      "p95_latency_ms": 0.4864,
+      "p99_latency_ms": 1.3838,
+      "mean_dist_evals": 1169.12,
+      "graph_memory_mb": 27.5,
+      "build_time_sec": 34.6983
+    },
+    {
+      "name": "AdaptiveVec Normalized Quantile (Quintiles)",
+      "recall_at_1": 0.997,
+      "recall_at_10": 0.9924,
+      "recall_at_100": 0.94211,
+      "qps": 2796.41,
+      "p95_latency_ms": 0.7627,
+      "mean_dist_evals": 1141.94,
+      "graph_memory_mb": 27.1861
+    },
+    {
+      "name": "Randomized Degree Control (Shuffled Budget)",
+      "recall_at_10": 0.9939,
+      "qps": 2379.83,
+      "p95_latency_ms": 0.8011,
+      "mean_dist_evals": 1204.39
+    },
+    {
+      "name": "Reversed Geometry Control (Inverted Weights)",
+      "recall_at_10": 0.9948,
+      "qps": 2933.39,
+      "p95_latency_ms": 0.5699,
+      "mean_dist_evals": 1234.63
+    },
+    {
+      "name": "Official hnswlib (v0.8.0)",
+      "recall_at_10": 0.9864,
+      "qps": 13433.8,
+      "build_time_sec": 33.1957
+    }
+  ]
+}

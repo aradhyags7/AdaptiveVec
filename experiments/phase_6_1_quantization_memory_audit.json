@@ -1,0 +1,79 @@
+{
+  "milestone": "MILESTONE II: Resource-Efficient Vector Retrieval",
+  "n_vectors": 10000,
+  "dim": 128,
+  "modes": [
+    {
+      "name": "1. Pure FP32 Storage",
+      "recall_at_10": 0.9962,
+      "qps": 27965,
+      "raw_vector_payload_bytes": 5120000,
+      "compressed_vector_payload_bytes": 0,
+      "retained_fp32_cache_bytes": 5120000,
+      "quantization_metadata_bytes": 0,
+      "graph_adjacency_bytes": 2234780,
+      "total_owned_index_bytes": 7825132,
+      "resident_working_set_mb": 159.449
+    },
+    {
+      "name": "2. Pure SQ8 Storage (Purged FP32)",
+      "recall_at_10": 0.9954,
+      "qps": 47576,
+      "raw_vector_payload_bytes": 0,
+      "compressed_vector_payload_bytes": 1280000,
+      "retained_fp32_cache_bytes": 0,
+      "quantization_metadata_bytes": 1024,
+      "graph_adjacency_bytes": 2233816,
+      "total_owned_index_bytes": 4801320,
+      "resident_working_set_mb": 162.949
+    },
+    {
+      "name": "3. Pure SQ4 Storage (Purged FP32)",
+      "recall_at_10": 0.9974,
+      "qps": 40262.2,
+      "raw_vector_payload_bytes": 0,
+      "compressed_vector_payload_bytes": 640000,
+      "retained_fp32_cache_bytes": 0,
+      "quantization_metadata_bytes": 1024,
+      "graph_adjacency_bytes": 2291204,
+      "total_owned_index_bytes": 3810132,
+      "resident_working_set_mb": 167.066
+    },
+    {
+      "name": "4. Native SQ8 + FP32 Rerank (2x)",
+      "recall_at_10": 0.9954,
+      "qps": 5036.49,
+      "raw_vector_payload_bytes": 5120000,
+      "compressed_vector_payload_bytes": 1280000,
+      "retained_fp32_cache_bytes": 5120000,
+      "quantization_metadata_bytes": 1024,
+      "graph_adjacency_bytes": 2235404,
+      "total_owned_index_bytes": 9922908,
+      "resident_working_set_mb": 175.812
+    },
+    {
+      "name": "5. Native SQ4 + FP32 Rerank (3x)",
+      "recall_at_10": 0.9974,
+      "qps": 7297.65,
+      "raw_vector_payload_bytes": 5120000,
+      "compressed_vector_payload_bytes": 640000,
+      "retained_fp32_cache_bytes": 5120000,
+      "quantization_metadata_bytes": 1024,
+      "graph_adjacency_bytes": 2190280,
+      "total_owned_index_bytes": 8829208,
+      "resident_working_set_mb": 184.008
+    },
+    {
+      "name": "6. SQ8 with Reconstructed Vector Rerank (Zero FP32 Storage)",
+      "recall_at_10": 0.9954,
+      "qps": 5930.64,
+      "raw_vector_payload_bytes": 0,
+      "compressed_vector_payload_bytes": 1280000,
+      "retained_fp32_cache_bytes": 0,
+      "quantization_metadata_bytes": 1024,
+      "graph_adjacency_bytes": 2233816,
+      "total_owned_index_bytes": 4801320,
+      "resident_working_set_mb": 187.934
+    }
+  ]
+}
