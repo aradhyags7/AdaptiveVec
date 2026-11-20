@@ -113,6 +113,7 @@ struct ResumableSearchResult {
     std::vector<Candidate> candidates;
     int ef_used;
     int distance_computations;
+    QuerySearchStats stats;
     bool was_expanded;
     QueryDifficultySignals signals;
 };
@@ -150,13 +151,17 @@ public:
         bool use_asym_sq4 = index.policy.enable_sq4 && index.quantizer_sq4.is_trained;
         bool use_asym = use_asym_sq8 || use_asym_sq4 || index.use_mixed_storage;
 
+        QuerySearchStats stats;
+
         // 1. Upper layers greedy descent
         for (int lc = index.max_level; lc > 0; --lc) {
-            auto w = index.search_layer(query, {curr_ep}, 1, lc, false, use_asym_sq8, false, use_asym_sq4);
+            auto w = index.search_layer(query, {curr_ep}, 1, lc, false, use_asym_sq8, false, use_asym_sq4, &stats);
             if (!w.empty()) curr_ep = w[0].id;
         }
 
         dist_t l0_entry_dist = index.get_node_distance_sq(query, curr_ep);
+        stats.layer0_dist_evals++;
+        stats.visited_nodes++;
         size_t l0_degree = (index.graphs.empty() || curr_ep >= index.graphs[0].size()) ? 0 : index.graphs[0][curr_ep].size();
 
         // 2. Setup Resumable State for Layer 0
@@ -170,7 +175,6 @@ public:
         candidate_queue.push({l0_entry_dist, curr_ep});
         w_furthest.push({l0_entry_dist, curr_ep});
         dist_t best_dist = l0_entry_dist;
-        int local_dist_comps = 1;
 
         int current_target_ef = ef_init;
         int stagnation_counter = 0;
@@ -185,6 +189,7 @@ public:
             dist_t furthest_d = w_furthest.top().dist;
 
             if (curr.dist > furthest_d) break;
+            stats.hops++;
 
             bool improved = false;
             if (curr.id < index.graphs[0].size()) {
@@ -206,7 +211,8 @@ public:
                     if (!visited.is_visited(neighbor)) {
                         visited.mark_visited(neighbor);
                         dist_t d = index.get_node_distance_sq(query, neighbor);
-                        local_dist_comps++;
+                        stats.layer0_dist_evals++;
+                        stats.visited_nodes++;
                         furthest_d = w_furthest.top().dist;
 
                         if (d < furthest_d || (int)w_furthest.size() < current_target_ef) {
@@ -273,7 +279,7 @@ public:
         signals.topk_margin = topk_margin;
         signals.estimated_lid = est_lid;
         signals.candidate_improvement_rate = imp_rate;
-        signals.visited_count = local_dist_comps;
+        signals.visited_count = stats.visited_nodes;
         signals.best_dist = best_dist;
         result.signals = signals;
 
@@ -312,7 +318,8 @@ public:
                         if (!visited.is_visited(neighbor)) {
                             visited.mark_visited(neighbor);
                             dist_t d = index.get_node_distance_sq(query, neighbor);
-                            local_dist_comps++;
+                            stats.layer0_dist_evals++;
+                            stats.visited_nodes++;
                             furthest_d = w_furthest.top().dist;
 
                             if (d < furthest_d || (int)w_furthest.size() < current_target_ef) {
@@ -344,6 +351,7 @@ public:
                         stagnation_counter = 0;
                     } else {
                         if (++stagnation_counter >= index.policy.ada_ef_patience) {
+                            stats.early_exit_stagnation_count++;
                             break;
                         }
                     }
@@ -351,7 +359,8 @@ public:
             }
         }
 
-        result.distance_computations = local_dist_comps;
+        result.stats = stats;
+        result.distance_computations = stats.total_dist_evals();
 
         // 5. Final Top-K Extraction & Optional FP32 Re-ranking
         std::vector<Candidate> final_candidates;
@@ -367,12 +376,15 @@ public:
             for (auto& cand : final_candidates) {
                 if (!index.is_deleted(cand.id)) {
                     cand.dist = index.get_distance(query, index.get_vector(cand.id));
+                    stats.rerank_dist_evals++;
                     active_w.push_back(cand);
                 }
             }
             std::sort(active_w.begin(), active_w.end());
             if ((int)active_w.size() > k) active_w.resize(k);
             result.candidates = std::move(active_w);
+            result.stats = stats;
+            result.distance_computations = stats.total_dist_evals();
         } else {
             std::vector<Candidate> active_w;
             active_w.reserve(std::min((size_t)k, final_candidates.size()));

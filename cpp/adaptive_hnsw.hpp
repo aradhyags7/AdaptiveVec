@@ -231,6 +231,32 @@ struct Candidate {
     }
 };
 
+/**
+ * Exact Per-Query Search Instrumentation (Phase 4.3)
+ * Records actual hardware/algorithmic distance evaluations separated by traversal stage.
+ */
+struct QuerySearchStats {
+    uint32_t upper_layer_dist_evals = 0;
+    uint32_t layer0_dist_evals = 0;
+    uint32_t rerank_dist_evals = 0;
+    uint32_t visited_nodes = 0;
+    uint32_t hops = 0;
+    uint32_t early_exit_stagnation_count = 0;
+    
+    inline uint32_t total_dist_evals() const {
+        return upper_layer_dist_evals + layer0_dist_evals + rerank_dist_evals;
+    }
+    
+    inline void reset() {
+        upper_layer_dist_evals = 0;
+        layer0_dist_evals = 0;
+        rerank_dist_evals = 0;
+        visited_nodes = 0;
+        hops = 0;
+        early_exit_stagnation_count = 0;
+    }
+};
+
 // Distance Functions with AVX2 FMA SIMD acceleration
 #if defined(__AVX2__)
 #include <immintrin.h>
@@ -801,17 +827,17 @@ public:
     }
     
     inline dist_t get_distance(const float* a, const float* b) const {
-        total_dist_computations++;
+        total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         return space == SpaceType::Cosine ? cosine_distance(a, b, dim) : l2_distance(a, b, dim);
     }
 
     inline dist_t get_distance_sq(const float* a, const float* b) const {
-        total_dist_computations++;
+        total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         return space == SpaceType::Cosine ? cosine_distance(a, b, dim) : l2_sq_distance(a, b, dim);
     }
 
     inline dist_t get_sq8_distance(const float* query, tableint id) const {
-        total_dist_computations++;
+        total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         const uint8_t* code = &quantized_data[id * dim];
         return space == SpaceType::Cosine 
                ? quantizer.asymmetric_cosine_distance(query, code) 
@@ -819,7 +845,7 @@ public:
     }
 
     inline dist_t get_sq8_distance_sq(const float* query, tableint id) const {
-        total_dist_computations++;
+        total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         const uint8_t* code = &quantized_data[id * dim];
         return space == SpaceType::Cosine 
                ? quantizer.asymmetric_cosine_distance(query, code) 
@@ -827,14 +853,14 @@ public:
     }
 
     inline dist_t get_sq4_distance(const float* query, tableint id) const {
-        total_dist_computations++;
+        total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         size_t packed_dim = (dim + 1) / 2;
         const uint8_t* code = &quantized_data_sq4[id * packed_dim];
         return quantizer_sq4.asymmetric_l2_distance(query, code);
     }
 
     inline dist_t get_sq4_distance_sq(const float* query, tableint id) const {
-        total_dist_computations++;
+        total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         size_t packed_dim = (dim + 1) / 2;
         const uint8_t* code = &quantized_data_sq4[id * packed_dim];
         return quantizer_sq4.asymmetric_l2_sq_distance(query, code);
@@ -875,8 +901,8 @@ public:
     }
 
     inline dist_t get_node_distance_sq(const float* query, tableint id) const {
-        total_dist_computations++;
         if (use_mixed_storage && id < vector_descriptors.size()) {
+            total_dist_computations.fetch_add(1, std::memory_order_relaxed);
             const VectorStorageDescriptor& desc = vector_descriptors[id];
             switch (desc.prec) {
                 case VectorPrecision::FP32:
@@ -895,10 +921,12 @@ public:
         }
         
         if (policy.enable_sq4 && quantizer_sq4.is_trained && !quantized_data_sq4.empty()) {
+            total_dist_computations.fetch_add(1, std::memory_order_relaxed);
             size_t packed_dim = (dim + 1) / 2;
             return quantizer_sq4.asymmetric_l2_sq_distance(query, &quantized_data_sq4[id * packed_dim]);
         }
         if (policy.enable_sq8 && quantizer.is_trained && !quantized_data.empty()) {
+            total_dist_computations.fetch_add(1, std::memory_order_relaxed);
             return (space == SpaceType::Cosine)
                    ? quantizer.asymmetric_cosine_distance(query, &quantized_data[id * dim])
                    : quantizer.asymmetric_l2_sq_distance(query, &quantized_data[id * dim]);
@@ -1293,7 +1321,8 @@ public:
         bool early_exit = true,
         bool use_asym_sq8 = false,
         bool concurrent_search = false,
-        bool use_asym_sq4 = false
+        bool use_asym_sq4 = false,
+        QuerySearchStats* stats = nullptr
     ) const {
         VisitedTagPool& visited = get_thread_visited_pool();
         visited.reset(std::max(num_elements, enter_points.size()));
@@ -1307,6 +1336,11 @@ public:
         for (tableint ep : enter_points) {
             visited.mark_visited(ep);
             dist_t d = get_node_distance_sq(query, ep);
+            if (stats) {
+                if (lc > 0) stats->upper_layer_dist_evals++;
+                else stats->layer0_dist_evals++;
+                stats->visited_nodes++;
+            }
             candidates.push({d, ep});
             w_furthest.push({d, ep});
             if (d < best_dist) best_dist = d;
@@ -1318,6 +1352,7 @@ public:
             dist_t furthest_d = w_furthest.top().dist;
             
             if (curr.dist > furthest_d) break;
+            if (stats) stats->hops++;
             
             bool improved = false;
             
@@ -1347,6 +1382,11 @@ public:
                     if (!visited.is_visited(neighbor)) {
                         visited.mark_visited(neighbor);
                         dist_t d = get_node_distance_sq(query, neighbor);
+                        if (stats) {
+                            if (lc > 0) stats->upper_layer_dist_evals++;
+                            else stats->layer0_dist_evals++;
+                            stats->visited_nodes++;
+                        }
                         furthest_d = w_furthest.top().dist;
                         
                         if (d < furthest_d || (int)w_furthest.size() < ef) {
@@ -1382,6 +1422,7 @@ public:
                     stagnation_counter = 0;
                 } else {
                     if (++stagnation_counter >= policy.ada_ef_patience) {
+                        if (stats) stats->early_exit_stagnation_count++;
                         break;
                     }
                 }
@@ -2373,7 +2414,7 @@ public:
         }
     }
     
-    std::vector<Candidate> search(const float* query, int k, int ef) const {
+    std::vector<Candidate> search(const float* query, int k, int ef, QuerySearchStats* stats = nullptr) const {
         std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         if (num_elements == 0 || get_active_count() == 0) return {};
         
@@ -2390,7 +2431,7 @@ public:
         bool use_ada = policy.enable_ada_ef;
         
         for (int lc = max_level; lc > 0; --lc) {
-            auto w = search_layer(query, {curr_ep}, 1, lc, false, use_asym_sq8, false, use_asym_sq4);
+            auto w = search_layer(query, {curr_ep}, 1, lc, false, use_asym_sq8, false, use_asym_sq4, stats);
             if (!w.empty()) curr_ep = w[0].id;
         }
         
@@ -2398,6 +2439,7 @@ public:
         if (policy.enable_dynamic_ef_search && curr_ep < node_params.size()) {
             float node_score = node_params[curr_ep].score;
             dist_t d_entry = get_node_distance_sq(query, curr_ep);
+            if (stats) stats->upper_layer_dist_evals++;
             float norm_d = (d_entry - policy.density_mean) / (policy.density_std + 1e-6f);
             float query_hardness = 0.7f * node_score + 0.3f * std::max(-2.0f, std::min(norm_d, 2.0f));
             float factor = 1.0f + policy.dynamic_ef_factor * query_hardness;
@@ -2418,7 +2460,7 @@ public:
             int rerank_factor = use_asym_sq4 ? policy.sq4_rerank_factor : (use_asym_sq8 ? policy.sq8_rerank_factor : 1);
             search_beam = std::max(rerank_factor * k, effective_ef);
         }
-        auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym_sq8, false, use_asym_sq4);
+        auto w = search_layer(query, {curr_ep}, search_beam, 0, use_ada, use_asym_sq8, false, use_asym_sq4, stats);
         
         if (use_asym) {
             if (policy.enable_rerank && !data.empty()) {
@@ -2428,6 +2470,7 @@ public:
                 for (auto& cand : w) {
                     if (!is_deleted(cand.id)) {
                         cand.dist = get_distance(query, get_vector(cand.id));
+                        if (stats) stats->rerank_dist_evals++;
                         active_w.push_back(cand);
                     }
                 }
@@ -2468,6 +2511,10 @@ public:
             }
         }
         return final_results;
+    }
+
+    inline std::vector<Candidate> search(const float* query, int k, int ef, QuerySearchStats& stats) const {
+        return search(query, k, ef, &stats);
     }
     
     /**
