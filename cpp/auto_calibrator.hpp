@@ -337,6 +337,21 @@ public:
         size_t n_queries,
         const std::vector<std::vector<tableint>>& ground_truth,
         const CalibrationConstraints& constraints,
+        const std::string& dataset_name = "Unknown"
+    ) {
+        std::unique_ptr<AdaptiveHNSWIndex> dummy;
+        return calibrate(base_vectors, n_vectors, dim, space, query_vectors, n_queries, ground_truth, constraints, dummy, dataset_name);
+    }
+
+    static CalibrationReport calibrate(
+        const float* base_vectors,
+        size_t n_vectors,
+        size_t dim,
+        SpaceType space,
+        const float* query_vectors,
+        size_t n_queries,
+        const std::vector<std::vector<tableint>>& ground_truth,
+        const CalibrationConstraints& constraints,
         std::unique_ptr<AdaptiveHNSWIndex>& out_calibrated_index,
         const std::string& dataset_name = "Unknown"
     ) {
@@ -478,7 +493,7 @@ public:
                 // ---------------------------------------------------------
                 // Stage 4 Phase C: Search Configuration Sweep on Fixed Graph
                 // ---------------------------------------------------------
-                std::vector<int> ef_sweeps = {16, 32, 64, 96, 128};
+                std::vector<int> ef_sweeps = {16, 32, 48, 64, 96, 128};
                 std::vector<bool> ada_ef_sweeps = {false, true};
                 
                 for (bool ada_val : ada_ef_sweeps) {
@@ -762,7 +777,7 @@ public:
         MemoryBreakdown mb = existing_index.get_memory_breakdown();
         double measured_memory_mb = mb.total_owned_bytes / (1024.0 * 1024.0);
 
-        std::vector<int> ef_sweeps = {16, 32, 64, 96, 128};
+        std::vector<int> ef_sweeps = {16, 32, 48, 64, 96, 128};
         std::vector<bool> ada_ef_sweeps = {false, true};
 
         CalibrationTrial best_feasible_trial;

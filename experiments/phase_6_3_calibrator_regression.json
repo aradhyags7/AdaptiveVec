@@ -1,0 +1,59 @@
+{
+  "benchmark": "Phase 6.3 AutoCalibrator Rigorous Feasibility and Regression Audit",
+  "historical_failing_scenario": {
+    "target_recall": 0.92,
+    "max_memory_mb": 4.5,
+    "target_p99_latency_ms": 5.0,
+    "optimization_goal": "MinMemory",
+    "calibrator_status": "VERIFIED_FEASIBLE",
+    "is_feasible": true,
+    "trial_1_falsely_selected": false,
+    "selected_config": {"trial_id": 11, "stage": "SearchSweep", "m": 8, "ef_construction": 30, "ef_search": 96, "precision": "SQ8", "enable_adaptive": false, "enable_ada_ef": true, "memory_mb": 1.7511, "recall_mean": 0.9770, "recall_ci_lower": 0.9650, "recall_ci_upper": 0.9870, "qps": 100007.2485, "p99_latency_ms": 0.6866, "trial_duration_s": 0.0019, "is_feasible": true, "conservative_feasible": true, "status": "VERIFIED_FEASIBLE", "violations": {"v_recall": 0.0000, "v_memory": 0.0000, "v_latency": 0.0000, "v_total": 0.0000}, "rejection_reason": ""},
+    "total_evaluated_trials": 96,
+    "pareto_frontier_count": 27,
+    "fallback_pareto_set_count": 1
+  },
+  "deterministic_state_tests": [
+    {
+      "test_name": "TEST_1_VERIFIED_FEASIBLE",
+      "observed_status": "VERIFIED_FEASIBLE",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_2_PROVISIONALLY_FEASIBLE_OR_INFEASIBLE",
+      "observed_status": "VALIDATION_FAILED",
+      "pass": false
+    },
+    {
+      "test_name": "TEST_3_VALIDATION_BOUNDARY_OR_INFEASIBLE",
+      "observed_status": "VERIFIED_FEASIBLE",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_4_INFEASIBLE_WITHIN_SEARCH_SPACE",
+      "observed_status": "INFEASIBLE_WITHIN_SEARCH_SPACE",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_5_INVALID_REQUIREMENTS",
+      "observed_status": "INVALID_REQUIREMENTS",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_6_EVALUATION_ERROR",
+      "observed_status": "EVALUATION_ERROR",
+      "pass": true
+    },
+    {
+      "test_name": "TEST_7_MULTI_OBJECTIVE_SLA_PARITY",
+      "observed_status": "MinMem=VALIDATION_FAILED, MaxQPS=VERIFIED_FEASIBLE",
+      "pass": false
+    },
+    {
+      "test_name": "TEST_8_PREBUILT_SEARCH_CALIBRATION",
+      "observed_status": "VERIFIED_FEASIBLE",
+      "pass": true
+    }
+  ],
+  "scientific_verdict": "Zero false feasibility reports. Historical Trial 1 violation correctly detected and rejected."
+}

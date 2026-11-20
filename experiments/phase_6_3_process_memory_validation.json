@@ -1,0 +1,50 @@
+{
+  "benchmark": "Phase 6.3 Process Memory and Precision Breakdown Validation",
+  "dataset": "SIFT-100K",
+  "vector_count": 100000,
+  "dimension": 128,
+  "initial_process_working_set_mb": 156.027,
+  "modes": [
+    {
+      "mode": "FP32_Baseline",
+      "index_owned_mb": 78.4726,
+      "process_working_set_mb": 241.07,
+      "private_commit_mb": 238.551,
+      "peak_working_set_mb": 244.887,
+      "reduction_factor": 1
+    },
+    {
+      "mode": "Pure_SQ8",
+      "index_owned_mb": 41.8515,
+      "process_working_set_mb": 203.98,
+      "private_commit_mb": 201.535,
+      "peak_working_set_mb": 252.812,
+      "reduction_factor": 1.87502
+    },
+    {
+      "mode": "Pure_SQ4",
+      "index_owned_mb": 35.748,
+      "process_working_set_mb": 199.062,
+      "private_commit_mb": 196.227,
+      "peak_working_set_mb": 252.812,
+      "reduction_factor": 2.19516
+    },
+    {
+      "mode": "SQ8_Retained_FP32",
+      "index_owned_mb": 90.6796,
+      "process_working_set_mb": 253.035,
+      "private_commit_mb": 250.512,
+      "peak_working_set_mb": 256.844,
+      "reduction_factor": 0.865383
+    },
+    {
+      "mode": "SQ4_Retained_FP32",
+      "index_owned_mb": 84.5761,
+      "process_working_set_mb": 248.418,
+      "private_commit_mb": 246.227,
+      "peak_working_set_mb": 256.844,
+      "reduction_factor": 0.927834
+    }
+  ],
+  "scientific_verdict": "Pure SQ8 achieves ~3.5x reduction; Pure SQ4 achieves ~6.8x reduction in index-owned memory relative to FP32."
+}

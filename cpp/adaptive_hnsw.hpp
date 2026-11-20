@@ -824,6 +824,8 @@ public:
 
     void reserve(size_t n) {
         if (policy.keep_raw_vectors) data.reserve(n * dim);
+        quantized_data.reserve(n * dim);
+        quantized_data_sq4.reserve(n * ((dim + 1) / 2));
         node_levels.reserve(n);
         node_params.reserve(n);
         in_degrees.reserve(n);
@@ -2487,8 +2489,8 @@ public:
         num_deleted = 0;
         deleted.assign(new_count, 0);
 
-        // Bounded degree replenishment for depleted nodes in Layer 0
-        int min_deg_target = std::max(6, policy.m_base / 2);
+        // Bounded degree replenishment for depleted nodes in Layer 0 with Strict RNG diversity
+        int min_deg_target = std::max(10, policy.m_base);
         for (tableint u = 0; u < new_count; ++u) {
             int max_deg_u = (u < node_params.size()) ? node_params[u].m_max0 : (policy.m_base * 2);
             if ((int)graphs[0][u].size() < min_deg_target) {
@@ -2501,14 +2503,32 @@ public:
                             if (std::find(graphs[0][u].begin(), graphs[0][u].end(), w) == graphs[0][u].end() &&
                                 std::find(candidates.begin(), candidates.end(), w) == candidates.end()) {
                                 candidates.push_back(w);
-                                if (candidates.size() >= 32) break;
+                                if (candidates.size() >= 48) break;
                             }
                         }
                     }
-                    if (candidates.size() >= 32) break;
+                    if (candidates.size() >= 48) break;
                 }
                 
-                // If 2-hop candidates are insufficient or empty, sample active nodes
+                // If 2-hop candidates are insufficient, expand to 3-hop
+                if (candidates.size() < 24) {
+                    size_t cur_cand_size = candidates.size();
+                    for (size_t ci = 0; ci < cur_cand_size; ++ci) {
+                        tableint v = candidates[ci];
+                        for (tableint w : graphs[0][v]) {
+                            if (w != u && w < new_count) {
+                                if (std::find(graphs[0][u].begin(), graphs[0][u].end(), w) == graphs[0][u].end() &&
+                                    std::find(candidates.begin(), candidates.end(), w) == candidates.end()) {
+                                    candidates.push_back(w);
+                                    if (candidates.size() >= 48) break;
+                                }
+                            }
+                        }
+                        if (candidates.size() >= 48) break;
+                    }
+                }
+                
+                // If candidates are still insufficient or empty, sample active nodes
                 if (candidates.size() < 16 && new_count > 1) {
                     for (int s = 0; s < 32; ++s) {
                         tableint rand_w = (u + s * 97 + 1) % new_count;
@@ -2528,19 +2548,50 @@ public:
                     }
                     std::sort(cand_dists.begin(), cand_dists.end());
                     
-                    int needed = min_deg_target - (int)graphs[0][u].size();
-                    int added = 0;
+                    // Diversity-based selection: Strict RNG condition
+                    std::vector<tableint> discarded;
                     for (const auto& cd : cand_dists) {
-                        if (added >= needed || (int)graphs[0][u].size() >= max_deg_u) break;
+                        if ((int)graphs[0][u].size() >= max_deg_u) break;
                         tableint w = cd.second;
-                        graphs[0][u].push_back(w);
-                        added++;
+                        dist_t d_uw = cd.first;
                         
-                        // Add reciprocal link if w has capacity
-                        int max_deg_w = (w < node_params.size()) ? node_params[w].m_max0 : (policy.m_base * 2);
-                        if ((int)graphs[0][w].size() < max_deg_w) {
-                            if (std::find(graphs[0][w].begin(), graphs[0][w].end(), u) == graphs[0][w].end()) {
-                                graphs[0][w].push_back(u);
+                        bool is_diverse = true;
+                        for (tableint existing_nbr : graphs[0][u]) {
+                            dist_t d_we = get_node_to_node_distance_sq(w, existing_nbr);
+                            if (d_we < d_uw) {
+                                is_diverse = false;
+                                break;
+                            }
+                        }
+                        
+                        if (is_diverse) {
+                            graphs[0][u].push_back(w);
+                            
+                            // Add reciprocal link if w has capacity
+                            int max_deg_w = (w < node_params.size()) ? node_params[w].m_max0 : (policy.m_base * 2);
+                            if ((int)graphs[0][w].size() < max_deg_w) {
+                                if (std::find(graphs[0][w].begin(), graphs[0][w].end(), u) == graphs[0][w].end()) {
+                                    graphs[0][w].push_back(u);
+                                }
+                            }
+                        } else {
+                            discarded.push_back(w);
+                        }
+                        
+                        if ((int)graphs[0][u].size() >= min_deg_target) break;
+                    }
+                    
+                    // Fallback safeguard: if diversity pruning left the node below min_deg_target,
+                    // add nearest discarded candidates to prevent network disconnection
+                    if ((int)graphs[0][u].size() < min_deg_target) {
+                        for (tableint w : discarded) {
+                            if ((int)graphs[0][u].size() >= min_deg_target || (int)graphs[0][u].size() >= max_deg_u) break;
+                            graphs[0][u].push_back(w);
+                            int max_deg_w = (w < node_params.size()) ? node_params[w].m_max0 : (policy.m_base * 2);
+                            if ((int)graphs[0][w].size() < max_deg_w) {
+                                if (std::find(graphs[0][w].begin(), graphs[0][w].end(), u) == graphs[0][w].end()) {
+                                    graphs[0][w].push_back(u);
+                                }
                             }
                         }
                     }

@@ -1,8 +1,8 @@
 # AdaptiveVec — Master Benchmark Claim Ledger
 
-**Document Status:** Phase 6.2 Engineering Closure & Presentation Ready  
-**Branch:** `phase-6.2-comprehensive-engineering-closure`  
-**Parent Checkpoint:** `7f2a862` (Phase 6.1 Defense Freeze)  
+**Document Status:** Phase 6.3 Final Integrated Acceptance & Presentation Ready  
+**Branch:** `phase-6.3-final-integrated-acceptance`  
+**Parent Checkpoint:** `ff09dff` (Phase 6.2 Engineering Closure)  
 **Standardized Hardware Environment:** Intel Core 5 210H (8 physical cores, 12 logical threads, AVX2/FMA, 16 GB RAM), Windows 11 Build 26100, GCC 14.2.0 (`g++ -O3 -mavx2 -mfma -fopenmp -std=c++17`).
 
 ---
@@ -25,6 +25,9 @@
 | **CLM-12** | AutoCalibrator Feasibility Integrity guarantees zero false feasibility with 6 formal states | SIFT-10K ($N=10\text{K}, D=128$) | Legacy Flawed Selection | Decoupled candidate tracking (`best_feasible_trial` vs `best_fallback_trial`) | `experiments/phase_6_2_calibrator_correctness.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
 | **CLM-13** | Compaction degree replenishment eliminates isolated nodes ($\min \text{deg} \ge 8$) and preserves navigability | SIFT-10K ($N=10\text{K}, D=128$) | Legacy Unreplenished Pruning | Bounded 2-hop neighbor replenishment & entry-point integrity | `experiments/phase_6_2_compaction_correctness.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
 | **CLM-14** | Direct OS Working Set audit confirms memory reclamation and quantifies heap allocator overhead | SIFT-10K ($N=10\text{K}, D=128$) | Internal Buffer-Only Metrics | Windows PSAPI `GetProcessMemoryInfo` runtime measurement | `experiments/phase_6_2_process_memory_audit.json` | `.\cpp\phase6_2_runner.exe` | **VERIFIED** |
+| **CLM-15** | Strict RNG Diversity Degree Replenishment preserves post-compaction recall within **0.20 pp** under 50% churn | SIFT-100K & Transformer-384D | Tombstone-Healed Index | Degree Replenishment via Strict RNG Heuristic Selection in `compact()` | `experiments/phase_6_3_compaction_quality.json` | `.\cpp\phase6_3_runner.exe` | **VERIFIED** |
+| **CLM-16** | AutoCalibrator 6-State Formal Model with sweep over $efSearch \in \{16, 32, 48, 64, 96, 128\}$ eliminates false feasibility reports in historical $R=0.92, M=4.5\text{MB}$ scenario | SIFT-10K ($N=10\text{K}, D=128$) | Historical Flawed Optimizer | Partitioned Candidate Selection & Held-Out Bootstrap Validation | `experiments/phase_6_3_calibrator_regression.json` | `.\cpp\phase6_3_runner.exe` | **VERIFIED** |
+| **CLM-17** | Authentic 14-Step Full-Corpus Lifecycle demonstration succeeds across all 57,893 Transformer-384D vectors | Transformer-384D ($N=57\text{K}, D=384$) | Standalone Single-Step Tests | Full Lifecycle: Load -> Fingerprint -> Calibrate -> Build -> Quantize -> Search -> Stream Insert/Delete -> Heal -> Compact -> Exact GT Reconstruct -> Re-evaluate | `experiments/phase_6_3_full_corpus_lifecycle.json` | `.\cpp\phase6_3_runner.exe` | **VERIFIED** |
 
 ---
 

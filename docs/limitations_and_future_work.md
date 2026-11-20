@@ -1,9 +1,9 @@
 # AdaptiveVec — Operational Limitations, Failure Modes, and Future Work
 
-**Document Status:** Phase 6.2 Engineering Closure & Presentation Ready  
-**Branch:** `phase-6.2-comprehensive-engineering-closure`  
-**Parent Checkpoint:** `7f2a862` (Phase 6.1 Defense Freeze)  
-**Target Milestone:** Comprehensive Correctness, Performance and Engineering Closure  
+**Document Status:** Phase 6.3 Final Integrated Acceptance & Presentation Ready  
+**Branch:** `phase-6.3-final-integrated-acceptance`  
+**Parent Checkpoint:** `ff09dff` (Phase 6.2 Engineering Closure)  
+**Target Milestone:** Residual Engineering Defects and Final Integrated Acceptance  
 
 ---
 
@@ -36,13 +36,12 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
    - *Behavior:* Distorts long-range highway routing and degrades overall navigability. Upper layers must remain strictly uniform ($\beta_{\text{upper}} = 0.0$).
 
 ### 2.3 Dynamic Churn Boundaries
-1. **Catastrophic Batch Deletions ($>80\%$ Churn):**
-   - *Condition:* More than 80% of index elements are deleted simultaneously.
-   - *Behavior:* Iterative local healing evaluates millions of severed edges, taking more time than a full index rebuild from remaining active vectors.
-   - *Operational Recommendation:* If deletion volume exceeds 80% of index cardinality in a single operation, trigger a full background index rebuild instead of iterative healing.
-2. **Post-Compaction Skip-Layer Thinning:**
-   - *Condition:* Under 50% churn, post-compaction recall drops slightly (0.9944 healed $\to$ 0.9884 post-compaction).
-   - *Root Cause:* Compaction repacks surviving edges but does not construct new skip links on upper levels. Rebuilding from scratch achieves 0.9978 recall by generating fresh global skip highways.
+1. **Catastrophic Batch Deletions ($>50\%$ Churn):**
+   - *Condition:* More than 50% of index elements are deleted simultaneously.
+   - *Behavior:* Compaction with Strict RNG replenishment preserves recall within 0.20 percentage points for churn up to 50%. When churn exceeds 50%, upper-layer highway connectivity experiences structural dilution.
+   - *Operational Recommendation:* If deletion volume exceeds 50% of index cardinality or if strict recall SLAs (>0.99) are mandated, trigger an offline or background index rebuild instead of relying exclusively on compaction degree replenishment.
+2. **Post-Compaction Maintenance vs Rebuild:**
+   - *Condition:* For moderate churn ($\le 50\%$), compaction executes in 4–15 ms, avoiding the 8–20 second downtime of rebuilding from scratch.
 
 ---
 
@@ -62,12 +61,14 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
 
 ## 4. Unsupported Capabilities (Explicit Non-Goals)
 
-To prevent scope creep and maintain research focus, the following capabilities are explicitly classified as unsupported:
+To prevent scope creep and maintain scientific integrity, the following capabilities are explicitly classified as unsupported:
 
-1. **Distributed Clustering & Sharding:** AdaptiveVec is strictly an embedded, single-node library. It does not provide network protocols (gRPC/HTTP), Raft consensus, or distributed partition management.
-2. **GPU / Hardware Acceleration:** All implementations operate natively on x86-64 CPUs with AVX2/FMA vector intrinsics. CUDA, ROCm, or TPU offloading are not supported.
-3. **Product Quantization (PQ):** AdaptiveVec supports 8-bit (SQ8) and 4-bit (SQ4) scalar affine quantization. Product Quantization, Inverted File (IVF) indexing, and learned codebooks are unsupported.
-4. **Lockless Shared-Memory Cross-Process Concurrency:** Multi-threaded concurrency is fully supported within a single process via C++ standard synchronization primitives, but multi-process shared-memory memory-mapped IPC is out of scope.
+1. **Disk Persistence and File-Based Serialization:** Formally classified as an `UNSUPPORTED_CAPABILITY`. AdaptiveVec is an in-memory proximity graph engine. No mock memory-mapped disk persistence, write-ahead logging (WAL), or background disk checkpointing is claimed or deployed.
+2. **Distributed Clustering & Sharding:** AdaptiveVec is strictly an embedded, single-node library. It does not provide network protocols (gRPC/HTTP), Raft consensus, or distributed partition management.
+3. **GPU / Hardware Acceleration:** All implementations operate natively on x86-64 CPUs with AVX2/FMA vector intrinsics. CUDA, ROCm, or TPU offloading are not supported.
+4. **Product Quantization (PQ):** AdaptiveVec supports 8-bit (SQ8) and 4-bit (SQ4) scalar affine quantization. Product Quantization, Inverted File (IVF) indexing, and learned codebooks are unsupported.
+5. **Lockless Shared-Memory Cross-Process Concurrency:** Multi-threaded concurrency is fully supported within a single process via C++ standard synchronization primitives, but multi-process shared-memory memory-mapped IPC is out of scope.
+6. **Query-Time Runtime Controllers:** Online difficulty prediction and adaptive beam controllers were permanently retired in Phase 5.0 to protect the query hot-path.
 
 ---
 
