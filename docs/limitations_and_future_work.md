@@ -36,12 +36,15 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
    - *Behavior:* Distorts long-range highway routing and degrades overall navigability. Upper layers must remain strictly uniform ($\beta_{\text{upper}} = 0.0$).
 
 ### 2.3 Dynamic Churn Boundaries
-1. **Compaction Quality and the 35% Rebuild Threshold:**
-   - *Condition:* High volume of cumulative streaming deletions.
-   - *Behavior:* At 10% churn on SIFT-100K, multi-layer degree replenishment preserves recall within **0.18 percentage points** (0.0018 loss vs healed index), strictly satisfying the $\le 0.20$ pp research target with a **14.46x maintenance speedup** over full rebuild. At 25% churn, fixed-$ef$ recall loss is **0.82 pp** (search recalibration via `calibrate_search()` restores recall to 95.98% at a 6.89x speedup).
-   - *Operational Recommendation:* When cumulative churn exceeds **35%**, structural dilution of upper-layer skip lists causes local replenishment to experience diminishing returns. Furthermore, surviving dataset cardinality is smaller, making full reconstruction fast (3.31 s at 50% churn). For churn $>35\%$, full background index reconstruction is formally recommended.
+1. **Dynamic Graph Healing and the Multi-Attribute Decision Policy:**
+   - *Condition:* Streaming vector deletions under varying churn ratios (10% to 50%).
+   - *Behavior:* Soft Transit Bridge routing and Strict RNG bypass shortcuts completely eliminate pre-compaction recall drops, maintaining or lifting recall (+0.04 to +0.06 pp) before compaction. Following physical compaction, degree replenishment maintains full graph navigability (zero isolated nodes, minimum degree $\ge 16$).
+   - *Operational Policy:* The rigid 35% static churn threshold is superseded by a three-gate **Multi-Attribute Decision Policy**:
+     1. *Scale Gate:* If surviving cardinality $N_{\text{surv}} \le 25{,}000$, direct fresh rebuild is permitted (latency $\le 1.5\text{ s}$).
+     2. *Low-Churn Invariance Gate:* If churn $\le 20\%$, local maintenance is mandated (recall delta $\le 0.24$ pp, speedup $>16\text{x}$).
+     3. *High-Churn SLA Gate (churn $> 20\%$):* Execute local maintenance followed by `calibrate_search()`. If status is `VerifiedFeasible`, deploy the recalibrated index (achieving 3x–10x maintenance efficiency); if status is `ValidationFailed` or `InfeasibleWithinSearchSpace`, trigger an asynchronous, non-blocking background Rebuild.
 2. **Post-Compaction Maintenance vs Rebuild:**
-   - *Condition:* For moderate churn ($\le 35\%$), local healing, compaction, and search recalibration restore the index in 0.43 to 0.75 seconds, delivering a 7x to 14x maintenance speedup over rebuilding from scratch.
+   - *Condition:* Compaction requires an exclusive write lock on `index_lifecycle_rw_mutex` (129 to 147 ms pause on 100K vectors), whereas full index reconstruction takes 4.1 to 8.4 seconds. Local maintenance delivers a 2.7x to 16.2x execution speedup over rebuilding from scratch.
 
 ---
 

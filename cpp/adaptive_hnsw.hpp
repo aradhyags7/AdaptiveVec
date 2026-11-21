@@ -2228,121 +2228,90 @@ public:
                     }
                 }
             }
+            if (v_surviving_neighbors.size() < 2) continue;
 
-            // Sever (u -> v) from each neighbor u and heal with candidates from v's surviving neighbors
+            // Soft Transit Bridge + Strict RNG Bypass Shortcuts:
+            // Crucial: preserve (u -> v) so v serves as a topological waypoint during search before compaction.
+            // Add bounded bypass shortcuts directly between surviving neighbors of v with Strict RNG diversity.
+            std::vector<float> u_vec(dim);
             for (tableint u : v_surviving_neighbors) {
                 if (is_deleted(u)) continue;
 
-                std::vector<tableint> added_reps;
+                int u_limit = (u < node_params.size())
+                    ? node_params[u].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                    : policy.m_base * 2;
+
+                std::vector<Candidate> repair_cands;
+                {
+                    std::lock_guard<std::mutex> lk_u(node_locks[u % NUM_NODE_LOCKS]);
+                    const auto& u_adj = graphs[lc][u];
+                    if ((int)u_adj.size() >= u_limit) continue;
+
+                    get_vector_reconstructed(u, u_vec.data());
+                    for (tableint w : v_surviving_neighbors) {
+                        if (w != u && !is_deleted(w) && std::find(u_adj.begin(), u_adj.end(), w) == u_adj.end()) {
+                            repair_cands.push_back({get_node_distance_sq(u_vec.data(), w), w});
+                        }
+                    }
+                }
+
+                if (repair_cands.empty()) continue;
+                std::sort(repair_cands.begin(), repair_cands.end());
+
+                // Strict RNG diversity check on replacement shortcuts
+                std::vector<tableint> to_add;
                 {
                     std::lock_guard<std::mutex> lk_u(node_locks[u % NUM_NODE_LOCKS]);
                     auto& u_adj = graphs[lc][u];
-                    auto it = std::find(u_adj.begin(), u_adj.end(), v);
-                    if (it != u_adj.end()) {
-                        u_adj.erase(it);
+                    for (const auto& rc : repair_cands) {
+                        if ((int)u_adj.size() + (int)to_add.size() >= u_limit) break;
+                        tableint cand = rc.id;
+                        dist_t d_u_cand = rc.dist;
+
+                        bool is_diverse = true;
+                        for (tableint existing : u_adj) {
+                            if (get_node_to_node_distance_sq(cand, existing) < d_u_cand) {
+                                is_diverse = false;
+                                break;
+                            }
+                        }
+                        if (is_diverse) {
+                            for (tableint added : to_add) {
+                                if (get_node_to_node_distance_sq(cand, added) < d_u_cand) {
+                                    is_diverse = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (is_diverse) {
+                            to_add.push_back(cand);
+                            if (to_add.size() >= 2) break; // Bounded bypass insertion
+                        }
+                    }
+                    for (tableint cand : to_add) {
+                        u_adj.push_back(cand);
                         if (lc == 0) {
-                            __atomic_fetch_sub(&in_degrees[v], 1, __ATOMIC_RELAXED);
-                            __atomic_fetch_sub(&in_degrees[u], 1, __ATOMIC_RELAXED);
-                        }
-
-                        // Candidate replacements for u: other surviving neighbors of v
-                        std::vector<Candidate> repair_cands;
-                        std::vector<float> u_vec(dim);
-                        get_vector_reconstructed(u, u_vec.data());
-                        for (tableint cand : v_surviving_neighbors) {
-                            if (cand != u && !is_deleted(cand) && std::find(u_adj.begin(), u_adj.end(), cand) == u_adj.end()) {
-                                repair_cands.push_back({get_node_distance_sq(u_vec.data(), cand), cand});
-                            }
-                        }
-
-                        if (!repair_cands.empty()) {
-                            std::sort(repair_cands.begin(), repair_cands.end());
-                            int u_limit = (u < node_params.size())
-                                ? node_params[u].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
-                                : policy.m_base * 2;
-                            
-                            // Reconnect u with up to 3 best candidates up to u_limit
-                            int max_to_add = std::min(3, (int)repair_cands.size());
-                            for (int ci = 0; ci < max_to_add; ++ci) {
-                                if ((int)u_adj.size() >= u_limit) break;
-                                tableint rep_id = repair_cands[ci].id;
-                                u_adj.push_back(rep_id);
-                                added_reps.push_back(rep_id);
-                                if (lc == 0) {
-                                    __atomic_fetch_add(&in_degrees[rep_id], 1, __ATOMIC_RELAXED);
-                                    __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
-                                    total_in_degrees.fetch_add(2, std::memory_order_relaxed);
-                                }
-                            }
+                            __atomic_fetch_add(&in_degrees[cand], 1, __ATOMIC_RELAXED);
+                            __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
+                            total_in_degrees.fetch_add(2, std::memory_order_relaxed);
                         }
                     }
                 }
 
-                // Add reciprocal edges for added replacements
-                for (tableint best_rep : added_reps) {
-                    if (best_rep != u && !is_deleted(best_rep)) {
-                        std::lock_guard<std::mutex> lk_rep(node_locks[best_rep % NUM_NODE_LOCKS]);
-                        auto& rep_adj = graphs[lc][best_rep];
-                        if (std::find(rep_adj.begin(), rep_adj.end(), u) == rep_adj.end()) {
-                            int rep_limit = (best_rep < node_params.size())
-                                ? node_params[best_rep].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
-                                : policy.m_base * 2;
-                            if ((int)rep_adj.size() < rep_limit) {
-                                rep_adj.push_back(u);
-                                if (lc == 0) {
-                                    __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
-                                    __atomic_fetch_add(&in_degrees[best_rep], 1, __ATOMIC_RELAXED);
-                                    total_in_degrees.fetch_add(2, std::memory_order_relaxed);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Mutual neighbor bridging between surviving neighbors of v
-            if (v_surviving_neighbors.size() >= 2) {
-                for (size_t i = 0; i < v_surviving_neighbors.size(); ++i) {
-                    tableint w1 = v_surviving_neighbors[i];
-                    if (is_deleted(w1)) continue;
-
-                    for (size_t j = i + 1; j < v_surviving_neighbors.size(); ++j) {
-                        tableint w2 = v_surviving_neighbors[j];
-                        if (is_deleted(w2)) continue;
-
-                        int w1_limit = (w1 < node_params.size())
-                            ? node_params[w1].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
+                // Add reciprocal edges for added shortcuts
+                for (tableint cand : to_add) {
+                    if (cand != u && !is_deleted(cand)) {
+                        std::lock_guard<std::mutex> lk_c(node_locks[cand % NUM_NODE_LOCKS]);
+                        auto& c_adj = graphs[lc][cand];
+                        int c_limit = (cand < node_params.size())
+                            ? node_params[cand].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
                             : policy.m_base * 2;
-                        int w2_limit = (w2 < node_params.size())
-                            ? node_params[w2].get_m_max_for_layer(lc, policy.enable_layer_scaling, policy.lambda_layer, policy.m_min_layer)
-                            : policy.m_base * 2;
-
-                        // Check w1 -> w2
-                        {
-                            std::lock_guard<std::mutex> lk1(node_locks[w1 % NUM_NODE_LOCKS]);
-                            if ((int)graphs[lc][w1].size() < w1_limit) {
-                                if (std::find(graphs[lc][w1].begin(), graphs[lc][w1].end(), w2) == graphs[lc][w1].end()) {
-                                    graphs[lc][w1].push_back(w2);
-                                    if (lc == 0) {
-                                        __atomic_fetch_add(&in_degrees[w2], 1, __ATOMIC_RELAXED);
-                                        __atomic_fetch_add(&in_degrees[w1], 1, __ATOMIC_RELAXED);
-                                        total_in_degrees.fetch_add(2, std::memory_order_relaxed);
-                                    }
-                                }
-                            }
-                        }
-                        // Check w2 -> w1
-                        {
-                            std::lock_guard<std::mutex> lk2(node_locks[w2 % NUM_NODE_LOCKS]);
-                            if ((int)graphs[lc][w2].size() < w2_limit) {
-                                if (std::find(graphs[lc][w2].begin(), graphs[lc][w2].end(), w1) == graphs[lc][w2].end()) {
-                                    graphs[lc][w2].push_back(w1);
-                                    if (lc == 0) {
-                                        __atomic_fetch_add(&in_degrees[w1], 1, __ATOMIC_RELAXED);
-                                        __atomic_fetch_add(&in_degrees[w2], 1, __ATOMIC_RELAXED);
-                                        total_in_degrees.fetch_add(2, std::memory_order_relaxed);
-                                    }
-                                }
+                        if ((int)c_adj.size() < c_limit && std::find(c_adj.begin(), c_adj.end(), u) == c_adj.end()) {
+                            c_adj.push_back(u);
+                            if (lc == 0) {
+                                __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
+                                __atomic_fetch_add(&in_degrees[cand], 1, __ATOMIC_RELAXED);
+                                total_in_degrees.fetch_add(2, std::memory_order_relaxed);
                             }
                         }
                     }
