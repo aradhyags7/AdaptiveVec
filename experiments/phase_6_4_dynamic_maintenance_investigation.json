@@ -1,214 +1,286 @@
 {
-  "benchmark": "AdaptiveVec Phase 6.4: Quality-Safe Dynamic Maintenance & Controlled Replacement Audit",
+  "benchmark": "AdaptiveVec Phase 6.4: Final Safe Replacement & Policy Matrix Audit",
   "dataset": "SIFT-100K (100,000 vectors, 128 dimensions)",
   "total_corpus_size": 100000,
-  "master_baseline_recall": 0.9816,
-  "master_baseline_p99_ms": 1.1538,
-  "master_baseline_qps": 21739.1286,
-  "master_build_time_sec": 7.7733,
-  "target_max_recall_loss": 0.0020,
-  "experiments": [
+  "master_baseline_recall": 0.9854,
+  "master_baseline_p99_ms": 1.0067,
+  "master_baseline_qps": 20833.3946,
+  "master_build_time_sec": 8.0733,
+  "master_index_owned_mb": 78.4728,
+  "target_recall": 0.9800,
+  "memory_budget_mb": 120.0000,
+  "target_p99_latency_ms": 15.0000,
+  "target_max_compaction_recall_loss": 0.0020,
+  "scenarios": [
     {
       "churn_ratio": 0.1000,
       "deleted_count": 10000,
       "surviving_count": 90000,
-      "section_1_compaction_quality": {
-        "recall_master_baseline": 0.9816,
-        "recall_tombstone_only": 0.9826,
-        "recall_healed": 0.9834,
-        "recall_compacted_fixed_ef64": 0.9830,
-        "recall_delta_compacted_vs_healed": -0.0004,
-        "recall_loss_vs_master": -0.0014,
-        "target_0_0020_met": true,
-        "healing_time_sec": 0.7064,
-        "compaction_time_sec": 6.3386,
-        "navigability": {
-          "avg_degree_l0": 27.4471,
-          "min_degree_l0": 24,
-          "max_degree_l0": 32,
-          "isolated_nodes_l0": 0
-        }
+      "memory_reconciliation": {
+        "unique_serving_index_mb": 74.7354,
+        "unique_candidate_index_mb": 69.2389,
+        "shared_allocations_mb": 0.0000,
+        "total_index_owned_allocations_mb": 143.9743,
+        "candidate_pre_compact_mb": 74.1874,
+        "temp_construction_overhead_mb": 143.4263,
+        "peak_replacement_memory_mb": 143.9743,
+        "steady_state_candidate_memory_mb": 69.2389,
+        "memory_reclaimed_mb": 5.4965
       },
-      "section_2_sla_safe_policy": {
-        "gate_recall": false,
-        "gate_memory": true,
-        "gate_latency": true,
-        "gate_invariants": true,
-        "gate_compaction_quality_0_0020": true,
-        "policy_verdict": "REBUILD_REQUIRED",
-        "policy_reason": "Local maintenance cannot satisfy SLA hard gates on held-out validation; triggering controlled background rebuild."
+      "record_1_healed_serving_index": {
+        "recall": 0.9870,
+        "ci_lower": 0.9834,
+        "ci_upper": 0.9904,
+        "qps": 20833.3946,
+        "p99_latency_ms": 1.1557,
+        "steady_state_memory_mb": 74.7354,
+        "healing_time_sec": 0.5188
       },
-      "section_3_safe_replacement": {
-        "replacement_status": "REJECTED_PEAK_MEMORY_VIOLATION",
-        "replacement_details": "Peak memory during replacement 143.976822 MB exceeds budget 120.000000 MB",
-        "peak_memory_mb": 143.9768,
+      "record_2_fixed_ef_compacted_candidate": {
+        "ef_search": 64,
+        "recall": 0.9868,
+        "ci_lower": 0.9832,
+        "ci_upper": 0.9904,
+        "qps": 18518.5525,
+        "p99_latency_ms": 1.3483,
         "steady_state_memory_mb": 69.2389,
-        "memory_reclaimed_mb": 4.9483
+        "peak_replacement_memory_mb": 143.9743,
+        "compaction_time_sec": 5.0021,
+        "compaction_loss_vs_healed": 0.0002,
+        "gate_results": {
+          "gate_1_recall": true,
+          "gate_2_confidence": true,
+          "gate_3_peak_memory": false,
+          "gate_4_latency": true,
+          "gate_5_invariants": true,
+          "gate_6_compaction_quality": true
+        },
+        "verdict": "REJECTED",
+        "failure_reason": "[Gate 3 Fail: Peak Memory 143.974255 MB > 120 MB] "
       },
-      "section_4_recalibration": {
-        "target_recall": 0.9800,
-        "selected_ef_search": 48,
-        "selected_enable_ada_ef": false,
+      "record_3_recalibrated_compacted_candidate": {
+        "selected_ef_search": 64,
+        "selected_enable_ada_ef": true,
         "calib_status": "VERIFIED_FEASIBLE",
-        "calib_queries_n": 50,
-        "calib_recall_mean": 0.9820,
-        "calib_recall_ci_lower": 0.9660,
-        "calib_recall_ci_upper": 0.9960,
+        "calib_time_sec": 0.0534,
         "held_out_queries_n": 400,
-        "held_out_recall_mean": 0.9715,
-        "held_out_recall_ci_lower": 0.9647,
-        "held_out_recall_ci_upper": 0.9772,
-        "held_out_p99_latency_ms": 1.4679,
-        "held_out_qps": 18181.7567
+        "recall": 0.9857,
+        "ci_lower": 0.9815,
+        "ci_upper": 0.9898,
+        "qps": 17391.3029,
+        "p99_latency_ms": 1.6399,
+        "steady_state_memory_mb": 69.2389,
+        "peak_replacement_memory_mb": 143.9743,
+        "compaction_loss_vs_healed": 0.0013,
+        "gate_results": {
+          "gate_1_recall": true,
+          "gate_2_confidence": true,
+          "gate_3_peak_memory": false,
+          "gate_4_latency": true,
+          "gate_5_invariants": true,
+          "gate_6_compaction_quality": true
+        },
+        "verdict": "REJECTED",
+        "failure_reason": "[Gate 3 Fail: Peak Memory 143.974255 MB > 120 MB] "
       },
-      "section_5_matched_quality_comparison": {
-        "rebuild_time_sec": 7.4311,
-        "rebuild_recall": 0.9842,
-        "rebuild_p99_latency_ms": 0.9169,
-        "rebuild_qps": 22727.4422,
-        "total_maintenance_sec": 7.0450,
-        "total_maintenance_with_calib_sec": 7.0964,
-        "raw_maintenance_speedup": 1.0548,
-        "quality_equivalent_speedup": 0.0000,
-        "maintenance_meets_accuracy": false
+      "record_4_fresh_reconstruction": {
+        "recall": 0.9830,
+        "ci_lower": 0.9768,
+        "ci_upper": 0.9880,
+        "qps": 24999.7258,
+        "p99_latency_ms": 0.8257,
+        "steady_state_memory_mb": 70.6270,
+        "rebuild_time_sec": 7.0735
+      },
+      "record_5_candidate_replacement_decision": {
+        "manager_status": "REJECTED_PEAK_MEMORY_VIOLATION",
+        "manager_details": "Peak memory during replacement 143.974255 MB exceeds budget 120.000000 MB",
+        "final_action": "COMPACTION_DEFERRED",
+        "final_action_rationale": "In-process replacement rejected due to transient peak memory (143.974255 MB > 120 MB); Healed serving index meets 0.9800 SLA with 74.8 MB memory; compaction deferred to preserve SLA.",
+        "raw_speedup": 1.2812,
+        "quality_equivalent_speedup": 1.2690,
+        "exclusive_lock_pause_us": 0.0000
       }
     },
     {
       "churn_ratio": 0.2500,
       "deleted_count": 25000,
       "surviving_count": 75000,
-      "section_1_compaction_quality": {
-        "recall_master_baseline": 0.9816,
-        "recall_tombstone_only": 0.9758,
-        "recall_healed": 0.9768,
-        "recall_compacted_fixed_ef64": 0.9798,
-        "recall_delta_compacted_vs_healed": 0.0030,
-        "recall_loss_vs_master": 0.0018,
-        "target_0_0020_met": true,
-        "healing_time_sec": 1.0644,
-        "compaction_time_sec": 4.2114,
-        "navigability": {
-          "avg_degree_l0": 26.9431,
-          "min_degree_l0": 24,
-          "max_degree_l0": 32,
-          "isolated_nodes_l0": 0
-        }
+      "memory_reconciliation": {
+        "unique_serving_index_mb": 75.0338,
+        "unique_candidate_index_mb": 56.1310,
+        "shared_allocations_mb": 0.0000,
+        "total_index_owned_allocations_mb": 131.1647,
+        "candidate_pre_compact_mb": 73.6834,
+        "temp_construction_overhead_mb": 129.8143,
+        "peak_replacement_memory_mb": 131.1647,
+        "steady_state_candidate_memory_mb": 56.1310,
+        "memory_reclaimed_mb": 18.9028
       },
-      "section_2_sla_safe_policy": {
-        "gate_recall": true,
-        "gate_memory": true,
-        "gate_latency": true,
-        "gate_invariants": true,
-        "gate_compaction_quality_0_0020": true,
-        "policy_verdict": "COMPACTION_ACCEPTED",
-        "policy_reason": "Compaction satisfies all independent hard gates: recall, confidence bounds, memory, latency, graph invariants, and the 0.20 pp preservation target."
+      "record_1_healed_serving_index": {
+        "recall": 0.9884,
+        "ci_lower": 0.9850,
+        "ci_upper": 0.9918,
+        "qps": 17241.3532,
+        "p99_latency_ms": 1.3023,
+        "steady_state_memory_mb": 75.0338,
+        "healing_time_sec": 0.8318
       },
-      "section_3_safe_replacement": {
-        "replacement_status": "REJECTED_PEAK_MEMORY_VIOLATION",
-        "replacement_details": "Peak memory during replacement 131.154343 MB exceeds budget 120.000000 MB",
-        "peak_memory_mb": 131.1543,
+      "record_2_fixed_ef_compacted_candidate": {
+        "ef_search": 64,
+        "recall": 0.9822,
+        "ci_lower": 0.9782,
+        "ci_upper": 0.9862,
+        "qps": 19999.9237,
+        "p99_latency_ms": 1.0661,
         "steady_state_memory_mb": 56.1310,
-        "memory_reclaimed_mb": 17.5524
+        "peak_replacement_memory_mb": 131.1647,
+        "compaction_time_sec": 3.5232,
+        "compaction_loss_vs_healed": 0.0062,
+        "gate_results": {
+          "gate_1_recall": true,
+          "gate_2_confidence": false,
+          "gate_3_peak_memory": false,
+          "gate_4_latency": true,
+          "gate_5_invariants": true,
+          "gate_6_compaction_quality": false
+        },
+        "verdict": "REJECTED",
+        "failure_reason": "[Gate 3 Fail: Peak Memory 131.164742 MB > 120 MB] [Gate 6 Fail: Compaction Loss 0.006200 > 0.0020] "
       },
-      "section_4_recalibration": {
-        "target_recall": 0.9800,
+      "record_3_recalibrated_compacted_candidate": {
         "selected_ef_search": 96,
         "selected_enable_ada_ef": true,
         "calib_status": "VERIFIED_FEASIBLE",
-        "calib_queries_n": 50,
-        "calib_recall_mean": 0.9880,
-        "calib_recall_ci_lower": 0.9760,
-        "calib_recall_ci_upper": 0.9980,
+        "calib_time_sec": 0.0536,
         "held_out_queries_n": 400,
-        "held_out_recall_mean": 0.9872,
-        "held_out_recall_ci_lower": 0.9812,
-        "held_out_recall_ci_upper": 0.9927,
-        "held_out_p99_latency_ms": 1.6749,
-        "held_out_qps": 15384.6018
+        "recall": 0.9897,
+        "ci_lower": 0.9865,
+        "ci_upper": 0.9930,
+        "qps": 21052.5724,
+        "p99_latency_ms": 1.1817,
+        "steady_state_memory_mb": 56.1310,
+        "peak_replacement_memory_mb": 131.1647,
+        "compaction_loss_vs_healed": -0.0013,
+        "gate_results": {
+          "gate_1_recall": true,
+          "gate_2_confidence": true,
+          "gate_3_peak_memory": false,
+          "gate_4_latency": true,
+          "gate_5_invariants": true,
+          "gate_6_compaction_quality": true
+        },
+        "verdict": "REJECTED",
+        "failure_reason": "[Gate 3 Fail: Peak Memory 131.164742 MB > 120 MB] "
       },
-      "section_5_matched_quality_comparison": {
-        "rebuild_time_sec": 6.0556,
-        "rebuild_recall": 0.9878,
-        "rebuild_p99_latency_ms": 0.7444,
-        "rebuild_qps": 27777.5835,
-        "total_maintenance_sec": 5.2758,
-        "total_maintenance_with_calib_sec": 5.3247,
-        "raw_maintenance_speedup": 1.1478,
-        "quality_equivalent_speedup": 1.1373,
-        "maintenance_meets_accuracy": true
+      "record_4_fresh_reconstruction": {
+        "recall": 0.9826,
+        "ci_lower": 0.9788,
+        "ci_upper": 0.9864,
+        "qps": 26315.7155,
+        "p99_latency_ms": 0.8268,
+        "steady_state_memory_mb": 57.1466,
+        "rebuild_time_sec": 5.7786
+      },
+      "record_5_candidate_replacement_decision": {
+        "manager_status": "REJECTED_PEAK_MEMORY_VIOLATION",
+        "manager_details": "Peak memory during replacement 131.164742 MB exceeds budget 120.000000 MB",
+        "final_action": "COMPACTION_DEFERRED",
+        "final_action_rationale": "In-process replacement rejected due to transient peak memory (131.164742 MB > 120 MB); Healed serving index meets 0.9800 SLA with 74.8 MB memory; compaction deferred to preserve SLA.",
+        "raw_speedup": 1.3269,
+        "quality_equivalent_speedup": 1.3107,
+        "exclusive_lock_pause_us": 0.0000
       }
     },
     {
       "churn_ratio": 0.5000,
       "deleted_count": 50000,
       "surviving_count": 50000,
-      "section_1_compaction_quality": {
-        "recall_master_baseline": 0.9816,
-        "recall_tombstone_only": 0.9780,
-        "recall_healed": 0.9786,
-        "recall_compacted_fixed_ef64": 0.9728,
-        "recall_delta_compacted_vs_healed": -0.0058,
-        "recall_loss_vs_master": 0.0088,
-        "target_0_0020_met": false,
-        "healing_time_sec": 1.0094,
-        "compaction_time_sec": 2.1658,
-        "navigability": {
-          "avg_degree_l0": 27.5824,
-          "min_degree_l0": 24,
-          "max_degree_l0": 32,
-          "isolated_nodes_l0": 0
-        }
+      "memory_reconciliation": {
+        "unique_serving_index_mb": 74.8964,
+        "unique_candidate_index_mb": 37.7126,
+        "shared_allocations_mb": 0.0000,
+        "total_index_owned_allocations_mb": 112.6090,
+        "candidate_pre_compact_mb": 71.7930,
+        "temp_construction_overhead_mb": 109.5056,
+        "peak_replacement_memory_mb": 112.6090,
+        "steady_state_candidate_memory_mb": 37.7126,
+        "memory_reclaimed_mb": 37.1838
       },
-      "section_2_sla_safe_policy": {
-        "gate_recall": false,
-        "gate_memory": true,
-        "gate_latency": true,
-        "gate_invariants": true,
-        "gate_compaction_quality_0_0020": false,
-        "policy_verdict": "REBUILD_REQUIRED",
-        "policy_reason": "Local maintenance cannot satisfy SLA hard gates on held-out validation; triggering controlled background rebuild."
+      "record_1_healed_serving_index": {
+        "recall": 0.9874,
+        "ci_lower": 0.9838,
+        "ci_upper": 0.9908,
+        "qps": 15624.9683,
+        "p99_latency_ms": 1.4416,
+        "steady_state_memory_mb": 74.8964,
+        "healing_time_sec": 1.1778
       },
-      "section_3_safe_replacement": {
-        "replacement_status": "REJECTED_SLA_VIOLATION",
-        "replacement_details": "Candidate validation recall 0.972000 < target 0.980000",
-        "peak_memory_mb": 112.6051,
+      "record_2_fixed_ef_compacted_candidate": {
+        "ef_search": 64,
+        "recall": 0.9762,
+        "ci_lower": 0.9708,
+        "ci_upper": 0.9818,
+        "qps": 22727.1959,
+        "p99_latency_ms": 1.1887,
         "steady_state_memory_mb": 37.7126,
-        "memory_reclaimed_mb": 34.0797
+        "peak_replacement_memory_mb": 112.6090,
+        "compaction_time_sec": 1.9875,
+        "compaction_loss_vs_healed": 0.0112,
+        "gate_results": {
+          "gate_1_recall": false,
+          "gate_2_confidence": false,
+          "gate_3_peak_memory": true,
+          "gate_4_latency": true,
+          "gate_5_invariants": true,
+          "gate_6_compaction_quality": false
+        },
+        "verdict": "REJECTED",
+        "failure_reason": "[Gate 1 Fail: Recall 0.976200 < 0.9800] [Gate 6 Fail: Compaction Loss 0.011200 > 0.0020] "
       },
-      "section_4_recalibration": {
-        "target_recall": 0.9800,
+      "record_3_recalibrated_compacted_candidate": {
         "selected_ef_search": 64,
         "selected_enable_ada_ef": false,
         "calib_status": "VERIFIED_FEASIBLE",
-        "calib_queries_n": 50,
-        "calib_recall_mean": 0.9900,
-        "calib_recall_ci_lower": 0.9780,
-        "calib_recall_ci_upper": 0.9980,
+        "calib_time_sec": 0.0444,
         "held_out_queries_n": 400,
-        "held_out_recall_mean": 0.9720,
-        "held_out_recall_ci_lower": 0.9647,
-        "held_out_recall_ci_upper": 0.9790,
-        "held_out_p99_latency_ms": 1.0588,
-        "held_out_qps": 22222.3612
+        "recall": 0.9747,
+        "ci_lower": 0.9693,
+        "ci_upper": 0.9805,
+        "qps": 21052.8366,
+        "p99_latency_ms": 1.0500,
+        "steady_state_memory_mb": 37.7126,
+        "peak_replacement_memory_mb": 112.6090,
+        "compaction_loss_vs_healed": 0.0127,
+        "gate_results": {
+          "gate_1_recall": false,
+          "gate_2_confidence": false,
+          "gate_3_peak_memory": true,
+          "gate_4_latency": true,
+          "gate_5_invariants": true,
+          "gate_6_compaction_quality": false
+        },
+        "verdict": "REJECTED",
+        "failure_reason": "[Gate 1 Fail: Recall 0.974750 < 0.9800] [Gate 6 Fail: Compaction Loss 0.012650 > 0.0020] "
       },
-      "section_5_matched_quality_comparison": {
-        "rebuild_time_sec": 3.8777,
-        "rebuild_recall": 0.9880,
-        "rebuild_p99_latency_ms": 0.6962,
-        "rebuild_qps": 26315.7155,
-        "total_maintenance_sec": 3.1753,
-        "total_maintenance_with_calib_sec": 3.2184,
-        "raw_maintenance_speedup": 1.2212,
+      "record_4_fresh_reconstruction": {
+        "recall": 0.9872,
+        "ci_lower": 0.9822,
+        "ci_upper": 0.9916,
+        "qps": 27777.9514,
+        "p99_latency_ms": 0.6305,
+        "steady_state_memory_mb": 38.1068,
+        "rebuild_time_sec": 3.7710
+      },
+      "record_5_candidate_replacement_decision": {
+        "manager_status": "REJECTED_SLA_VIOLATION",
+        "manager_details": "Candidate validation recall 0.974750 < target 0.980000",
+        "final_action": "REBUILD_REQUIRED",
+        "final_action_rationale": "Candidate replacement rejected due to SLA violation (Candidate validation recall 0.974750 < target 0.980000); background rebuild required.",
+        "raw_speedup": 1.1913,
         "quality_equivalent_speedup": 0.0000,
-        "maintenance_meets_accuracy": false
+        "exclusive_lock_pause_us": 0.0000
       }
     }
-  ],
-  "root_cause_scientific_synthesis": {
-    "section_1_compaction_quality": "Compaction degradation was caused by upper-layer hierarchy collapse. Purging tombstoned nodes severed long-range skip highways because previous replenishment had an artificially low target degree and lacked RNG diversity, causing queries to terminate in distant cluster dead-ends (0/10 hits on Queries 18, 39, 42). Restoring Strict RNG diversity replenishment on upper layers and elevating Layer 0 replenishment to 75% of M_max0 completely resolves this, restoring 25% churn compacted recall from 92.80% to 97.72% (0.00 pp loss vs healed).",
-    "section_2_sla_safe_policy": "The unconditional rule mandating compaction for churn <= 20% is eliminated. Every maintenance operation is strictly gated against independent hard constraints (recall, bootstrap CI, memory budget, latency SLA, graph invariants, compaction quality). When tombstone-healed recall meets the SLA but compaction would degrade recall, Compaction Deferral safely preserves the serving index.",
-    "section_3_safe_replacement": "ServingIndexManager enables non-destructive candidate index construction, offline held-out validation, peak memory accounting, and controlled atomic replacement with safe retirement of the old index.",
-    "section_4_recalibration_verification": "AutoCalibrator separates 50-query search sweep signals from independent 400-query held-out validation, strictly classifying outcomes into VerifiedFeasible, ProvisionallyFeasible, ValidationFailed, or InfeasibleWithinSearchSpace with zero false feasibility.",
-    "section_5_matched_quality": "Raw speedup (2.7x-16.2x) is strictly decoupled from quality-equivalent speedup. Faster execution is never presented as an equivalent substitute unless held-out recall satisfies user accuracy targets."
-  }
+  ]
 }

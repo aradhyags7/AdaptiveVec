@@ -163,12 +163,11 @@ In early Phase 6.4 benchmarks, local neighborhood healing (`heal_neighborhood()`
   5. *Graph Invariant Gate:* 0 isolated nodes, active count match.
   6. *Compaction Quality Gate:* Recall loss $\le 0.0020$ (0.20 pp).
 - **Compaction Deferral:** If the healed tombstone index meets the user SLA but compaction candidate validation fails, Compaction Deferral keeps the serving index intact without degradation.
-- **Safe Replacement Semantics (`ServingIndexManager`):** Candidate indices are evaluated non-destructively offline. The manager verifies peak memory limits ($\text{Memory}_{\text{old}} + \text{Memory}_{\text{candidate}} \le M_{\text{budget}}$), executes held-out validation, performs an atomic pointer swap under `std::shared_mutex`, and safely retires the old index once active reader references drain.
+- **Safe Replacement Semantics (`ServingIndexManager`):** Candidate indices are evaluated non-destructively offline. The manager verifies peak memory limits ($\text{Memory}_{\text{old}} + \text{Memory}_{\text{candidate}} \le M_{\text{budget}}$), executes held-out validation, performs an atomic pointer swap with a sub-millisecond reader pause (0.9 to 193.9 $\mu$s), and safely defers destruction of the old index until all in-flight reader references drain.
 
-### 5. Compaction Locking Semantics
-Compaction requires an exclusive write lock on `index_lifecycle_rw_mutex` to safely repoint memory buffers.
-- It is **not zero downtime** or wait-free; concurrent queries arriving during the pointer swap experience a brief pause (**129.2 ms to 147.0 ms** on 100K vectors).
-- However, compared to taking the service offline for 3.3 to 7.1 seconds to rebuild from scratch, a sub-150 ms pause is easily absorbed by standard client retry and timeout policies.
+### 5. Compaction and Replacement Locking Semantics
+- **Compaction Write-Lock Pause:** Direct in-place compaction requires an exclusive write lock on `index_lifecycle_rw_mutex` to safely repoint memory buffers (**129.2 ms to 147.0 ms** on 100K vectors). It is **not zero downtime** or wait-free; concurrent queries arriving during the buffer swap experience a brief pause.
+- **Safe Replacement Pointer Swap Pause:** When using `ServingIndexManager`, replacing the active serving pointer with an offline-validated candidate incurs an exclusive write-lock pause of only **0.9 to 193.9 microseconds (0.194 ms)**, while active reader queries continue executing without pause on retained references. Non-destructive replacement requires provisioning for peak double residency ($143.98\text{ MB}$ at 10% churn, $131.16\text{ MB}$ at 25% churn).
 
 ---
 

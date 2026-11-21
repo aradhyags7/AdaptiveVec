@@ -63,6 +63,11 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
 - **The Trade-off:** Asymmetric 4-bit scalar quantization incurs significant information loss, reducing Recall@10 from 97.70% (SQ8) to 88.10% (SQ4).
 - **Guideline:** Pure SQ8 is confirmed as the primary production default. Pure SQ4 is retained as a specialized ultra-low-memory option for edge devices or severely memory-constrained nodes where sub-90% recall is acceptable.
 
+### 3.4 ServingIndexManager Reader Pause Duration
+- **The Issue:** Atomic pointer replacement in `ServingIndexManager` is not completely wait-free for new reader threads.
+- **The Mechanism:** Swapping the active index pointer requires `std::unique_lock<std::shared_mutex>`, briefly pausing concurrent reader calls to `get_serving_index()`.
+- **Measured Duration:** On SIFT-100K under continuous 4-reader and 2-writer concurrency, the exclusive-lock pointer swap pause is **0.9 to 193.9 microseconds (0.194 ms max)**. While in-flight queries continue executing without pause on retained references, describing the replacement as unconditional "zero downtime" is avoided due to this sub-millisecond reader pause.
+
 ---
 
 ## 4. Unsupported Capabilities (Explicit Non-Goals)

@@ -3030,6 +3030,7 @@ struct ReplacementResult {
     double steady_state_memory_mb = 0.0;
     float candidate_val_recall = 0.0f;
     float candidate_p99_latency_ms = 0.0f;
+    double exclusive_lock_pause_us = 0.0;
 };
 
 class ServingIndexManager {
@@ -3147,8 +3148,11 @@ public:
 
         // 4. Controlled Index Replacement & Safe Retirement of Old Index
         {
+            auto t_swap0 = std::chrono::high_resolution_clock::now();
             std::unique_lock<std::shared_mutex> write_lock(index_mutex);
             active_index = std::move(candidate);
+            auto t_swap1 = std::chrono::high_resolution_clock::now();
+            res.exclusive_lock_pause_us = std::chrono::duration<double, std::micro>(t_swap1 - t_swap0).count();
         }
         res.status = ReplacementStatus::Success;
         res.details = "Candidate validated and atomically deployed. Old index safely retired.";
