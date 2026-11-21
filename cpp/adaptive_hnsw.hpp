@@ -14,6 +14,7 @@
 #include <vector>
 #include <queue>
 #include <unordered_set>
+#include <unordered_map>
 #include <cmath>
 #include <random>
 #include <algorithm>
@@ -92,6 +93,7 @@ struct ProcessMemoryMetrics {
     size_t working_set_bytes = 0;
     size_t peak_working_set_bytes = 0;
     size_t private_bytes = 0;
+    size_t peak_private_bytes = 0;
 };
 
 inline ProcessMemoryMetrics get_process_memory_metrics() {
@@ -102,6 +104,7 @@ inline ProcessMemoryMetrics get_process_memory_metrics() {
         m.working_set_bytes = pmc.WorkingSetSize;
         m.peak_working_set_bytes = pmc.PeakWorkingSetSize;
         m.private_bytes = pmc.PrivateUsage;
+        m.peak_private_bytes = pmc.PeakPagefileUsage;
     }
 #elif defined(__linux__)
     FILE* f = fopen("/proc/self/statm", "r");
@@ -817,6 +820,9 @@ public:
     mutable std::mutex tracker_mutex;
     mutable std::recursive_mutex insertion_mutex;       // Recursive mutex serializing streaming insertions
     mutable std::shared_mutex index_lifecycle_rw_mutex; // Global reader-writer lock for compaction & reallocation safety
+    std::vector<tableint> last_compaction_id_map;
+    
+    const std::vector<tableint>& get_last_compaction_id_map() const { return last_compaction_id_map; }
     
     AdaptiveHNSWIndex(size_t dimension, SpaceType sp = SpaceType::L2, bool adaptive = true, PolicyConfig cfg = PolicyConfig())
         : dim(dimension), space(sp), policy(cfg), is_adaptive(adaptive), quantizer(dimension), quantizer_sq4(dimension), node_locks(NUM_NODE_LOCKS) {
@@ -928,6 +934,7 @@ public:
     }
     
     inline const float* get_vector(tableint id) const {
+        if (data.empty() || id * dim >= data.size()) return nullptr;
         return &data[id * dim];
     }
 
@@ -2365,9 +2372,9 @@ public:
         return count;
     }
 
-    void compact() {
+    std::vector<tableint> compact() {
         std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex); // Synchronized blocking compaction
-        if (num_deleted.load() == 0) return;
+        if (num_deleted.load() == 0) return {};
 
         std::vector<tableint> id_map(num_elements, (tableint)-1);
         tableint new_count = 0;
@@ -2395,7 +2402,8 @@ public:
             num_deleted = 0;
             max_level = -1;
             enter_point = 0;
-            return;
+            last_compaction_id_map = id_map;
+            return id_map;
         }
 
         // Compact vector data
@@ -2717,6 +2725,8 @@ public:
         if (policy.enable_bridge_aware) {
             update_bridge_scores();
         }
+        last_compaction_id_map = id_map;
+        return id_map;
     }
     
     std::vector<Candidate> search(const float* query, int k, int ef, QuerySearchStats* stats = nullptr) const {
@@ -3023,6 +3033,24 @@ inline const char* to_string(ReplacementStatus status) {
     return "UNKNOWN";
 }
 
+enum class MutationType {
+    Insert,
+    Delete
+};
+
+struct MutationRecord {
+    MutationType type;
+    uint64_t label;
+    std::vector<float> vec; // populated for Insert
+    uint64_t seq;
+};
+
+struct CandidateSnapshot {
+    std::shared_ptr<AdaptiveHNSWIndex> index_copy;
+    std::unordered_map<uint64_t, tableint> label_to_id;
+    uint64_t snapshot_seq;
+};
+
 struct ReplacementResult {
     ReplacementStatus status = ReplacementStatus::RejectedSlaViolation;
     std::string details = "";
@@ -3031,6 +3059,7 @@ struct ReplacementResult {
     float candidate_val_recall = 0.0f;
     float candidate_p99_latency_ms = 0.0f;
     double exclusive_lock_pause_us = 0.0;
+    size_t replayed_mutations_count = 0;
 };
 
 class ServingIndexManager {
@@ -3038,13 +3067,129 @@ private:
     std::shared_ptr<AdaptiveHNSWIndex> active_index;
     mutable std::shared_mutex index_mutex;
 
+    // External label and payload tracking
+    std::unordered_map<uint64_t, tableint> label_to_id;
+    std::unordered_map<tableint, uint64_t> id_to_label;
+    std::unordered_map<uint64_t, std::vector<float>> label_payloads;
+
+    // Mutation log for concurrent catch-up replay
+    std::vector<MutationRecord> mutation_log;
+    uint64_t current_seq = 0;
+
 public:
     explicit ServingIndexManager(std::shared_ptr<AdaptiveHNSWIndex> initial_index)
-        : active_index(std::move(initial_index)) {}
+        : active_index(std::move(initial_index)) {
+        if (active_index) {
+            size_t n = active_index->num_elements;
+            size_t d = active_index->dim;
+            for (size_t i = 0; i < n; ++i) {
+                if (!active_index->is_deleted(static_cast<tableint>(i))) {
+                    uint64_t label = static_cast<uint64_t>(i);
+                    label_to_id[label] = static_cast<tableint>(i);
+                    id_to_label[static_cast<tableint>(i)] = label;
+                    if (active_index->policy.keep_raw_vectors && active_index->get_vector(static_cast<tableint>(i))) {
+                        const float* ptr = active_index->get_vector(static_cast<tableint>(i));
+                        label_payloads[label] = std::vector<float>(ptr, ptr + d);
+                    }
+                }
+            }
+        }
+    }
+
+    ServingIndexManager(std::shared_ptr<AdaptiveHNSWIndex> initial_index, const std::vector<uint64_t>& labels)
+        : active_index(std::move(initial_index)) {
+        if (active_index) {
+            size_t n = active_index->num_elements;
+            size_t d = active_index->dim;
+            for (size_t i = 0; i < n && i < labels.size(); ++i) {
+                if (!active_index->is_deleted(static_cast<tableint>(i))) {
+                    uint64_t label = labels[i];
+                    label_to_id[label] = static_cast<tableint>(i);
+                    id_to_label[static_cast<tableint>(i)] = label;
+                    if (active_index->policy.keep_raw_vectors && active_index->get_vector(static_cast<tableint>(i))) {
+                        const float* ptr = active_index->get_vector(static_cast<tableint>(i));
+                        label_payloads[label] = std::vector<float>(ptr, ptr + d);
+                    }
+                }
+            }
+        }
+    }
 
     std::shared_ptr<AdaptiveHNSWIndex> get_serving_index() const {
         std::shared_lock<std::shared_mutex> lock(index_mutex);
         return active_index;
+    }
+
+    tableint insert(uint64_t label, const float* vec) {
+        std::unique_lock<std::shared_mutex> lock(index_mutex);
+        if (!active_index) return (tableint)-1;
+
+        auto it = label_to_id.find(label);
+        if (it != label_to_id.end()) {
+            active_index->mark_deleted(it->second);
+            id_to_label.erase(it->second);
+            label_to_id.erase(it);
+        }
+
+        tableint new_id = active_index->insert(vec);
+        label_to_id[label] = new_id;
+        id_to_label[new_id] = label;
+        label_payloads[label] = std::vector<float>(vec, vec + active_index->dim);
+
+        mutation_log.push_back({MutationType::Insert, label, label_payloads[label], ++current_seq});
+        return new_id;
+    }
+
+    bool mark_deleted(uint64_t label) {
+        std::unique_lock<std::shared_mutex> lock(index_mutex);
+        if (!active_index) return false;
+
+        auto it = label_to_id.find(label);
+        if (it == label_to_id.end()) return false;
+
+        tableint id = it->second;
+        active_index->mark_deleted(id);
+        id_to_label.erase(id);
+        label_to_id.erase(it);
+        label_payloads.erase(label);
+
+        mutation_log.push_back({MutationType::Delete, label, {}, ++current_seq});
+        return true;
+    }
+
+    bool has_label(uint64_t label) const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        return label_to_id.count(label) > 0;
+    }
+
+    bool get_vector(uint64_t label, float* out_vec) const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        auto it = label_payloads.find(label);
+        if (it == label_payloads.end()) return false;
+        std::memcpy(out_vec, it->second.data(), it->second.size() * sizeof(float));
+        return true;
+    }
+
+    size_t get_active_label_count() const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        return label_to_id.size();
+    }
+
+    std::vector<uint64_t> get_active_labels() const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        std::vector<uint64_t> result;
+        result.reserve(label_to_id.size());
+        for (const auto& kv : label_to_id) result.push_back(kv.first);
+        return result;
+    }
+
+    CandidateSnapshot create_candidate_snapshot() const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        CandidateSnapshot snap;
+        snap.index_copy = active_index ? active_index->clone() : nullptr;
+        snap.label_to_id = label_to_id;
+        snap.snapshot_seq = current_seq;
+        return snap;
     }
 
     ReplacementResult evaluate_and_replace(
@@ -3056,7 +3201,10 @@ public:
         double max_memory_mb,
         float target_p99_latency_ms,
         int k = 10,
-        int ef_search = 64
+        int ef_search = 64,
+        uint64_t snapshot_seq = 0,
+        std::unordered_map<uint64_t, tableint> candidate_label_to_id = {},
+        const std::vector<tableint>& compaction_id_map = {}
     ) {
         ReplacementResult res;
         if (!candidate) {
@@ -3128,10 +3276,13 @@ public:
         float mean_recall = sum_r / std::max((size_t)1, n_val_queries);
         res.candidate_val_recall = mean_recall;
 
-        std::sort(val_latencies.begin(), val_latencies.end());
-        size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
-        if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
-        float p99_lat = static_cast<float>(val_latencies[p99_idx]);
+        float p99_lat = 0.0f;
+        if (!val_latencies.empty()) {
+            std::sort(val_latencies.begin(), val_latencies.end());
+            size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
+            if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
+            p99_lat = static_cast<float>(val_latencies[p99_idx]);
+        }
         res.candidate_p99_latency_ms = p99_lat;
 
         // SLA validation check
@@ -3146,16 +3297,69 @@ public:
             return res;
         }
 
-        // 4. Controlled Index Replacement & Safe Retirement of Old Index
+        // 4. Controlled Index Replacement & Safe Replay of Concurrent Mutations
         {
             auto t_swap0 = std::chrono::high_resolution_clock::now();
             std::unique_lock<std::shared_mutex> write_lock(index_mutex);
+
+            // A. If compaction occurred on candidate, remap candidate_label_to_id
+            if (!compaction_id_map.empty() && !candidate_label_to_id.empty()) {
+                std::unordered_map<uint64_t, tableint> remapped;
+                for (const auto& kv : candidate_label_to_id) {
+                    if (kv.second < compaction_id_map.size()) {
+                        tableint new_id = compaction_id_map[kv.second];
+                        if (new_id != (tableint)-1) {
+                            remapped[kv.first] = new_id;
+                        }
+                    }
+                }
+                candidate_label_to_id = std::move(remapped);
+            }
+
+            // B. Replay delta mutations that occurred while candidate was being processed
+            size_t replayed_count = 0;
+            if (snapshot_seq > 0 || !candidate_label_to_id.empty()) {
+                for (const auto& op : mutation_log) {
+                    if (op.seq > snapshot_seq) {
+                        if (op.type == MutationType::Insert) {
+                            auto it = candidate_label_to_id.find(op.label);
+                            if (it != candidate_label_to_id.end()) {
+                                candidate->mark_deleted(it->second);
+                            }
+                            tableint new_id = candidate->insert(op.vec.data());
+                            candidate_label_to_id[op.label] = new_id;
+                            replayed_count++;
+                        } else if (op.type == MutationType::Delete) {
+                            auto it = candidate_label_to_id.find(op.label);
+                            if (it != candidate_label_to_id.end()) {
+                                candidate->mark_deleted(it->second);
+                                candidate_label_to_id.erase(it);
+                                replayed_count++;
+                            }
+                        }
+                    }
+                }
+                label_to_id = candidate_label_to_id;
+                id_to_label.clear();
+                for (const auto& kv : label_to_id) {
+                    id_to_label[kv.second] = kv.first;
+                }
+            }
+
+            // C. Atomic pointer swap
             active_index = std::move(candidate);
+
+            // D. Trim mutation log
+            if (mutation_log.size() > 50000) {
+                mutation_log.clear();
+            }
+
             auto t_swap1 = std::chrono::high_resolution_clock::now();
             res.exclusive_lock_pause_us = std::chrono::duration<double, std::micro>(t_swap1 - t_swap0).count();
+            res.replayed_mutations_count = replayed_count;
         }
         res.status = ReplacementStatus::Success;
-        res.details = "Candidate validated and atomically deployed. Old index safely retired.";
+        res.details = "Candidate validated and atomically deployed. Replayed " + std::to_string(res.replayed_mutations_count) + " concurrent mutations. Old index safely retired.";
         return res;
     }
 };

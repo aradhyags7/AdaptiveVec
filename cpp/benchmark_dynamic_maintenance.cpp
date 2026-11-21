@@ -321,9 +321,14 @@ int main() {
         double cand_owned_mb = cand_post_mb.total_owned_bytes / (1024.0 * 1024.0);
 
         // Memory Reconciliation Details
+        ProcessMemoryMetrics proc_mem = get_process_memory_metrics();
         double shared_allocations_mb = 0.0; // Independent deep clone
         double peak_replacement_mb = serv_owned_mb + cand_owned_mb;
         double temp_compact_overhead_mb = cand_pre_owned_mb + cand_owned_mb;
+        double proc_ws_mb = proc_mem.working_set_bytes / (1024.0 * 1024.0);
+        double proc_peak_ws_mb = proc_mem.peak_working_set_bytes / (1024.0 * 1024.0);
+        double proc_private_mb = proc_mem.private_bytes / (1024.0 * 1024.0);
+        double proc_peak_private_mb = proc_mem.peak_private_bytes / (1024.0 * 1024.0);
 
         GraphNavStats comp_nav = compute_graph_nav_stats(*candidate_compact_idx);
 
@@ -340,7 +345,10 @@ int main() {
 
         std::string fixed_failure_reason = "";
         if (!fixed_gate_recall) fixed_failure_reason += "[Gate 1 Fail: Recall " + std::to_string(fixed_ef_eval.recall) + " < 0.9800] ";
+        if (!fixed_gate_ci) fixed_failure_reason += "[Gate 2 Fail: CI Lower " + std::to_string(fixed_ef_eval.ci_lower) + " < 0.9800] ";
         if (!fixed_gate_mem) fixed_failure_reason += "[Gate 3 Fail: Peak Memory " + std::to_string(peak_replacement_mb) + " MB > 120 MB] ";
+        if (!fixed_gate_lat) fixed_failure_reason += "[Gate 4 Fail: P99 Latency " + std::to_string(fixed_ef_eval.p99_latency_ms) + " ms > 15.0 ms] ";
+        if (!fixed_gate_inv) fixed_failure_reason += "[Gate 5 Fail: Graph Invariants] ";
         if (!fixed_gate_comp) fixed_failure_reason += "[Gate 6 Fail: Compaction Loss " + std::to_string(fixed_loss_vs_healed) + " > 0.0020] ";
         if (fixed_failure_reason.empty()) fixed_failure_reason = "NONE (ALL GATES PASSED)";
 
@@ -348,7 +356,7 @@ int main() {
                   << (fixed_ef_eval.ci_lower * 100.0) << "%, " << (fixed_ef_eval.ci_upper * 100.0) << "%], P99=" 
                   << fixed_ef_eval.p99_latency_ms << " ms, QPS=" << fixed_ef_eval.qps 
                   << ", Steady Memory=" << cand_owned_mb << " MB, Peak Replacement Memory=" << peak_replacement_mb << " MB\n";
-        std::cout << "      Fixed-ef Gate Status: " << (fixed_gate_recall && fixed_gate_mem && fixed_gate_lat && fixed_gate_inv && fixed_gate_comp ? "PASSED" : "FAILED")
+        std::cout << "      Fixed-ef Gate Status: " << (fixed_gate_recall && fixed_gate_ci && fixed_gate_mem && fixed_gate_lat && fixed_gate_inv && fixed_gate_comp ? "PASSED" : "FAILED")
                   << " Reason: " << fixed_failure_reason << "\n";
 
         // -------------------------------------------------------------
@@ -388,7 +396,10 @@ int main() {
 
         std::string recalib_failure_reason = "";
         if (!recalib_gate_recall) recalib_failure_reason += "[Gate 1 Fail: Recall " + std::to_string(recalib_eval.recall) + " < 0.9800] ";
+        if (!recalib_gate_ci) recalib_failure_reason += "[Gate 2 Fail: CI Lower " + std::to_string(recalib_eval.ci_lower) + " < 0.9800] ";
         if (!recalib_gate_mem) recalib_failure_reason += "[Gate 3 Fail: Peak Memory " + std::to_string(peak_replacement_mb) + " MB > 120 MB] ";
+        if (!recalib_gate_lat) recalib_failure_reason += "[Gate 4 Fail: P99 Latency " + std::to_string(recalib_eval.p99_latency_ms) + " ms > 15.0 ms] ";
+        if (!recalib_gate_inv) recalib_failure_reason += "[Gate 5 Fail: Graph Invariants] ";
         if (!recalib_gate_comp) recalib_failure_reason += "[Gate 6 Fail: Compaction Loss " + std::to_string(recalib_loss_vs_healed) + " > 0.0020] ";
         if (recalib_failure_reason.empty()) recalib_failure_reason = "NONE (ALL GATES PASSED)";
 
@@ -397,7 +408,7 @@ int main() {
                   << (recalib_eval.recall * 100.0) << "% [" << (recalib_eval.ci_lower * 100.0) << "%, " 
                   << (recalib_eval.ci_upper * 100.0) << "%], P99=" << recalib_eval.p99_latency_ms 
                   << " ms, QPS=" << recalib_eval.qps << ", Status=" << to_string(cal_rep.status) << "\n";
-        std::cout << "      Recalibrated Gate Status: " << (recalib_gate_recall && recalib_gate_mem && recalib_gate_lat && recalib_gate_inv && recalib_gate_comp ? "PASSED" : "FAILED")
+        std::cout << "      Recalibrated Gate Status: " << (recalib_gate_recall && recalib_gate_ci && recalib_gate_mem && recalib_gate_lat && recalib_gate_inv && recalib_gate_comp ? "PASSED" : "FAILED")
                   << " Reason: " << recalib_failure_reason << "\n";
 
         // -------------------------------------------------------------
@@ -413,10 +424,32 @@ int main() {
         MemoryBreakdown reb_mb = rebuild_idx.get_memory_breakdown();
         double reb_owned_mb = reb_mb.total_owned_bytes / (1024.0 * 1024.0);
 
+        GraphNavStats reb_nav = compute_graph_nav_stats(rebuild_idx);
+        double peak_rebuild_mem_mb = serv_owned_mb + reb_owned_mb;
+        double reb_loss_vs_healed = healed_eval.recall - rebuild_eval.recall;
+
+        bool reb_gate_recall = (rebuild_eval.recall >= 0.9800);
+        bool reb_gate_ci = (rebuild_eval.ci_lower >= 0.9800);
+        bool reb_gate_mem = (peak_rebuild_mem_mb <= 120.0);
+        bool reb_gate_lat = (rebuild_eval.p99_latency_ms <= 15.0f);
+        bool reb_gate_inv = (reb_nav.isolated_nodes_l0 == 0 && rebuild_idx.get_active_count() == n_surv);
+        bool reb_gate_comp = (reb_loss_vs_healed <= 0.0020);
+
+        std::string reb_failure_reason = "";
+        if (!reb_gate_recall) reb_failure_reason += "[Gate 1 Fail: Recall " + std::to_string(rebuild_eval.recall) + " < 0.9800] ";
+        if (!reb_gate_ci) reb_failure_reason += "[Gate 2 Fail: CI Lower " + std::to_string(rebuild_eval.ci_lower) + " < 0.9800] ";
+        if (!reb_gate_mem) reb_failure_reason += "[Gate 3 Fail: Peak Memory " + std::to_string(peak_rebuild_mem_mb) + " MB > 120 MB] ";
+        if (!reb_gate_lat) reb_failure_reason += "[Gate 4 Fail: P99 Latency " + std::to_string(rebuild_eval.p99_latency_ms) + " ms > 15.0 ms] ";
+        if (!reb_gate_inv) reb_failure_reason += "[Gate 5 Fail: Graph Invariants] ";
+        if (!reb_gate_comp) reb_failure_reason += "[Gate 6 Fail: Loss vs Healed " + std::to_string(reb_loss_vs_healed) + " > 0.0020] ";
+        if (reb_failure_reason.empty()) reb_failure_reason = "NONE (ALL GATES PASSED)";
+
         std::cout << "  [4] Fresh Reconstruction: Recall=" << (rebuild_eval.recall * 100.0) << "% [" 
                   << (rebuild_eval.ci_lower * 100.0) << "%, " << (rebuild_eval.ci_upper * 100.0) << "%], Time=" 
                   << rebuild_sec << " s, P99=" << rebuild_eval.p99_latency_ms << " ms, QPS=" << rebuild_eval.qps 
-                  << ", Memory=" << reb_owned_mb << " MB\n";
+                  << ", Steady Memory=" << reb_owned_mb << " MB, Peak Replacement Memory=" << peak_rebuild_mem_mb << " MB\n";
+        std::cout << "      Rebuild Gate Status: " << (reb_gate_recall && reb_gate_ci && reb_gate_mem && reb_gate_lat && reb_gate_inv && reb_gate_comp ? "PASSED" : "FAILED")
+                  << " Reason: " << reb_failure_reason << "\n";
 
         // -------------------------------------------------------------
         // Record 5: Validated Candidate Replacement Decision
@@ -466,14 +499,17 @@ int main() {
             << "      \"deleted_count\": " << n_del << ",\n"
             << "      \"surviving_count\": " << n_surv << ",\n"
             << "      \"memory_reconciliation\": {\n"
+            << "        \"budget_metric_scope\": \"Index-Owned Memory Only\",\n"
+            << "        \"budget_limit_mb\": 120.0000,\n"
+            << "        \"steady_state_index_owned_mb\": " << cand_owned_mb << ",\n"
+            << "        \"peak_combined_index_owned_mb\": " << peak_replacement_mb << ",\n"
+            << "        \"temp_replacement_allocations_mb\": " << temp_compact_overhead_mb << ",\n"
+            << "        \"peak_process_private_committed_mb\": " << proc_peak_private_mb << ",\n"
+            << "        \"peak_process_working_set_mb\": " << proc_peak_ws_mb << ",\n"
+            << "        \"current_process_working_set_mb\": " << proc_ws_mb << ",\n"
             << "        \"unique_serving_index_mb\": " << serv_owned_mb << ",\n"
             << "        \"unique_candidate_index_mb\": " << cand_owned_mb << ",\n"
             << "        \"shared_allocations_mb\": " << shared_allocations_mb << ",\n"
-            << "        \"total_index_owned_allocations_mb\": " << peak_replacement_mb << ",\n"
-            << "        \"candidate_pre_compact_mb\": " << cand_pre_owned_mb << ",\n"
-            << "        \"temp_construction_overhead_mb\": " << temp_compact_overhead_mb << ",\n"
-            << "        \"peak_replacement_memory_mb\": " << peak_replacement_mb << ",\n"
-            << "        \"steady_state_candidate_memory_mb\": " << cand_owned_mb << ",\n"
             << "        \"memory_reclaimed_mb\": " << (serv_owned_mb - cand_owned_mb) << "\n"
             << "      },\n"
             << "      \"record_1_healed_serving_index\": {\n"
@@ -504,7 +540,7 @@ int main() {
             << "          \"gate_5_invariants\": " << (fixed_gate_inv ? "true" : "false") << ",\n"
             << "          \"gate_6_compaction_quality\": " << (fixed_gate_comp ? "true" : "false") << "\n"
             << "        },\n"
-            << "        \"verdict\": \"" << (fixed_gate_recall && fixed_gate_mem && fixed_gate_lat && fixed_gate_inv && fixed_gate_comp ? "ACCEPTED" : "REJECTED") << "\",\n"
+            << "        \"verdict\": \"" << (fixed_gate_recall && fixed_gate_ci && fixed_gate_mem && fixed_gate_lat && fixed_gate_inv && fixed_gate_comp ? "ACCEPTED" : "REJECTED") << "\",\n"
             << "        \"failure_reason\": \"" << fixed_failure_reason << "\"\n"
             << "      },\n"
             << "      \"record_3_recalibrated_compacted_candidate\": {\n"
@@ -529,7 +565,7 @@ int main() {
             << "          \"gate_5_invariants\": " << (recalib_gate_inv ? "true" : "false") << ",\n"
             << "          \"gate_6_compaction_quality\": " << (recalib_gate_comp ? "true" : "false") << "\n"
             << "        },\n"
-            << "        \"verdict\": \"" << (recalib_gate_recall && recalib_gate_mem && recalib_gate_lat && recalib_gate_inv && recalib_gate_comp ? "ACCEPTED" : "REJECTED") << "\",\n"
+            << "        \"verdict\": \"" << (recalib_gate_recall && recalib_gate_ci && recalib_gate_mem && recalib_gate_lat && recalib_gate_inv && recalib_gate_comp ? "ACCEPTED" : "REJECTED") << "\",\n"
             << "        \"failure_reason\": \"" << recalib_failure_reason << "\"\n"
             << "      },\n"
             << "      \"record_4_fresh_reconstruction\": {\n"
@@ -539,7 +575,18 @@ int main() {
             << "        \"qps\": " << rebuild_eval.qps << ",\n"
             << "        \"p99_latency_ms\": " << rebuild_eval.p99_latency_ms << ",\n"
             << "        \"steady_state_memory_mb\": " << reb_owned_mb << ",\n"
-            << "        \"rebuild_time_sec\": " << rebuild_sec << "\n"
+            << "        \"peak_replacement_memory_mb\": " << peak_rebuild_mem_mb << ",\n"
+            << "        \"rebuild_time_sec\": " << rebuild_sec << ",\n"
+            << "        \"gate_results\": {\n"
+            << "          \"gate_1_recall\": " << (reb_gate_recall ? "true" : "false") << ",\n"
+            << "          \"gate_2_confidence\": " << (reb_gate_ci ? "true" : "false") << ",\n"
+            << "          \"gate_3_peak_memory\": " << (reb_gate_mem ? "true" : "false") << ",\n"
+            << "          \"gate_4_latency\": " << (reb_gate_lat ? "true" : "false") << ",\n"
+            << "          \"gate_5_invariants\": " << (reb_gate_inv ? "true" : "false") << ",\n"
+            << "          \"gate_6_compaction_quality\": " << (reb_gate_comp ? "true" : "false") << "\n"
+            << "        },\n"
+            << "        \"verdict\": \"" << (reb_gate_recall && reb_gate_ci && reb_gate_mem && reb_gate_lat && reb_gate_inv && reb_gate_comp ? "ACCEPTED" : "REJECTED") << "\",\n"
+            << "        \"failure_reason\": \"" << reb_failure_reason << "\"\n"
             << "      },\n"
             << "      \"record_5_candidate_replacement_decision\": {\n"
             << "        \"manager_status\": \"" << to_string(repl_res.status) << "\",\n"
@@ -548,7 +595,8 @@ int main() {
             << "        \"final_action_rationale\": \"" << final_action_rationale << "\",\n"
             << "        \"raw_speedup\": " << speedup_raw << ",\n"
             << "        \"quality_equivalent_speedup\": " << (recalib_gate_recall ? speedup_calib : 0.0) << ",\n"
-            << "        \"exclusive_lock_pause_us\": " << repl_res.exclusive_lock_pause_us << "\n"
+            << "        \"exclusive_lock_pause_us\": " << repl_res.exclusive_lock_pause_us << ",\n"
+            << "        \"replayed_mutations_count\": " << repl_res.replayed_mutations_count << "\n"
             << "      }\n"
             << "    }" << (ci + 1 < churn_rates.size() ? ",\n" : "\n");
     }
