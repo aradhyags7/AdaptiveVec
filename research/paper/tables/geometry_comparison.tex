@@ -1,0 +1,31 @@
+% Table II: Empirical Comparison of Graph Connectivity Allocation Schemes on SIFT-100K
+% Strictly audited against experiments/phase_6_1_geometry_reproduction.json and phase_6_4_external_comparisons.json
+\begin{table*}[t]
+\centering
+\caption{Empirical Comparison of Graph Connectivity Allocation Schemes on SIFT-100K ($N=100{,}000$, $D=128$, $k=10$, Target $M_{\text{base}}=16$)}
+\label{tab:geometry_comparison}
+\scriptsize
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Configuration / Allocation Scheme} & \textbf{Recall@10} & \textbf{QPS} & \textbf{P95 Lat. (ms)} & \textbf{P99 Lat. (ms)} & \textbf{Dist. Evals} & \textbf{Assigned Edges} & \textbf{Max L0 Slots} & \textbf{Graph RAM} \\
+\midrule
+Strict RNG Uniform ($M=16, efC=120, efS=64$) & 0.9929 & 2,492.5 & 0.780 & 2.062 & 1,200.5 & 1,600,000 & 3,200,000 & 27.89 MB \\
+\textbf{Normalized Exponential} ($\beta_0=1.0, \beta_u=0.0$) & \textbf{0.9926} & \textbf{3,091.0} & \textbf{0.486} & \textbf{1.384} & \textbf{1,169.1} & \textbf{1,600,000} & \textbf{3,200,000} & \textbf{27.50 MB} \\
+\rowcolor{gray!10}
+\quad \textit{Relative $\Delta$ vs. Strict RNG Uniform} & \textit{-0.03 pp} & \textit{+24.01\%} & \textit{-37.62\%} & \textit{-32.88\%} & \textit{-2.62\%} & \textit{0.00\% (Conserved)} & \textit{0.00\%} & \textit{-1.40\%} \\
+Shuffled Degree Control (Random Permutation) & 0.9939 & 2,379.8 & 0.801 & 1.838 & 1,204.4 & 1,600,000 & 3,200,000 & 27.89 MB \\
+\rowcolor{gray!10}
+\quad \textit{Relative $\Delta$ vs. Normalized Exponential} & \textit{+0.13 pp} & \textit{-23.01\%} & \textit{+64.81\%} & \textit{+32.80\%} & \textit{+3.02\%} & \textit{0.00\%} & \textit{0.00\%} & \textit{+1.42\%} \\
+Reversed Geometry Control ($M_{\text{sparse}}=24, M_{\text{hub}}=8$) & 0.9948 & 2,933.4 & 0.570 & 1.488 & 1,234.6 & 1,600,000 & 3,200,000 & 27.50 MB \\
+\rowcolor{gray!10}
+\quad \textit{Relative $\Delta$ vs. Normalized Exponential} & \textit{+0.22 pp} & \textit{-5.10\%} & \textit{+17.28\%} & \textit{+7.51\%} & \textit{+5.60\%} & \textit{0.00\%} & \textit{0.00\%} & \textit{0.00\%} \\
+\midrule
+External \texttt{hnswlib} v0.8.0 Baseline$^*$ & 0.9864 & 13,433.8 & 0.082 & 0.125 & 682.0 & 1,600,000 & 3,200,000 & 25.70 MB$^\dagger$ \\
+\bottomrule
+\end{tabular}
+\begin{flushleft}
+\scriptsize
+$^*$Note: \texttt{hnswlib} operates as an immutable flat C-struct without per-node synchronization locks, soft tombstones, mutation journals, or dynamic compaction buffers. \\
+$^\dagger$Reflects graph adjacency list memory only. Total index-owned memory for official \texttt{hnswlib} (including 48.83 MB unquantized FP32 vector coordinates) is 64.83 MB, compared to 41.85 MB for AdaptiveVec under Pure SQ8 ADC.
+\end{flushleft}
+\end{table*}

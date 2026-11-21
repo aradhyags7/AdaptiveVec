@@ -1,0 +1,73 @@
+% TikZ Figure: Dynamic Maintenance, Mutation Replay, and Safe Replacement Flowchart
+\begin{tikzpicture}[
+    font=\sffamily\footnotesize,
+    stepbox/.style={draw=black!70, thick, rounded corners=4pt, fill=blue!5, align=center, inner sep=6pt},
+    decision/.style={diamond, draw=orange!80!black, very thick, fill=orange!10, aspect=2, align=center, inner sep=3pt},
+    action/.style={draw=green!60!black, very thick, rounded corners=4pt, fill=green!10, align=center, inner sep=6pt},
+    reject/.style={draw=red!70!black, very thick, rounded corners=4pt, fill=red!10, align=center, inner sep=6pt},
+    arrow/.style={->, >=stealth, thick, draw=black!80},
+    darrow/.style={<->, >=stealth, thick, draw=black!80, dashed}
+]
+
+% Top Row: Online Serving
+\node[stepbox, text width=4.5cm] (serving) {
+    \textbf{Active Serving Index}\\
+    Serves concurrent user queries\\
+    Applies Soft Transit Tombstones
+};
+
+\node[stepbox, text width=4.2cm, right=1.8cm of serving] (journal) {
+    \textbf{Mutation Journal}\\
+    Append-only sequence-numbered log: $\langle \text{seq}, \text{op}, \text{id}, \mathbf{v} \rangle$
+};
+
+\draw[arrow] (serving) -- (journal) node[midway, above, font=\scriptsize] {Log Writes};
+
+% Second Row: Offline Generation
+\node[stepbox, text width=4.5cm, below=1.2cm of serving] (worker) {
+    \textbf{Background Maintenance}\\
+    Dual-Buffer Compaction or\\
+    Background Fresh Rebuild
+};
+
+\node[stepbox, text width=4.2cm, below=1.2cm of journal] (candidate) {
+    \textbf{Candidate Index Created}\\
+    Multi-Layer Strict RNG Replenish\\
+    Tombstones Purged / Compacted
+};
+
+\draw[arrow] (serving) -- (worker) node[midway, left, font=\scriptsize] {Snapshot Active IDs};
+\draw[arrow] (worker) -- (candidate) node[midway, above, font=\scriptsize] {Builds Candidate};
+
+% Third Row: Validation & Gates
+\node[decision, text width=3.8cm, below=1.2cm of candidate] (gates) {
+    \textbf{6 Acceptance Gates}\\
+    $R \ge R_{\text{target}}$ \ \& \ $\text{CI}_{\text{lower}} \ge R_{\text{target}}$\\
+    $\text{PeakMem} \le M_{\text{budget}}$ \ \& \ $\text{P99} \le \text{P99}_{\text{target}}$\\
+    Invariants Intact \ \& \ $\Delta R \le 0.0020$
+};
+
+\draw[arrow] (candidate) -- (gates) node[midway, right, font=\scriptsize] {Offline Eval};
+
+% Gate Outcomes
+\node[action, text width=4.5cm, below=1.4cm of gates] (accept) {
+    \textbf{Accept: Atomic Pointer Swap}\\
+    1. Reader pause $\le 0.194$ ms\\
+    2. Catch-up replay mutation journal\\
+    3. Atomic \texttt{std::atomic\_store}\\
+    4. Deferred index de-allocation
+};
+
+\node[reject, text width=3.5cm, left=1.8cm of gates] (rejectAction) {
+    \textbf{Policy Fallbacks}\\
+    $\bullet$ \textbf{Compaction Deferral}\\
+    (Keep serving index; peak RAM violation)\\
+    $\bullet$ \textbf{Background Rebuild}\\
+    (Compacted recall fails SLA)
+};
+
+\draw[arrow] (gates) -- (accept) node[midway, right, font=\scriptsize] {\textbf{PASS (All 6 Gates)}};
+\draw[arrow] (gates) -- (rejectAction) node[midway, above, font=\scriptsize] {\textbf{FAIL (Any Gate)}};
+\draw[arrow] (journal) |- (accept) node[pos=0.7, right, font=\tiny] {Catch-Up Replay};
+
+\end{tikzpicture}

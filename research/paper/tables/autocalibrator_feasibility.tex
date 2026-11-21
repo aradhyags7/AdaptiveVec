@@ -1,0 +1,24 @@
+% Table V: AutoCalibrator Feasibility Outcomes
+% Strictly audited against experiments/phase_6_4_exact_calibrator_regression.json and experiments/phase_6_4_final_report.md
+\begin{table*}[t]
+\centering
+\caption{AutoCalibrator Formal Feasibility Outcomes Across Multi-Objective SLA Scenarios}
+\label{tab:autocalibrator_feasibility}
+\scriptsize
+\begin{tabular}{llcccccc}
+\toprule
+\textbf{Workload / Dataset} & \textbf{SLA Target Requirements} & \textbf{Source Feasibility State} & \textbf{Selected Configuration} & \textbf{Calib. $R$} & \textbf{Deploy. $R$} & \textbf{Owned RAM} & \textbf{P99 Lat.} \\
+\midrule
+SIFT-10K Strict Memory & $R \ge 0.92, M \le 4.5\text{ MB}, P99 \le 5.0\text{ ms}$ & \texttt{PROVISIONALLY\_FEASIBLE}$^\dagger$ & $M=8, efC=30, efS=64$, SQ8 & 0.9380 & 0.9416 & 3.38 MB & 0.33 ms \\
+SIFT-10K Strict Latency & $R \ge 0.90, M \le 8.0\text{ MB}, P99 \le 0.25\text{ ms}$ & \texttt{VERIFIED\_FEASIBLE} & $M=8, efC=30, efS=32$, SQ8 & 0.9120 & 0.9150 & 3.38 MB & 0.18 ms \\
+SIFT-10K High Recall & $R \ge 0.98, M \le 12.0\text{ MB}, P99 \le 2.0\text{ ms}$ & \texttt{VERIFIED\_FEASIBLE} & $M=16, efC=100, efS=64$, FP32 & 0.9880 & 0.9892 & 8.08 MB & 0.48 ms \\
+SIFT-10K Infeasible SLA & $R \ge 0.999, M \le 3.0\text{ MB}, P99 \le 0.10\text{ ms}$ & \texttt{INFEASIBLE\_WITHIN\_SEARCH\_SPACE} & None (Stage 1 Pruned) & --- & --- & --- & --- \\
+Transformer-384D ($N=57{,}893$) & $R \ge 0.95, M \le 150\text{ MB}, P99 \le 15.0\text{ ms}$ & \texttt{VERIFIED\_FEASIBLE} & $M=16, efC=100, efS=96$, SQ8 & 0.9690 & 0.9720 & 56.61 MB & 7.38 ms \\
+\bottomrule
+\end{tabular}
+\begin{flushleft}
+\scriptsize
+Source-code feasibility states (\texttt{cpp/auto_calibrator.hpp}): \texttt{VERIFIED\_FEASIBLE}, \texttt{PROVISIONALLY\_FEASIBLE}, \texttt{VALIDATION\_FAILED}, \texttt{INFEASIBLE\_WITHIN\_SEARCH\_SPACE}, \texttt{INVALID\_REQUIREMENTS}, \texttt{EVALUATION\_ERROR}. \\
+$^\dagger$The SIFT-10K Strict Memory candidate was classified as \texttt{PROVISIONALLY\_FEASIBLE} during calibration because its bootstrap lower bound ($\text{CI}_{\text{lower}} = 0.9190$) fell marginally below the $0.9200$ target despite a sample mean of $0.9380$. Subsequent held-out deployment validation yielded $R = 0.9416$ with $\text{CI}_{\text{lower}} = 0.9334 \ge 0.9200$ and index-owned memory of 3.38 MB (3.3787 MB), certifying \texttt{VERIFIED\_FEASIBLE}.
+\end{flushleft}
+\end{table*}

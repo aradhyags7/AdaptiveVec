@@ -1,0 +1,44 @@
+% Table IV: Dynamic Graph Maintenance, Compaction Quality, and Acceptance Gate Evaluation on SIFT-100K
+% Strictly audited against experiments/phase_6_4_dynamic_maintenance_investigation.json
+\begin{table*}[t]
+\centering
+\caption{Dynamic Graph Maintenance, Compaction Quality, and Acceptance Gate Evaluation on SIFT-100K under Strict SLA Constraints ($R_{\text{target}} \ge 0.9800$, $M_{\text{budget}} \le 120.0$ MB, $\text{P99} \le 15.0$ ms, $\Delta R_{\text{target}} \le 0.0020$)}
+\label{tab:dynamic_maintenance}
+\scriptsize
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Churn Scenario / Evaluation Record} & \textbf{Recall@10} & \textbf{95\% Conf. Int.} & \textbf{QPS} & \textbf{P99 (ms)} & \textbf{Steady RAM} & \textbf{Peak RAM} & \textbf{Time (s)} & \textbf{Gate Evaluation \& Final Action} \\
+\midrule
+\multicolumn{9}{l}{\textit{Scenario A: 10\% Node Churn (10,000 deleted, 90,000 surviving active vectors)}} \\
+\midrule
+1. Serving Healed Index & 0.9840 & [0.9794, 0.9884] & 21,739.1 & 0.880 & 74.74 MB & 74.74 MB & 0.562 & \textbf{Retained\_Serving} (Mean $R \ge 0.98$; CI$_{\text{low}} < 0.98$) \\
+2. Compacted Candidate (Fixed $efS=64$) & 0.9820 & [0.9770, 0.9866] & 18,518.6 & 1.527 & 69.24 MB & 143.98 MB & 5.711 & Rejected: Fails G2 (CI$_{\text{low}} < 0.98$), G3 (Peak $> 120$M), G6 \\
+3. Recalibrated Candidate ($efS=48$) & 0.9700 & [0.9635, 0.9760] & 20,000.0 & 1.313 & 69.24 MB & 143.98 MB & 0.051 & Rejected: Fails G1 ($R < 0.98$), G2, G3, G6 \\
+4. Fresh Reconstruction Baseline & 0.9830 & [0.9768, 0.9880] & 25,000.0 & 1.088 & 70.63 MB & 145.37 MB & 7.466 & Rejected: Fails G2 (CI$_{\text{low}} < 0.98$), G3 (Peak $> 120$M) \\
+\rowcolor{blue!5}
+\textbf{Final Policy Action} & \multicolumn{7}{l}{\textbf{COMPACTION\_DEFERRED} (Retains serving index; peak dual-residency $143.98\text{ MB} > 120.0\text{ MB}$)} & Reclaimed: 0.0 MB \\
+\midrule
+\multicolumn{9}{l}{\textit{Scenario B: 25\% Node Churn (25,000 deleted, 75,000 surviving active vectors)}} \\
+\midrule
+1. Serving Healed Index & 0.9770 & [0.9676, 0.9846] & 21,739.1 & 0.877 & 75.02 MB & 75.02 MB & 1.178 & SLA Degraded ($R < 0.9800$; CI$_{\text{low}} < 0.9800$) \\
+2. Compacted Candidate (Fixed $efS=64$) & 0.9786 & [0.9726, 0.9840] & 20,833.4 & 1.208 & 56.13 MB & 131.16 MB & 4.655 & Rejected: Fails G1 ($R < 0.98$), G2, G3 (Peak $> 120$M) \\
+3. Recalibrated Candidate ($efS=96$) & 0.9865 & [0.9808, 0.9923] & 17,391.3 & 2.109 & 56.13 MB & 131.16 MB & 0.049 & Rejected: Fails G3 (Peak $131.16\text{ MB} > 120.0\text{ MB}$) \\
+4. Fresh Reconstruction Baseline & 0.9874 & [0.9838, 0.9906] & 23,809.6 & 0.846 & 57.15 MB & 132.17 MB & 6.111 & Rejected: Fails G3 (Peak $132.17\text{ MB} > 120.0\text{ MB}$) \\
+\rowcolor{blue!5}
+\textbf{Final Policy Action} & \multicolumn{7}{l}{\textbf{REBUILD\_RECOMMENDED} (Healed fails SLA; recalibrated passes quality; rebuild duration 6.11 s)} & Reclaimed: 18.89 MB \\
+\midrule
+\multicolumn{9}{l}{\textit{Scenario C: 50\% Node Churn (50,000 deleted, 50,000 surviving active vectors)}} \\
+\midrule
+1. Serving Healed Index & 0.9792 & [0.9698, 0.9866] & 16,129.0 & 1.781 & 74.89 MB & 74.89 MB & 0.941 & SLA Degraded ($R < 0.9800$; CI$_{\text{low}} < 0.9800$) \\
+2. Compacted Candidate (Fixed $efS=64$) & 0.9740 & [0.9680, 0.9792] & 26,315.7 & 0.813 & 37.71 MB & 112.60 MB & 1.973 & Rejected: Fails G1, G2, G6 ($\Delta R_{\text{compact}} = 0.0052 > 0.0020$) \\
+3. Recalibrated Candidate ($efS=64$) & 0.9737 & [0.9668, 0.9797] & 22,222.4 & 0.901 & 37.71 MB & 112.60 MB & 0.043 & Rejected: Fails G1, G2, G6 ($\Delta R_{\text{compact}} = 0.0055 > 0.0020$) \\
+4. \textbf{Fresh Reconstruction Baseline} & \textbf{0.9878} & \textbf{[0.9844, 0.9912]} & \textbf{29,411.8} & \textbf{0.619} & \textbf{38.11 MB} & \textbf{113.00 MB} & \textbf{3.952} & \textbf{ACCEPTED: Passes All 6 Gates (Peak $\le 120$ MB)} \\
+\rowcolor{blue!5}
+\textbf{Final Policy Action} & \multicolumn{7}{l}{\textbf{REBUILD\_REQUIRED} (Compacted fails Gate 1 \& Gate 6; Rebuild achieves 0.9878 in 3.95 s)} & Reclaimed: 37.18 MB \\
+\bottomrule
+\end{tabular}
+\begin{flushleft}
+\scriptsize
+Six Acceptance Gates: G1 (Recall: $R \ge R_{\text{target}}$), G2 (Confidence: $\text{CI}_{\text{low}} \ge R_{\text{target}}$), G3 (Peak Memory: $M_{\text{serving}} + M_{\text{candidate}} \le M_{\text{budget}}$), G4 (Latency: $P99 \le P99_{\text{target}}$), G5 (Structural Invariants: valid enter-point, no isolated active nodes, non-empty layers), G6 (Compaction Quality: $\Delta R_{\text{compact}} \le 0.0020$).
+\end{flushleft}
+\end{table*}

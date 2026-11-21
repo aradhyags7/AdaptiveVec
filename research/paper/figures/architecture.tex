@@ -1,0 +1,61 @@
+% TikZ Figure: AdaptiveVec System Architecture
+% Clean, modular 4-layer design diagram for publication
+\begin{tikzpicture}[
+    node distance=1.2cm and 1.5cm,
+    font=\sffamily\footnotesize,
+    box/.style={draw=black!70, thick, rounded corners=3pt, fill=blue!5, align=center, inner sep=6pt},
+    engine/.style={draw=blue!80!black, very thick, rounded corners=4pt, fill=blue!10, align=center, inner sep=8pt},
+    opt/.style={draw=green!60!black, very thick, rounded corners=4pt, fill=green!10, align=center, inner sep=8pt},
+    quant/.style={draw=orange!80!black, very thick, rounded corners=4pt, fill=orange!10, align=center, inner sep=8pt},
+    maint/.style={draw=purple!80!black, very thick, rounded corners=4pt, fill=purple!10, align=center, inner sep=8pt},
+    arrow/.style={->, >=stealth, thick, draw=black!80},
+    darrow/.style={<->, >=stealth, thick, draw=black!80, dashed}
+]
+
+% Module 1: Geometry Intelligence
+\node[engine, text width=6.8cm] (geom) {
+    \textbf{\large Milestone I: Geometry-Aware Graph Intelligence}\\
+    \rule{6.5cm}{0.4pt}\\[3pt]
+    $\bullet$ Local Intrinsic Dimensionality (LID) \& Centrality Estimation\\
+    $\bullet$ Normalized Exponential Allocation: $w_i = \exp(\beta S_i)$\\
+    $\bullet$ Hare-Niemeyer Degree Discretization: $\sum M_i = N \cdot M_{\text{base}}$\\
+    $\bullet$ Layer Decoupling: $\beta_{\text{Layer } 0} = 1.0, \quad \beta_{\text{Upper}} = 0.0$
+};
+
+% Module 2: Vector Quantization
+\node[quant, text width=6.8cm, below=0.6cm of geom] (quant) {
+    \textbf{\large Milestone II: Resource-Efficient Storage Engine}\\
+    \rule{6.5cm}{0.4pt}\\[3pt]
+    $\bullet$ Pure SQ8 / SQ4 Asymmetric Distance Computation (ADC)\\
+    $\bullet$ Complete Raw Vector De-allocation (\texttt{drop\_raw\_vectors()})\\
+    $\bullet$ AVX2 / FMA Vectorized Integer Arithmetic Kernels\\
+    $\bullet$ Explicit Separation: Index-Owned Memory vs. Process Working Set
+};
+
+% Module 3: Dynamic Maintenance
+\node[maint, text width=6.8cm, right=1.2cm of geom] (maint) {
+    \textbf{\large Milestone III: Dynamic Self-Healing Index}\\
+    \rule{6.5cm}{0.4pt}\\[3pt]
+    $\bullet$ Soft Transit Bridge Routing \& 2-Hop Bypass Shortcuts\\
+    $\bullet$ Multi-Layer Strict RNG Replenishment ($\min \text{deg} \ge 8$)\\
+    $\bullet$ Sequence-Numbered Mutation Journal Catch-Up Replay\\
+    $\bullet$ Non-Destructive Compaction \& Rebuild Decision Matrix
+};
+
+% Module 4: Automatic Optimizer
+\node[opt, text width=6.8cm, below=0.6cm of maint] (auto) {
+    \textbf{\large Milestone IV: Automatic Resource Optimization}\\
+    \rule{6.5cm}{0.4pt}\\[3pt]
+    $\bullet$ 3-Stage Parameter Search (Lower-Bound $\to$ Build $\to$ Search)\\
+    $\bullet$ 6-State Formal Feasibility Classification\\
+    $\bullet$ 1{,}000-Sample Bootstrap Confidence Interval Gate\\
+    $\bullet$ Zero-False-Feasibility Guarantee under Multi-Objective SLAs
+};
+
+% Inter-module arrows
+\draw[arrow] (geom) -- (quant) node[midway, right, font=\tiny] {Preserves Edge Topologies};
+\draw[arrow] (maint) -- (auto) node[midway, right, font=\tiny] {Recalibrates Candidates};
+\draw[darrow] (geom) -- (maint) node[midway, above, font=\tiny] {Preserves Geometry};
+\draw[darrow] (quant) -- (auto) node[midway, above, font=\tiny] {Enforces RAM Budgets};
+
+\end{tikzpicture}

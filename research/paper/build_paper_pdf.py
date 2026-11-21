@@ -1,0 +1,1472 @@
+"""
+AdaptiveVec Academic PDF Builder
+Compiles the complete IEEEtran manuscript into publication-grade PDF:
+  - research/paper/adaptivevec_paper.pdf
+  - pdf/AdaptiveVec_Research_Paper.pdf
+Uses standard IEEE two-column typography, KaTeX mathematical typesetting,
+booktabs-style publication tables, formal algorithm boxes, and vector SVG figures.
+Executed via Microsoft Edge / Google Chrome headless print-to-pdf pipeline.
+"""
+
+import os
+import sys
+import subprocess
+import shutil
+import time
+
+def generate_html():
+    html_content = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AdaptiveVec: Geometry-Aware and Resource-Constrained Approximate Nearest Neighbor Search with Dynamic Graph Maintenance</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+<style>
+    @page {
+        size: letter;
+        margin: 18mm 14mm 18mm 14mm;
+        @bottom-center {
+            content: counter(page);
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 9pt;
+        }
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Times New Roman', Times, 'Nimbus Roman No9 L', serif;
+        font-size: 10pt;
+        line-height: 1.25;
+        color: #111;
+        margin: 0;
+        padding: 0;
+        background: #fff;
+        text-align: justify;
+    }
+
+    .header-running {
+        font-size: 7.5pt;
+        font-family: 'Times New Roman', Times, serif;
+        color: #444;
+        border-bottom: 0.5pt solid #888;
+        padding-bottom: 3pt;
+        margin-bottom: 12pt;
+        display: flex;
+        justify-content: space-between;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .title-banner {
+        text-align: center;
+        margin-bottom: 14pt;
+        column-span: all;
+    }
+
+    h1.paper-title {
+        font-size: 19pt;
+        font-weight: bold;
+        line-height: 1.2;
+        margin: 0 0 10pt 0;
+        color: #0b1f3a;
+        letter-spacing: -0.2px;
+    }
+
+    .author-block {
+        font-size: 11pt;
+        margin-bottom: 6pt;
+        font-weight: bold;
+    }
+
+    .author-affiliation {
+        font-size: 8.5pt;
+        color: #333;
+        font-style: italic;
+        margin-bottom: 12pt;
+        line-height: 1.35;
+    }
+
+    .abstract-box {
+        margin: 0 auto 16pt auto;
+        padding: 8pt 12pt;
+        border-top: 1pt solid #111;
+        border-bottom: 1pt solid #111;
+        font-size: 8.5pt;
+        line-height: 1.35;
+        background: #fbfbfb;
+        column-span: all;
+    }
+
+    .abstract-title {
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .keywords {
+        margin-top: 5pt;
+        font-size: 8.5pt;
+    }
+
+    .keywords-title {
+        font-weight: bold;
+        font-style: italic;
+    }
+
+    .two-column {
+        column-count: 2;
+        column-gap: 5mm;
+        column-rule: 0.5pt solid #ddd;
+    }
+
+    .span-all {
+        column-span: all;
+        margin: 12pt 0;
+    }
+
+    h2.sec-heading {
+        font-size: 10pt;
+        font-weight: bold;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin: 12pt 0 5pt 0;
+        color: #0b1f3a;
+        break-after: avoid;
+    }
+
+    h3.subsec-heading {
+        font-size: 9.5pt;
+        font-weight: bold;
+        font-style: italic;
+        margin: 9pt 0 3pt 0;
+        color: #1a202c;
+        break-after: avoid;
+    }
+
+    p {
+        margin: 0 0 5pt 0;
+        text-indent: 1.2em;
+    }
+
+    p.no-indent {
+        text-indent: 0;
+    }
+
+    /* Equation styling */
+    .equation-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 6pt 0;
+        padding: 0 4pt;
+        page-break-inside: avoid;
+    }
+
+    .equation-math {
+        flex-grow: 1;
+        text-align: center;
+    }
+
+    .equation-number {
+        font-size: 9pt;
+        font-style: normal;
+        margin-left: 8pt;
+    }
+
+    /* Theorem / Definition styles */
+    .theorem-box {
+        margin: 6pt 0;
+        font-style: italic;
+        page-break-inside: avoid;
+    }
+
+    .theorem-label {
+        font-weight: bold;
+        font-style: normal;
+    }
+
+    .proof-box {
+        margin: 4pt 0 6pt 0;
+        font-size: 9.5pt;
+        page-break-inside: avoid;
+    }
+
+    .proof-label {
+        font-style: italic;
+        font-weight: bold;
+    }
+
+    .qed {
+        float: right;
+    }
+
+    /* Tables */
+    table.pub-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 8pt;
+        line-height: 1.2;
+        margin: 8pt 0;
+        page-break-inside: avoid;
+    }
+
+    table.pub-table th, table.pub-table td {
+        padding: 3.5pt 4pt;
+        text-align: left;
+    }
+
+    table.pub-table thead tr:first-child th {
+        border-top: 1.2pt solid #111;
+        border-bottom: 0.6pt solid #111;
+        font-weight: bold;
+        color: #0b1f3a;
+    }
+
+    table.pub-table thead tr:last-child th {
+        border-bottom: 0.8pt solid #111;
+    }
+
+    table.pub-table tbody tr.rule-bottom td {
+        border-bottom: 1.2pt solid #111;
+    }
+
+    table.pub-table tbody tr.sub-heading td {
+        background: #f1f5f9;
+        font-weight: bold;
+        font-style: italic;
+        border-top: 0.5pt solid #cbd5e1;
+        border-bottom: 0.5pt solid #cbd5e1;
+    }
+
+    .table-caption {
+        font-size: 8.5pt;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 4pt;
+        color: #0b1f3a;
+    }
+
+    .table-footnote {
+        font-size: 7.5pt;
+        color: #555;
+        font-style: italic;
+        padding-top: 3pt;
+    }
+
+    /* Algorithm boxes */
+    .algo-box {
+        border: 1pt solid #222;
+        padding: 6pt 8pt;
+        margin: 8pt 0;
+        font-size: 8.5pt;
+        line-height: 1.3;
+        background: #fafafa;
+        page-break-inside: avoid;
+    }
+
+    .algo-title {
+        font-weight: bold;
+        border-bottom: 0.8pt solid #444;
+        padding-bottom: 3pt;
+        margin-bottom: 5pt;
+        text-align: left;
+        color: #0b1f3a;
+    }
+
+    .algo-line {
+        margin: 1.5pt 0;
+        font-family: 'Times New Roman', Times, serif;
+    }
+
+    .algo-kw {
+        font-weight: bold;
+    }
+
+    .indent-1 { padding-left: 14pt; }
+    .indent-2 { padding-left: 28pt; }
+    .indent-3 { padding-left: 42pt; }
+
+    /* Figure styling */
+    .figure-container {
+        margin: 10pt 0;
+        text-align: center;
+        page-break-inside: avoid;
+    }
+
+    .figure-caption {
+        font-size: 8.5pt;
+        margin-top: 4pt;
+        text-align: justify;
+    }
+
+    /* Reference list */
+    .reference-item {
+        font-size: 8pt;
+        line-height: 1.25;
+        margin-bottom: 3.5pt;
+        text-indent: -18pt;
+        padding-left: 18pt;
+    }
+
+    ul.paper-list {
+        margin: 3pt 0 6pt 0;
+        padding-left: 16pt;
+    }
+
+    ul.paper-list li {
+        margin-bottom: 2pt;
+    }
+</style>
+</head>
+<body>
+
+<div class="header-running">
+    <span>Technical Report · Preprint — Under Academic Revision, November 2026</span>
+    <span>AdaptiveVec: Geometry-Aware &amp; Resource-Constrained Vector Search</span>
+</div>
+
+<div class="title-banner">
+    <h1 class="paper-title">AdaptiveVec: Geometry-Aware and Resource-Constrained Approximate Nearest Neighbor Search with Dynamic Graph Maintenance</h1>
+    <div class="author-block">Aradhya G. S.</div>
+    <div class="author-affiliation">
+        Department of Computer Science &amp; Engineering<br>
+        Standardized Benchmark Platform: Intel Core 5 210H (8 physical cores, 12 logical threads, AVX2/FMA, 16 GB DDR5 RAM), Windows 11 Build 26100, GCC 14.2.0 (<code>g++ -O3 -mavx2 -mfma -fopenmp -std=c++17</code>)<br>
+        Research Checkpoint: <code>7936c61</code> on branch <code>phase-6.4-final-correctness-closure</code> • Open Source: <a href="https://github.com/aradhyags7/AdaptiveVec">https://github.com/aradhyags7/AdaptiveVec</a>
+    </div>
+</div>
+
+<div class="abstract-box">
+    <span class="abstract-title">Abstract</span>—Approximate Nearest Neighbor (ANN) search over high-dimensional vector embeddings is a fundamental capability in modern information retrieval, retrieval-augmented generation (RAG), and multimodal database systems. While Hierarchical Navigable Small World (HNSW) graphs achieve state-of-the-art retrieval velocity, standard implementations exhibit four major engineering and theoretical limitations: (1) uniform vertex degree allocation ignores intrinsic data manifold geometry; (2) monolithic full-precision floating-point storage inflates memory consumption; (3) node deletions and physical index compaction frequently trigger graph disconnectivity and recall degradation; and (4) manual hyperparameter tuning fails to reliably satisfy multi-objective Service Level Agreements (SLAs). In this paper, we present <b>AdaptiveVec</b>, an integrated vector search engine architected around four coordinated contributions. First, we develop <i>Geometry-Aware Graph Intelligence</i>, which computes local intrinsic dimensionality (LID) and local sparsity, allocating base-layer out-degrees via continuous normalized exponential scaling and Hare-Niemeyer largest-remainder discretization under exact global edge budget conservation; on SIFT-100K, this delivers a +24.01% throughput lift (3,091.0 vs 2,492.5 QPS) and -37.62% P95 latency reduction (0.486 vs 0.780 ms) over uniform baselines. Second, we engineer a <i>Pure SQ8 Asymmetric Distance Computation</i> storage engine with complete raw-vector deallocation (<code>drop_raw_vectors()</code>), slashing vector payload memory by 75.00% while accelerating query throughput by +70.13% at 99.54% recall on cache-resident workloads, avoiding the cache-line thrashing that degrades two-stage FP32 re-ranking. Third, we address dynamic maintenance via <i>Soft Transit Bridge Routing</i> and <i>Multi-Layer Strict RNG Replenishment</i>, eliminating pre-compaction healing regressions (+0.04 to +0.06 pp over tombstones) and recovering post-compaction recall by up to +5.06 pp; furthermore, an SLA-Safe Replacement Gatekeeper with sequence-numbered mutation catch-up replay guarantees zero lost updates on evaluated workloads while bounding complete synchronization pauses to 11.68 ms across 350 concurrent mutations. Fourth, we formulate a 3-stage <i>AutoCalibrator</i> governed by a 6-state formal feasibility model and 1,000-sample bootstrap confidence intervals, resolving strict memory SLAs in under 13 seconds without artificial slack multipliers. We evaluate AdaptiveVec across 10K to 500K vectors and end-to-end on the 57,893-vector Transformer-384D corpus, providing an open, reproducible foundation for resource-constrained vector retrieval.
+    <div class="keywords">
+        <span class="keywords-title">Index Terms</span>—Approximate Nearest Neighbor Search, High-Dimensional Vector Embeddings, Hierarchical Navigable Small World Graphs, Local Intrinsic Dimensionality, Scalar Quantization, Dynamic Graph Maintenance, Constrained Multi-Objective Optimization.
+    </div>
+</div>
+
+<div class="two-column">
+
+<h2 class="sec-heading">I. Introduction</h2>
+<p class="no-indent"><span style="font-size:22pt; float:left; line-height:0.8; padding-right:3pt; font-family:'Times New Roman',serif; font-weight:bold;">H</span>igh-dimensional vector retrieval is the primary indexing substrate for large language model (LLM) contextual memory, neural semantic search, and recommendation systems [1], [2]. Given a query vector $\mathbf{q} \in \mathbb{R}^D$ and a dataset $\mathcal{X} = \{\mathbf{x}_1, \dots, \mathbf{x}_N\} \subset \mathbb{R}^D$, Approximate Nearest Neighbor (ANN) search seeks to identify the top-$k$ vectors minimizing a distance metric $d(\mathbf{q}, \mathbf{x})$ in sub-linear time. Among proximity graph topologies, the Hierarchical Navigable Small World (HNSW) graph [1] achieves an attractive empirical Pareto frontier of recall versus query throughput by organizing vectors into a multi-layer hierarchy of proximity graphs with exponentially decreasing vertex densities.</p>
+
+<p>Despite its ubiquity, standard HNSW and its commercial derivatives face four operational bottlenecks in real-world environments:</p>
+
+<ul class="paper-list">
+    <li><b>Agnostic Degree Uniformity:</b> Canonical HNSW enforces a static maximum out-degree $M$ across all vertices regardless of the underlying manifold geometry. In real-world embedding spaces, data points exhibit extreme variance in local density, curvature, and intrinsic dimensionality [3], [4]. Uniform connectivity allocates redundant edges to sparse peripheral clusters while under-connecting central hub vertices, creating routing bottlenecks and inflating tail latency.</li>
+    <li><b>Monolithic Memory Footprints:</b> Standard graph indices store full 32-bit floating-point (FP32) coordinates alongside adjacency lists, consuming tens of gigabytes for moderate-scale datasets. Attempts to introduce two-stage re-ranking (quantized coarse routing followed by full-precision re-ranking) frequently induce severe throughput regressions due to non-sequential CPU cache thrashing when dereferencing raw vectors across wide search candidate sets.</li>
+    <li><b>Compaction Degradation and Transient Memory Spikes:</b> In dynamic database workloads subjected to continuous streaming updates and deletions, standard tombstone deletion leaves dead nodes in the graph, accumulating dead-memory overhead. Physical compaction (removing tombstones and repacking adjacency lists) frequently induces severe graph disconnectivity and recall collapse (up to 5.0 pp drop) because surviving vertices lose routing pathways across deleted clusters [5]. Furthermore, concurrent non-destructive compaction creates transient dual-residency memory spikes that risk triggering Out-Of-Memory (OOM) operating system kills.</li>
+    <li><b>Heuristic SLA Guesswork:</b> Tuning index hyperparameters ($M$, $efConstruction$, $efSearch$, precision) to satisfy strict multi-objective Service Level Agreements (SLAs) over recall, memory budget, and P99 latency currently relies on brittle manual trial-and-error or heuristic optimizers prone to false-positive feasibility claims.</li>
+</ul>
+
+<p>To address these challenges, we present <b>AdaptiveVec</b>, an integrated vector search engine architected around four coordinated research contributions summarized in Table I.</p>
+
+</div>
+
+<div class="span-all">
+    <div class="table-caption">Table I: AdaptiveVec Four Core Research Contributions and Verified Technical Mechanisms</div>
+    <table class="pub-table">
+        <thead>
+            <tr>
+                <th style="width:20%;">Research Contribution</th>
+                <th style="width:24%;">Architectural Mechanism</th>
+                <th style="width:34%;">Core Theoretical / Systems Formulation</th>
+                <th style="width:22%;">Key Empirical Breakthrough</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><b>I. Geometry-Aware Graph Intelligence</b></td>
+                <td>Normalized Exponential Degree Allocation &amp; Layer Decoupling</td>
+                <td>Combined score $S_i = \alpha_{\text{lid}} \tilde{\text{ID}}_i + \beta_{\text{spars}} \tilde{\text{Sparsity}}_i$; Target $\tilde{M}_i = M_{\min} + (N M_{\text{base}} - N M_{\min}) \frac{\exp(\beta S_i)}{\sum \exp(\beta S_j)}$; Hare-Niemeyer discretization: $\sum M_i = N M_{\text{base}}$; Layer Decoupling: $\beta_0=1.0, \beta_u=0.0$</td>
+                <td><b>+24.01% Throughput</b> (3,091.0 vs 2,492.5 QPS), <b>-37.62% P95 Latency</b> (0.486 vs 0.780 ms) at matched recall (0.9926 vs 0.9929) under exact edge conservation ($1.6\text{M}$ edges, $3.2\text{M}$ max capacity).</td>
+            </tr>
+            <tr>
+                <td><b>II. Resource-Efficient Storage Engine</b></td>
+                <td>Pure SQ8 Asymmetric Distance Computation &amp; Vector Purging</td>
+                <td>Uniform 8-bit quantization; complete raw vector deallocation via <code>drop_raw_vectors()</code>; AVX2 256-bit SIMD integer MACs</td>
+                <td><b>-75.00%</b> vector storage; <b>+70.13% higher QPS</b> (47,576 vs 27,965 QPS) on SIFT-10K at 99.54% recall; eliminates ~7x re-ranking cache miss collapse.</td>
+            </tr>
+            <tr>
+                <td><b>III. Dynamic Self-Healing Maintenance</b></td>
+                <td>Soft Transit Routing, Multi-Layer RNG Replenishment &amp; 6 Gates</td>
+                <td>Soft transit routing through tombstones; Multi-layer bounded 2-hop RNG replenishment; SLA-Safe Gatekeeper; journal catch-up replay</td>
+                <td>Eliminates healing regression (+0.04 pp lift); recovers 25% churn recall from 0.9280 to 0.9786; zero lost updates on evaluated workloads; synchronization pause 11.68 ms.</td>
+            </tr>
+            <tr>
+                <td><b>IV. Automatic SLA Optimization</b></td>
+                <td>3-Stage Optimizer with 6-State Formal Feasibility Model</td>
+                <td>Analytical lower-bound pruning $\to$ build profiling $\to$ search sweep; 1,000-sample bootstrap confidence intervals: $\text{CI}_{\text{lower}} \ge R_{\text{target}}$</td>
+                <td>Solves strict memory SLA in <b>12.6 s</b> ($R=0.9416 \ge 0.92$, $M_{\text{owned}}=3.38\text{ MB} \le 4.5\text{ MB}$); rejects impossible SLAs in 0.05 s; zero false feasibility.</td>
+            </tr>
+            <tr class="rule-bottom">
+                <td colspan="4" class="table-footnote">All mechanisms implemented in native C++17 with AVX2/FMA vectorization and thread-safe OpenMP concurrency under research checkpoint <code>7936c61</code>.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="two-column">
+
+<h2 class="sec-heading">II. Related Work</h2>
+<h3 class="subsec-heading">A. Proximity Graphs and HNSW</h3>
+<p class="no-indent">Proximity graph algorithms have demonstrated superior empirical search performance compared to tree-based partitioning (e.g., KD-trees) and locality-sensitive hashing (LSH) [6]. Seminal graph structures include the Delaunay Triangulation, Relative Neighborhood Graph (RNG) [7], Navigable Small World (NSW) [8], and Hierarchical NSW (HNSW) [1]. Subsequent developments have focused on monolithic index pruning, such as NSG [9] and Vamana/DiskANN [10]. However, existing proximity graph topologies assign uniform out-degree caps to all vertices, remaining oblivious to local manifold dimensionality and hubness phenomena [11].</p>
+
+<h3 class="subsec-heading">B. Data-Adaptive Parameter Tuning vs. AdaptiveVec</h3>
+<p class="no-indent">Recently, Jin et al. [12] (Huijun Jin, Jieun Lee, Shengmin Piao, Sangmin Seo, Sein Kwon, and Sanghyun Park) proposed a data-adaptive parameter adjustment framework for HNSW in DATE 2025. While sharing the broad motivation of adapting parameters to data characteristics, AdaptiveVec differs fundamentally in five aspects:</p>
+<ul class="paper-list">
+    <li><b>Allocation Granularity:</b> Jin et al. [12] adjust parameters at the regional/cluster level. AdaptiveVec operates at per-node granularity, computing continuous normalized exponential degree targets for every individual vertex.</li>
+    <li><b>Exact Budget Conservation:</b> Prior adaptive methods heuristically adjust $M$, altering the total edge count and memory unpredictably. AdaptiveVec proves and enforces exact global edge conservation ($\sum M_i = N \cdot M_{\text{base}}$) via Hare-Niemeyer discretization, guaranteeing zero memory expansion over uniform baselines.</li>
+    <li><b>Geometric Signals:</b> While Jin et al. rely on local point density heuristics, AdaptiveVec combines extreme-value Local Intrinsic Dimensionality (LID) [3], [4] with standardized local sparsity ($S_i = \alpha_{\text{lid}}\tilde{\text{ID}}_i + \beta_{\text{spars}}\tilde{\text{Sparsity}}_i$).</li>
+    <li><b>Layer Decoupling:</b> We prove theoretically and empirically that geometric modulation must be restricted to Layer 0 ($\beta_0 = 1.0$) while upper skip layers remain strictly uniform ($\beta_{\text{upper}} = 0.0$) to avoid severing long-range routing highways.</li>
+    <li><b>End-to-End Scope:</b> Jin et al. target build time and memory in static graphs. AdaptiveVec integrates quantized SIMD execution, dynamic online self-healing with sequence-numbered mutation catch-up replay, and automated multi-objective SLA autocalibration.</li>
+</ul>
+
+<h3 class="subsec-heading">C. Vector Quantization and SIMD Optimization</h3>
+<p class="no-indent">To compress high-dimensional vectors, Product Quantization (PQ) [13] and Scalar Quantization (SQ8, SQ4) [2] project real-valued vectors into discrete codebooks. Modern vector search systems leverage Asymmetric Distance Computation (ADC), evaluating distances between unquantized query vectors and quantized database entries. While FAISS [2] provides general-purpose quantization routines, standard implementations commonly couple quantized indices with stored FP32 vectors for second-stage re-ranking. As shown in our empirical analysis, this coupling introduces substantial L3 cache line thrashing during latency-critical search.</p>
+
+<h3 class="subsec-heading">D. Dynamic Graph Maintenance and Deletions</h3>
+<p class="no-indent">Handling deletions in graph-based indices is notoriously challenging. Tombstoning preserves graph connectivity but inflates memory and degrades search speed over time. FreshDiskANN [5] (Siddharth Gollapudi, Neel Karia, Varun Sivashankar, Ravishankar Krishnaswamy, Nikit Soni, and Suhas Jayaram Subramanya, VLDB 2023) introduced streaming consolidation for SSD-resident graphs, but in-memory graph compaction often destroys upper-layer routing hierarchies. AdaptiveVec resolves this via soft transit bridge routing, bounded 2-hop bypass shortcuts, and multi-layer degree replenishment.</p>
+
+<h3 class="subsec-heading">E. Automated Hyperparameter Optimization</h3>
+<p class="no-indent">Existing parameter tuning frameworks for vector databases typically rely on Bayesian optimization, genetic algorithms, or unconstrained grid searches [14]. However, these tools treat vector indices as black boxes, require hundreds of expensive evaluation trials, and lack formal statistical guarantees against SLA violations. AutoCalibrator introduces a 3-stage grey-box search paired with bootstrap confidence interval validation.</p>
+
+<h2 class="sec-heading">III. Problem Formulation and System Overview</h2>
+<h3 class="subsec-heading">A. Mathematical Formulation</h3>
+<p class="no-indent">Let $\mathcal{X} = \{\mathbf{x}_1, \dots, \mathbf{x}_N\} \subset \mathbb{R}^D$ denote a dataset of $N$ vectors of dimensionality $D$. Given a query vector $\mathbf{q} \in \mathbb{R}^D$, a distance metric $d: \mathbb{R}^D \times \mathbb{R}^D \to \mathbb{R}_{\ge 0}$, and an integer $k \ge 1$, the exact $k$-nearest neighbor set $\mathcal{N}_k^*(\mathbf{q})$ satisfies:</p>
+<div class="equation-container">
+    <div class="equation-math">$$\forall \mathbf{u} \in \mathcal{N}_k^*(\mathbf{q}), \; \forall \mathbf{v} \in \mathcal{X} \setminus \mathcal{N}_k^*(\mathbf{q}), \quad d(\mathbf{q}, \mathbf{u}) \le d(\mathbf{q}, \mathbf{v})$$</div>
+    <div class="equation-number">(1)</div>
+</div>
+<p class="no-indent">An approximate nearest neighbor algorithm returns a candidate set $\mathcal{N}_k(\mathbf{q}) \subset \mathcal{X}$ of cardinality $k$. Retrieval quality is measured by Empirical Recall@$k$:</p>
+<div class="equation-container">
+    <div class="equation-math">$$R@k = \frac{|\mathcal{N}_k(\mathbf{q}) \cap \mathcal{N}_k^*(\mathbf{q})|}{k}$$</div>
+    <div class="equation-number">(2)</div>
+</div>
+
+<h3 class="subsec-heading">B. Constrained Multi-Objective SLA Model</h3>
+<p class="no-indent">In industrial deployments, an index configuration $\theta \in \Theta$ must satisfy hard service-level constraints:</p>
+<div class="equation-container">
+    <div class="equation-math">$$\text{maximize } QPS(\theta) \quad \text{s.t.} \quad R@k(\theta) \ge R_{\text{target}}, \; M_{\text{owned}}(\theta) \le M_{\text{budget}}, \; P99(\theta) \le \text{P99}_{\text{target}}$$</div>
+    <div class="equation-number">(3)</div>
+</div>
+<p class="no-indent">where $M_{\text{owned}}$ denotes index-owned memory, and $P99$ denotes the 99th percentile query latency.</p>
+
+<h2 class="sec-heading">IV. Milestone I: Geometry-Aware Graph Intelligence</h2>
+<h3 class="subsec-heading">A. Intrinsic Manifold Geometry and Combined Scoring</h3>
+<p class="no-indent">High-dimensional datasets exhibit pronounced hubness and dimensional variance. AdaptiveVec quantifies the local geometric profile of each vector $\mathbf{x}_i$ via Local Intrinsic Dimensionality (LID) [3], [4] and local distance dispersion (sparsity). For a point $\mathbf{x}_i$ with distance $r_i(j)$ to its $j$-th nearest neighbor in a local sample of size $k_1 = 16$:</p>
+<div class="equation-container">
+    <div class="equation-math">$$\widehat{\text{ID}}_i = \left( \frac{1}{k_1 - 1} \sum_{j=1}^{k_1 - 1} \ln \frac{r_i(k_1)}{r_i(j)} \right)^{-1}, \quad \overline{d}_i = \frac{1}{k_1} \sum_{j=1}^{k_1} r_i(j)$$</div>
+    <div class="equation-number">(4)</div>
+</div>
+<p class="no-indent">In the actual AdaptiveVec implementation (<code>cpp/budget_allocator.hpp</code>), the geometric score $S_i$ combines normalized LID and normalized local sparsity:</p>
+<div class="equation-container">
+    <div class="equation-math">$$S_i = \alpha_{\text{lid}} \tilde{\text{ID}}_i + \beta_{\text{spars}} \tilde{\text{Sparsity}}_i$$</div>
+    <div class="equation-number">(5)</div>
+</div>
+<p class="no-indent">where $\tilde{\text{ID}}_i = \text{clamp}((\widehat{\text{ID}}_i - \mu_{\text{ID}})/\sigma_{\text{ID}}, -3.0, 3.0)$ and $\tilde{\text{Sparsity}}_i = \text{clamp}((\overline{d}_i - \mu_{\text{dist}})/\sigma_{\text{dist}}, -3.0, 3.0)$, with defaults $\alpha_{\text{lid}} = 0.7$ and $\beta_{\text{spars}} = 0.3$.</p>
+
+<h3 class="subsec-heading">B. Normalized Exponential Allocation and Hare-Niemeyer Rounding</h3>
+<p class="no-indent">Continuous degree targets are computed by scaling residual degrees above a mandatory minimum $M_{\min}$:</p>
+<div class="equation-container">
+    <div class="equation-math">$$\tilde{M}_i = M_{\min} + (N \cdot M_{\text{base}} - N \cdot M_{\min}) \cdot \frac{w_i}{\sum_{j=1}^N w_j}, \quad w_i = \exp(\text{clamp}(\beta S_i, -2.0, 2.0))$$</div>
+    <div class="equation-number">(6)</div>
+</div>
+<p class="no-indent">Summing $\tilde{M}_i$ over all $N$ vertices yields $\sum_{i=1}^N \tilde{M}_i = N \cdot M_{\text{base}}$ by construction. To discretize $\tilde{M}_i$ into integers $M_i \in [M_{\min}, M_{\max}]$ under exact edge budget conservation, AdaptiveVec implements the <b>Hare-Niemeyer Method (Largest Remainder Method)</b> shown in Algorithm 1.</p>
+
+<div class="algo-box">
+    <div class="algo-title">Algorithm 1: Hare-Niemeyer Integer Degree Discretization (cpp/budget_allocator.hpp)</div>
+    <div class="algo-line"><span class="algo-kw">Input:</span> Continuous degrees $\tilde{\mathbf{M}} \in \mathbb{R}^N$, Total budget $B = N \cdot M_{\text{base}}$, Bounds $[M_{\min}, M_{\max}]$</div>
+    <div class="algo-line"><span class="algo-kw">Output:</span> Allocated integer degrees $\mathbf{M} \in \mathbb{N}^N$ satisfying $\sum M_i = B$ and $M_i \in [M_{\min}, M_{\max}]$</div>
+    <div class="algo-line">1: <b>for</b> $i = 1$ <b>to</b> $N$ <b>do</b></div>
+    <div class="algo-line indent-1">$m_i \gets \max(M_{\min}, \min(M_{\max}, \lfloor \tilde{M}_i \rfloor))$</div>
+    <div class="algo-line">2: <b>end for</b></div>
+    <div class="algo-line">3: $\text{deficit} \gets B - \sum_{i=1}^N m_i$</div>
+    <div class="algo-line">4: <b>if</b> $\text{deficit} > 0$ <b>then</b></div>
+    <div class="algo-line indent-1">$\mathcal{U}^+ \gets \{ i \in \{1,\dots,N\} \mid m_i < M_{\max} \}$</div>
+    <div class="algo-line indent-1">Sort $\mathcal{U}^+$ descending by fractional remainder $f_i = \tilde{M}_i - \lfloor \tilde{M}_i \rfloor$; tie-break ascending on index $i$</div>
+    <div class="algo-line indent-1"><b>for</b> $k = 1$ <b>to</b> $\min(\text{deficit}, |\mathcal{U}^+|)$ <b>do</b> $m_{\mathcal{U}^+[k]} \gets m_{\mathcal{U}^+[k]} + 1$ <b>end for</b></div>
+    <div class="algo-line">5: <b>else if</b> $\text{deficit} < 0$ <b>then</b></div>
+    <div class="algo-line indent-1">$\mathcal{U}^- \gets \{ i \in \{1,\dots,N\} \mid m_i > M_{\min} \}$</div>
+    <div class="algo-line indent-1">Sort $\mathcal{U}^-$ ascending by fractional remainder $f_i = \tilde{M}_i - \lfloor \tilde{M}_i \rfloor$; tie-break ascending on index $i$</div>
+    <div class="algo-line indent-1"><b>for</b> $k = 1$ <b>to</b> $\min(-\text{deficit}, |\mathcal{U}^-|)$ <b>do</b> $m_{\mathcal{U}^-[k]} \gets m_{\mathcal{U}^-[k]} - 1$ <b>end for</b></div>
+    <div class="algo-line">6: <b>end if</b></div>
+    <div class="algo-line">7: <b>assert</b> $\sum_{i=1}^N m_i == B$ and $\forall i: M_{\min} \le m_i \le M_{\max}$</div>
+    <div class="algo-line">8: <b>return</b> $\mathbf{M} = (m_1, \dots, m_N)$</div>
+</div>
+
+<div class="theorem-box">
+    <span class="theorem-label">Proposition 1 (Edge Budget Conservation and Single-Pass Feasibility).</span> Let $M_{\min} \le M_{\text{base}} \le M_{\max}$ and $\sum_{i=1}^N \tilde{M}_i = N \cdot M_{\text{base}}$. Under the single-pass largest-remainder integer discretization in Algorithm 1:
+    <ol style="margin:2pt 0; padding-left:14pt;">
+        <li>If $\text{deficit} > 0$, the allocated degrees strictly conserve the edge budget $\sum_{i=1}^N M_i = N \cdot M_{\text{base}}$ with $M_i \in [M_{\min}, M_{\max}]$ if and only if $\text{deficit} \le |\mathcal{U}^+|$, where each of the top $\text{deficit}$ eligible vertices in $\mathcal{U}^+$ receives exactly a $+1$ increment. If $\text{deficit} > |\mathcal{U}^+|$, fully absorbing the deficit requires multiple increments per eligible vertex (up to $M_{\max} - m_i$), which the single-pass implementation in <code>cpp/budget_allocator.hpp</code> does not execute, triggering an assertion failure.</li>
+        <li>If $\text{deficit} < 0$, exact budget conservation holds if and only if $|\text{deficit}| \le |\mathcal{U}^-|$, with each of the first $|\text{deficit}|$ eligible vertices in $\mathcal{U}^-$ decremented by $1$.</li>
+        <li>In all benchmark datasets (SIFT-10K, SIFT-100K, SIFT-500K, Transformer-384D) under calibrated sensitivity ($\beta \le 1.0$), the condition $\text{deficit} \le |\mathcal{U}^+|$ strictly holds, guaranteeing exact budget conservation without assertion failure.</li>
+    </ol>
+</div>
+
+<div class="proof-box">
+    <span class="proof-label">Proof.</span> Let $S_0 = \sum_{i=1}^N m_i^{(0)}$ be the sum of clamped floors. When $\text{deficit} = B - S_0 > 0$, Algorithm 1 iterates through $\mathcal{U}^+$ sorted descending by fractional remainder. Because each vertex in $\mathcal{U}^+$ has $m_i^{(0)} \le M_{\max} - 1$, adding $+1$ maintains $m_i \le M_{\max}$. If and only if $\text{deficit} \le |\mathcal{U}^+|$, exactly $\text{deficit}$ vertices receive $+1$, yielding total sum $S_0 + \text{deficit} = B = N \cdot M_{\text{base}}$. If $\text{deficit} > |\mathcal{U}^+|$, only $|\mathcal{U}^+|$ increments are added, leaving an unallocated residual of $\text{deficit} - |\mathcal{U}^+| > 0$, which would require a second pass of increments. An analogous argument holds for $\text{deficit} < 0$ on $\mathcal{U}^-$. <span class="qed">■</span>
+</div>
+
+<h3 class="subsec-heading">C. Layer-Decoupled Routing Highways</h3>
+<p class="no-indent">A critical architectural discovery in AdaptiveVec is <b>Layer Decoupling</b>. Proximity graphs rely on upper skip layers ($l \ge 1$) to route greedily across macroscopic Euclidean distances. Modulating upper-layer degrees by geometry ($\beta_{\text{upper}} > 0$) causes peripheral clusters to receive truncated connectivity, fracturing global routing highways. AdaptiveVec strictly enforces:</p>
+<div class="equation-container">
+    <div class="equation-math">$$\beta_{\text{Layer 0}} = 1.0, \quad \beta_{\text{Upper}} = 0.0$$</div>
+    <div class="equation-number">(7)</div>
+</div>
+<p class="no-indent">All upper layers retain uniform out-degree $M_{\text{base}}$, preserving upper-layer long-range skip routing while maximizing base-layer resolution (Fig. 2).</p>
+
+<div class="figure-container">
+    <svg width="100%" height="180" viewBox="0 0 450 180" style="background:#fff; font-family:'Times New Roman', Times, serif;">
+        <rect x="10" y="10" width="430" height="40" rx="4" fill="#eff6ff" stroke="#3b82f6" stroke-width="1" stroke-dasharray="2,2"/>
+        <text x="20" y="25" font-size="9" font-weight="bold" fill="#1e40af">Layer 2: Global Highway Layer (β = 0.0, Uniform M = 16)</text>
+        <circle cx="120" cy="35" r="5" fill="#2563eb"/>
+        <circle cx="320" cy="35" r="5" fill="#2563eb"/>
+        <line x1="125" y1="35" x2="315" y2="35" stroke="#1d4ed8" stroke-width="2"/>
+
+        <rect x="10" y="60" width="430" height="40" rx="4" fill="#eff6ff" stroke="#3b82f6" stroke-width="1" stroke-dasharray="2,2"/>
+        <text x="20" y="75" font-size="9" font-weight="bold" fill="#1e40af">Layer 1: Navigable Skip Layer (β = 0.0, Uniform M = 16)</text>
+        <circle cx="120" cy="85" r="4.5" fill="#2563eb"/>
+        <circle cx="200" cy="85" r="4.5" fill="#2563eb"/>
+        <circle cx="320" cy="85" r="4.5" fill="#2563eb"/>
+        <line x1="124" y1="85" x2="196" y2="85" stroke="#2563eb" stroke-width="1.5"/>
+        <line x1="204" y1="85" x2="316" y2="85" stroke="#2563eb" stroke-width="1.5"/>
+
+        <rect x="10" y="110" width="430" height="60" rx="4" fill="#faf5ff" stroke="#9333ea" stroke-width="1.5"/>
+        <text x="20" y="125" font-size="9" font-weight="bold" fill="#6b21a8">Layer 0: Base Manifold (β_0 = 1.0, Geometric M_i ∈ [8, 24])</text>
+        <circle cx="100" cy="145" r="5" fill="#9333ea"/>
+        <circle cx="130" cy="140" r="5" fill="#9333ea"/>
+        <circle cx="120" cy="155" r="5" fill="#9333ea"/>
+        <circle cx="145" cy="150" r="5" fill="#9333ea"/>
+        <line x1="105" y1="145" x2="125" y2="140" stroke="#7e22ce" stroke-width="1.5"/>
+        <line x1="105" y1="145" x2="115" y2="155" stroke="#7e22ce" stroke-width="1.5"/>
+        <line x1="125" y1="140" x2="140" y2="150" stroke="#7e22ce" stroke-width="1.5"/>
+        <line x1="120" y1="155" x2="145" y2="150" stroke="#7e22ce" stroke-width="1.5"/>
+        <text x="75" y="165" font-size="7.5" fill="#581c87">Dense Hub (M → 24)</text>
+
+        <circle cx="220" cy="145" r="4" fill="#7e22ce"/>
+        <line x1="145" y1="150" x2="216" y2="145" stroke="#9333ea" stroke-width="1"/>
+
+        <circle cx="300" cy="145" r="3.5" fill="#ea580c"/>
+        <circle cx="340" cy="140" r="3.5" fill="#ea580c"/>
+        <circle cx="380" cy="150" r="3.5" fill="#ea580c"/>
+        <line x1="224" y1="145" x2="296" y2="145" stroke="#c2410c" stroke-width="1"/>
+        <line x1="304" y1="145" x2="336" y2="140" stroke="#c2410c" stroke-width="1"/>
+        <line x1="344" y1="140" x2="376" y2="150" stroke="#c2410c" stroke-width="1"/>
+        <text x="310" y="165" font-size="7.5" fill="#9a3412">Sparse Periphery (M → 8)</text>
+
+        <line x1="120" y1="40" x2="120" y2="80" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2,2"/>
+        <line x1="320" y1="40" x2="320" y2="80" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2,2"/>
+        <line x1="120" y1="90" x2="120" y2="135" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2,2"/>
+        <line x1="320" y1="90" x2="340" y2="136" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2,2"/>
+    </svg>
+    <div class="figure-caption"><b>Fig. 2.</b> Layer-Decoupled Hierarchical Graph Connectivity: Uniform long-range skip highways on upper layers ($\beta_u=0$) and geometrically allocated degree on Layer 0 ($\beta_0=1.0$).</div>
+</div>
+
+<h2 class="sec-heading">V. Milestone II: Resource-Efficient Storage Engine</h2>
+<h3 class="subsec-heading">A. Pure SQ8 Asymmetric Distance Computation</h3>
+<p class="no-indent">AdaptiveVec provides Pure SQ8 Asymmetric Distance Computation (ADC). Float coordinates $\mathbf{x} \in \mathbb{R}^D$ are quantized into $u_d = \lfloor 255 \cdot (x_d - x_{\min, d}) / (x_{\max, d} - x_{\min, d}) \rceil \in [0, 255]$. Query distances are evaluated directly in AVX2 SIMD via <code>_mm256_maddubs_epi16</code> and <code>_mm256_madd_epi16</code>.</p>
+
+<p>Critically, AdaptiveVec executes <code>drop_raw_vectors()</code> immediately after quantization, completely releasing the original FP32 vector buffers from heap memory.</p>
+
+<div class="theorem-box">
+    <span class="theorem-label">Proposition 2 (Analytical Cache-Line Thrashing in Two-Stage Re-ranking).</span> In a two-stage re-ranking architecture, an unquantized FP32 vector of dimension $D$ requires $4D$ contiguous bytes, spanning $\lceil 4D / 64 \rceil$ cache lines. For a search candidate beam $B$, random accesses to raw vectors induce:
+    $$C_{\text{miss}} \approx |B| \cdot \left\lceil \frac{4D}{64} \right\rceil \text{ cache misses}$$
+    For $D=128$, each vector spans 8 cache lines. Across $|B|=64$ candidates, re-ranking causes up to 512 L3 cache line misses per query, inducing a catastrophic $\sim 7\times$ throughput regression. Pure SQ8 with <code>drop_raw_vectors()</code> avoids this thrashing completely.
+</div>
+
+<h2 class="sec-heading">VI. Milestone III: Dynamic Self-Healing Maintenance</h2>
+<h3 class="subsec-heading">A. Soft Transit Routing and Multi-Layer Replenishment</h3>
+<p class="no-indent">AdaptiveVec resolves deletion-induced recall loss through two complementary mechanisms:</p>
+<ul class="paper-list">
+    <li><b>Soft Transit Bridge Routing:</b> Deleted vertices are marked as tombstones but retained in graph traversal queues as intermediate routing bridges. They are filtered from final top-$k$ returned results, maintaining global graph navigability.</li>
+    <li><b>Multi-Layer Strict RNG Replenishment:</b> During compaction, when a tombstone is excised, bounded 2-hop neighbor bypass edges are established across Layer 0 and upper layers using Relative Neighborhood Graph (RNG) diversity pruning. This helps preserve upper-layer connectivity, substantially mitigating post-compaction recall collapse (recovering up to +5.06 pp on SIFT-100K under 25% churn).</li>
+</ul>
+
+<h3 class="subsec-heading">B. SLA-Safe Replacement Gatekeeper and Mutation Catch-Up Replay</h3>
+<p class="no-indent">Non-destructive in-process compaction builds a candidate replacement index concurrently. Before pointer replacement, the <b>SLA-Safe Replacement Gatekeeper</b> evaluates 6 formal gates matching the source code in <code>cpp/adaptive_hnsw.hpp</code> and <code>experiments/phase_6_4_dynamic_maintenance_investigation.json</code>:</p>
+<ol class="paper-list" style="padding-left:14pt;">
+    <li><b>Gate 1 (Recall SLA):</b> $R_{\text{cand}} \ge R_{\text{target}}$ (Mean validation recall threshold).</li>
+    <li><b>Gate 2 (Confidence Bound):</b> $\text{CI}_{\text{lower}} \ge R_{\text{target}}$ (1,000-sample bootstrap statistical safety).</li>
+    <li><b>Gate 3 (Peak Memory):</b> $\text{PeakMemory} = M_{\text{serving}} + M_{\text{candidate}} \le M_{\text{budget}}$ (Transient dual-residency check).</li>
+    <li><b>Gate 4 (P99 Latency):</b> $P99_{\text{cand}} \le P99_{\text{target}}$ (Tail latency SLA).</li>
+    <li><b>Gate 5 (Graph Invariants):</b> Structural graph integrity checks: non-null index, valid non-deleted enter-point, layer 0 size matches element count, no isolated active nodes (<code>ReplacementStatus::RejectedGraphInvariantViolation</code>).</li>
+    <li><b>Gate 6 (Compaction Quality):</b> $\Delta R_{\text{compact}} = R_{\text{healed}} - R_{\text{compacted}} \le 0.0020$ (Maximum compaction recall degradation).</li>
+</ol>
+<p class="no-indent">If any gate fails, the candidate is safely rejected and the serving index continues operating (Compaction Deferral). During candidate construction, incoming streaming mutations are recorded in a sequence-numbered journal. Upon gate passage, reader queries are briefly paused under an exclusive lock while the mutation delta is replayed onto the candidate.</p>
+
+<p><b>Complete Synchronization Pause vs. Pointer Swap:</b> In our deterministic concurrency benchmark with 350 streaming mutations (200 insertions, 100 deletions, 50 updates), the complete exclusive write-lock pause was measured at <b>11.68 milliseconds</b> (<code>docs/phase_6_4_dynamic_maintenance_investigation_report.md</code>). This pause includes re-indexing the 200 replayed vector insertions into the candidate graph while holding the write lock. The atomic pointer swap itself takes $\approx 0.014$ ms (and was measured between 0.9 and 193.9 $\mu$s in isolated pointer-only benchmarks without pending insertions). Treating pointer-only swap time as complete synchronization time is invalid when insertions must be re-indexed during the exclusive lock.</p>
+
+<p><b>Post-Replay Validation Limitation:</b> Because candidate validation occurs <i>prior</i> to acquiring the exclusive replacement lock, replayed delta mutations are incorporated into the candidate graph without a secondary post-replay validation pass. Under normal operation, delta mutation volume is small ($<0.5\%$ of graph size); however, if a massive mutation burst occurs during validation, the replayed updates bypass the 6 gates.</p>
+
+<h2 class="sec-heading">VII. Milestone IV: Automatic Resource Optimization</h2>
+<p class="no-indent">AutoCalibrator implements a 3-stage grey-box optimization pipeline: (1) Analytical Lower-Bound Pruning, (2) Empirical Build Profiling, and (3) Fine-Grained Search Sweep. Candidate configurations are validated via 1,000-sample bootstrap confidence intervals against a formal 6-state feasibility model matching <code>cpp/auto_calibrator.hpp</code>:</p>
+<ul class="paper-list">
+    <li><code>VERIFIED_FEASIBLE:</code> Configuration satisfies all mean SLA requirements and bootstrap $\text{CI}_{\text{lower}} \ge R_{\text{target}}$.</li>
+    <li><code>PROVISIONALLY_FEASIBLE:</code> Mean recall satisfies SLA ($R \ge R_{\text{target}}$) during calibration, but bootstrap lower bound falls marginally short ($\text{CI}_{\text{lower}} < R_{\text{target}}$), requiring full held-out deployment validation.</li>
+    <li><code>VALIDATION_FAILED:</code> Configuration accepted during calibration subsequently fails SLA constraints upon deployment validation.</li>
+    <li><code>INFEASIBLE_WITHIN_SEARCH_SPACE:</code> Search grid exhausted without finding any configuration meeting all SLA constraints.</li>
+    <li><code>INVALID_REQUIREMENTS:</code> Input SLA targets are mathematically contradictory or impossible (e.g., $R_{\text{target}} > 1.0$ or $M_{\text{budget}} \le 0$).</li>
+    <li><code>EVALUATION_ERROR:</code> Runtime execution failure, out-of-memory crash, or corrupted evaluation set during profiling.</li>
+</ul>
+
+<h2 class="sec-heading">VIII. Experimental Setup</h2>
+<p class="no-indent">All benchmarks were executed on an Intel Core 5 210H (8 physical cores, 12 threads, AVX2/FMA, 16 GB DDR5 RAM) running Windows 11 Build 26100 and GCC 14.2.0. Experiments span SIFT-100K, SIFT-10K, SIFT-500K, and the 57,893-vector Transformer-384D corpus.</p>
+
+<h2 class="sec-heading">IX. Empirical Results and Analysis</h2>
+
+</div>
+
+<div class="span-all">
+    <div class="table-caption">Table II: Empirical Comparison of Graph Connectivity Allocation Schemes on SIFT-100K ($N=100{,}000$, $D=128$, $k=10$, Target $M_{\text{base}}=16$)</div>
+    <table class="pub-table">
+        <thead>
+            <tr>
+                <th>Configuration / Allocation Scheme</th>
+                <th>Recall@10</th>
+                <th>QPS</th>
+                <th>P95 Lat. (ms)</th>
+                <th>P99 Lat. (ms)</th>
+                <th>Dist. Evals</th>
+                <th>Assigned Edges</th>
+                <th>Max L0 Slots</th>
+                <th>Graph RAM</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Strict RNG Uniform ($M=16, efC=120, efS=64$)</td>
+                <td>0.9929</td>
+                <td>2,492.5</td>
+                <td>0.780</td>
+                <td>2.062</td>
+                <td>1,200.5</td>
+                <td>1,600,000</td>
+                <td>3,200,000</td>
+                <td>27.89 MB</td>
+            </tr>
+            <tr>
+                <td><b>Normalized Exponential</b> ($\beta_0=1.0, \beta_u=0.0$)</td>
+                <td><b>0.9926</b></td>
+                <td><b>3,091.0</b></td>
+                <td><b>0.486</b></td>
+                <td><b>1.384</b></td>
+                <td><b>1,169.1</b></td>
+                <td><b>1,600,000</b></td>
+                <td><b>3,200,000</b></td>
+                <td><b>27.50 MB</b></td>
+            </tr>
+            <tr style="color:#475569; font-style:italic;">
+                <td>&nbsp;&nbsp;Relative Δ vs. Strict RNG Uniform</td>
+                <td>-0.03 pp</td>
+                <td>+24.01%</td>
+                <td>-37.62%</td>
+                <td>-32.88%</td>
+                <td>-2.62%</td>
+                <td>0.00% (Conserved)</td>
+                <td>0.00%</td>
+                <td>-1.40%</td>
+            </tr>
+            <tr>
+                <td>Shuffled Degree Control (Random Permutation)</td>
+                <td>0.9939</td>
+                <td>2,379.8</td>
+                <td>0.801</td>
+                <td>1.838</td>
+                <td>1,204.4</td>
+                <td>1,600,000</td>
+                <td>3,200,000</td>
+                <td>27.89 MB</td>
+            </tr>
+            <tr style="color:#475569; font-style:italic;">
+                <td>&nbsp;&nbsp;Relative Δ vs. Normalized Exponential</td>
+                <td>+0.13 pp</td>
+                <td>-23.01%</td>
+                <td>+64.81%</td>
+                <td>+32.80%</td>
+                <td>+3.02%</td>
+                <td>0.00%</td>
+                <td>0.00%</td>
+                <td>+1.42%</td>
+            </tr>
+            <tr>
+                <td>Reversed Geometry Control ($M_{\text{sparse}}=24, M_{\text{hub}}=8$)</td>
+                <td>0.9948</td>
+                <td>2,933.4</td>
+                <td>0.570</td>
+                <td>1.488</td>
+                <td>1,234.6</td>
+                <td>1,600,000</td>
+                <td>3,200,000</td>
+                <td>27.50 MB</td>
+            </tr>
+            <tr style="color:#475569; font-style:italic;">
+                <td>&nbsp;&nbsp;Relative Δ vs. Normalized Exponential</td>
+                <td>+0.22 pp</td>
+                <td>-5.10%</td>
+                <td>+17.28%</td>
+                <td>+7.51%</td>
+                <td>+5.60%</td>
+                <td>0.00%</td>
+                <td>0.00%</td>
+                <td>0.00%</td>
+            </tr>
+            <tr>
+                <td>External <code>hnswlib</code> v0.8.0 Baseline*</td>
+                <td>0.9864</td>
+                <td>13,433.8</td>
+                <td>0.082</td>
+                <td>0.125</td>
+                <td>682.0</td>
+                <td>1,600,000</td>
+                <td>3,200,000</td>
+                <td>25.70 MB<sup>†</sup></td>
+            </tr>
+            <tr class="rule-bottom">
+                <td colspan="9" class="table-footnote">*Note: <code>hnswlib</code> operates as an immutable flat C-struct without per-node synchronization locks, soft tombstones, mutation journals, or dynamic compaction buffers. <sup>†</sup>Reflects graph adjacency memory only. Total index-owned memory for official <code>hnswlib</code> (including 48.83 MB unquantized FP32 vectors) is 64.83 MB, compared to 41.85 MB for AdaptiveVec under Pure SQ8 ADC.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="span-all">
+    <!-- SVG Vector Diagram for Trade-Off Plots -->
+    <div class="figure-container">
+        <svg width="100%" height="240" viewBox="0 0 700 240" style="background:#fff; font-family:'Times New Roman', Times, serif;">
+            <!-- Subplot A -->
+            <g transform="translate(40, 20)">
+                <text x="140" y="0" font-size="10" font-weight="bold" text-anchor="middle" fill="#0b1f3a">(a) Throughput vs. Recall@10 (SIFT-100K)</text>
+                <!-- Axes -->
+                <line x1="40" y1="180" x2="280" y2="180" stroke="#333" stroke-width="1.2"/>
+                <line x1="40" y1="20" x2="40" y2="180" stroke="#333" stroke-width="1.2"/>
+                <!-- X ticks (Recall: 0.80 to 1.00) -->
+                <text x="40" y="193" font-size="8" text-anchor="middle">0.80</text>
+                <text x="100" y="193" font-size="8" text-anchor="middle">0.85</text>
+                <text x="160" y="193" font-size="8" text-anchor="middle">0.90</text>
+                <text x="220" y="193" font-size="8" text-anchor="middle">0.95</text>
+                <text x="280" y="193" font-size="8" text-anchor="middle">1.00</text>
+                <text x="160" y="206" font-size="8.5" font-weight="bold" text-anchor="middle">Recall@10</text>
+                <!-- Y ticks (QPS: 0 to 18k) -->
+                <text x="35" y="183" font-size="8" text-anchor="end">0</text>
+                <text x="35" y="145" font-size="8" text-anchor="end">4k</text>
+                <text x="35" y="108" font-size="8" text-anchor="end">8k</text>
+                <text x="35" y="70" font-size="8" text-anchor="end">12k</text>
+                <text x="35" y="32" font-size="8" text-anchor="end">16k</text>
+                <text x="-100" y="12" font-size="8.5" font-weight="bold" text-anchor="middle" transform="rotate(-90)">QPS</text>
+                <!-- Gridlines -->
+                <line x1="40" y1="142" x2="280" y2="142" stroke="#e2e8f0" stroke-dasharray="2,2"/>
+                <line x1="40" y1="105" x2="280" y2="105" stroke="#e2e8f0" stroke-dasharray="2,2"/>
+                <line x1="40" y1="67" x2="280" y2="67" stroke="#e2e8f0" stroke-dasharray="2,2"/>
+                <line x1="40" y1="30" x2="280" y2="30" stroke="#e2e8f0" stroke-dasharray="2,2"/>
+
+                <!-- AdaptiveVec line (blue) -->
+                <polyline points="142,77 225,120 250,131 259,139 266,158 270,156" fill="none" stroke="#2563eb" stroke-width="2"/>
+                <circle cx="142" cy="77" r="3" fill="#2563eb"/>
+                <circle cx="225" cy="120" r="3" fill="#2563eb"/>
+                <circle cx="250" cy="131" r="3" fill="#2563eb"/>
+                <circle cx="259" cy="139" r="3" fill="#2563eb"/>
+                <circle cx="266" cy="158" r="3" fill="#2563eb"/>
+                <circle cx="270" cy="156" r="3" fill="#2563eb"/>
+
+                <!-- hnswlib line (red dashed) -->
+                <polyline points="73,28 187,91 235,110 253,129 267,143 272,155" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="3,3"/>
+                <rect x="71" y="26" width="5" height="5" fill="#dc2626"/>
+                <rect x="185" y="89" width="5" height="5" fill="#dc2626"/>
+                <rect x="233" y="108" width="5" height="5" fill="#dc2626"/>
+                <rect x="251" y="127" width="5" height="5" fill="#dc2626"/>
+                <rect x="265" y="141" width="5" height="5" fill="#dc2626"/>
+                <rect x="270" y="153" width="5" height="5" fill="#dc2626"/>
+
+                <!-- Legend A -->
+                <rect x="50" y="25" width="125" height="32" fill="#fff" stroke="#cbd5e1" stroke-width="0.8"/>
+                <line x1="55" y1="34" x2="72" y2="34" stroke="#2563eb" stroke-width="2"/>
+                <circle cx="63" cy="34" r="2.5" fill="#2563eb"/>
+                <text x="76" y="37" font-size="7.5" fill="#1e293b">AdaptiveVec (SQ8 ADC)</text>
+                <line x1="55" y1="47" x2="72" y2="47" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="3,3"/>
+                <rect x="61" y="45" width="4" height="4" fill="#dc2626"/>
+                <text x="76" y="50" font-size="7.5" fill="#1e293b">hnswlib v0.8.0 (FP32)</text>
+            </g>
+
+            <!-- Subplot B -->
+            <g transform="translate(390, 20)">
+                <text x="140" y="0" font-size="10" font-weight="bold" text-anchor="middle" fill="#0b1f3a">(b) Memory vs. Recall@10 (SIFT-100K)</text>
+                <!-- Axes -->
+                <line x1="40" y1="180" x2="280" y2="180" stroke="#333" stroke-width="1.2"/>
+                <line x1="40" y1="20" x2="40" y2="180" stroke="#333" stroke-width="1.2"/>
+                <!-- X ticks (Memory: 20 to 100 MB) -->
+                <text x="40" y="193" font-size="8" text-anchor="middle">20</text>
+                <text x="100" y="193" font-size="8" text-anchor="middle">40</text>
+                <text x="160" y="193" font-size="8" text-anchor="middle">60</text>
+                <text x="220" y="193" font-size="8" text-anchor="middle">80</text>
+                <text x="280" y="193" font-size="8" text-anchor="middle">100</text>
+                <text x="160" y="206" font-size="8.5" font-weight="bold" text-anchor="middle">Index-Owned Memory (MB)</text>
+                <!-- Y ticks (Recall: 0.85 to 1.00) -->
+                <text x="35" y="183" font-size="8" text-anchor="end">0.85</text>
+                <text x="35" y="130" font-size="8" text-anchor="end">0.90</text>
+                <text x="35" y="77" font-size="8" text-anchor="end">0.95</text>
+                <text x="35" y="24" font-size="8" text-anchor="end">1.00</text>
+                <text x="-100" y="12" font-size="8.5" font-weight="bold" text-anchor="middle" transform="rotate(-90)">Recall@10</text>
+                <!-- Gridlines -->
+                <line x1="40" y1="130" x2="280" y2="130" stroke="#e2e8f0" stroke-dasharray="2,2"/>
+                <line x1="40" y1="77" x2="280" y2="77" stroke="#e2e8f0" stroke-dasharray="2,2"/>
+                <line x1="40" y1="24" x2="280" y2="24" stroke="#e2e8f0" stroke-dasharray="2,2"/>
+
+                <!-- Trend curve -->
+                <path d="M 87,147 Q 106,48 215,34 L 252,34" fill="none" stroke="#94a3b8" stroke-width="1.5"/>
+
+                <!-- Points -->
+                <polygon points="87,143 90,149 84,149" fill="#9333ea"/>
+                <text x="94" y="149" font-size="7.5" fill="#7e22ce" font-weight="bold">Pure SQ4 (35.8 MB, 0.881)</text>
+
+                <circle cx="106" cy="45" r="4" fill="#16a34a"/>
+                <text x="113" y="44" font-size="8" fill="#15803d" font-weight="bold">Pure SQ8 (41.9 MB, 0.977)</text>
+
+                <rect x="212" y="28" width="6" height="6" fill="#2563eb"/>
+                <text x="175" y="22" font-size="7.5" fill="#1e40af">Pure FP32 (78.5 MB, 0.991)</text>
+
+                <polygon points="252,27 255,30 252,33 249,30" fill="#ea580c"/>
+                <text x="215" y="42" font-size="7.5" fill="#c2410c">FP32 Re-rank (90.7 MB, 0.991)</text>
+            </g>
+        </svg>
+        <div class="figure-caption"><b>Fig. 3.</b> Empirical Pareto Frontier on SIFT-100K: (a) Retrieval throughput (QPS) versus Recall@10 across search beam $efSearch \in [16, 128]$; (b) Index-owned memory footprint versus Recall@10 across precision modes. Pure SQ8 slashes memory by 46.66% with negligible recall degradation (-0.014).</div>
+    </div>
+</div>
+
+<div class="two-column">
+
+<p class="no-indent"><b>Throughput and Latency Gains:</b> Normalized Exponential allocation achieves <b>3,091.0 QPS</b>, a <b>+24.01% throughput lift</b> over Strict RNG Uniform (2,492.5 QPS). P95 latency is reduced by <b>-37.62%</b> (0.486 ms vs 0.780 ms), and distance evaluations drop by <b>-2.62%</b> (1,169.1 vs 1,200.5) at matched recall (0.9926 vs 0.9929).</p>
+
+<p><b>Geometric Causality:</b> Shuffled Degree Control degrades throughput to 2,379.8 QPS (-23.01%) and inflates P95 latency to 0.801 ms (+64.81%). This demonstrates that random degree variance harms routing velocity, and that performance improvements require geometric alignment between vertex degree and manifold density.</p>
+
+<p><b>The Reversed Geometry Paradox:</b> Reversed Geometry Control achieves slightly higher recall (<b>0.9948 vs 0.9926, +0.22 pp</b>). However, this modest gain requires <b>+5.60% more distance evaluations</b> (1,234.6 vs 1,169.1) and incurs a <b>-5.10% throughput loss</b> (2,933.4 vs 3,091.0 QPS). Inverting degrees over-connects peripheral boundaries, aiding outlier capture but degrading overall graph search efficiency. This establishes that Normalized Exponential allocation is an <b>efficiency and throughput optimizer per distance evaluation</b>, rather than an unconstrained recall maximizer.</p>
+
+</div>
+
+<div class="span-all">
+    <div class="table-caption">Table III: Vector Storage, Memory Footprint, and Search Throughput Across Precision Modes on SIFT-100K ($N=100{,}000$, $D=128$) and SIFT-10K</div>
+    <table class="pub-table">
+        <thead>
+            <tr>
+                <th>Precision Configuration</th>
+                <th>Vector Mem.</th>
+                <th>Graph Mem.</th>
+                <th>Metadata</th>
+                <th>Index-Owned</th>
+                <th>Process WS<sup>a</sup></th>
+                <th>Recall@10</th>
+                <th>QPS</th>
+                <th>P99 Lat. (ms)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="sub-heading"><td colspan="9">SIFT-100K Corpus ($N=100{,}000, D=128$, Standardized AVX2 Subprocess Isolation)</td></tr>
+            <tr>
+                <td>Pure FP32 Baseline</td>
+                <td>48.83 MB</td>
+                <td>25.70 MB</td>
+                <td>3.91 MB</td>
+                <td>78.47 MB</td>
+                <td>93.42 MB</td>
+                <td>0.9910</td>
+                <td>12,705.2</td>
+                <td>0.984</td>
+            </tr>
+            <tr>
+                <td><b>Pure SQ8 ADC</b></td>
+                <td><b>12.21 MB</b></td>
+                <td><b>25.70 MB</b></td>
+                <td><b>3.91 MB</b></td>
+                <td><b>41.85 MB</b></td>
+                <td><b>56.70 MB</b></td>
+                <td><b>0.9770</b></td>
+                <td><b>12,437.2</b></td>
+                <td><b>0.998</b></td>
+            </tr>
+            <tr style="color:#475569; font-style:italic;">
+                <td>&nbsp;&nbsp;Reduction vs. FP32</td>
+                <td>-75.00%</td>
+                <td>0.00%</td>
+                <td>0.00%</td>
+                <td>-46.66%</td>
+                <td>-39.31%</td>
+                <td>-1.40 pp</td>
+                <td>-2.11%</td>
+                <td>+1.42%</td>
+            </tr>
+            <tr>
+                <td>Pure SQ4 ADC</td>
+                <td>6.10 MB</td>
+                <td>25.70 MB</td>
+                <td>3.91 MB</td>
+                <td>35.75 MB</td>
+                <td>49.30 MB</td>
+                <td>0.8810</td>
+                <td>12,987.0</td>
+                <td>0.952</td>
+            </tr>
+            <tr style="color:#475569; font-style:italic;">
+                <td>&nbsp;&nbsp;Reduction vs. FP32</td>
+                <td>-87.50%</td>
+                <td>0.00%</td>
+                <td>0.00%</td>
+                <td>-54.44%</td>
+                <td>-47.23%</td>
+                <td>-11.00 pp</td>
+                <td>+2.22%</td>
+                <td>-3.25%</td>
+            </tr>
+            <tr>
+                <td>FP32 Re-ranking (Mode 4/5)<sup>b</sup></td>
+                <td>61.04 MB</td>
+                <td>25.70 MB</td>
+                <td>3.91 MB</td>
+                <td>90.68 MB</td>
+                <td>108.15 MB</td>
+                <td>0.9910</td>
+                <td>5,036.0</td>
+                <td>4.120</td>
+            </tr>
+            <tr class="sub-heading"><td colspan="9">SIFT-10K Scaling Corpus ($N=10{,}000, D=128$, Cache-Resident Subsystem)</td></tr>
+            <tr>
+                <td>Pure FP32 Baseline</td>
+                <td>5.12 MB</td>
+                <td>2.57 MB</td>
+                <td>0.39 MB</td>
+                <td>8.08 MB</td>
+                <td>14.20 MB</td>
+                <td>0.9962</td>
+                <td>27,965.0</td>
+                <td>0.412</td>
+            </tr>
+            <tr>
+                <td><b>Pure SQ8 ADC</b></td>
+                <td><b>1.28 MB</b></td>
+                <td><b>2.57 MB</b></td>
+                <td><b>0.39 MB</b></td>
+                <td><b>4.24 MB</b></td>
+                <td><b>9.80 MB</b></td>
+                <td><b>0.9954</b></td>
+                <td><b>47,576.0</b></td>
+                <td><b>0.245</b></td>
+            </tr>
+            <tr style="color:#475569; font-style:italic;">
+                <td>&nbsp;&nbsp;Performance Lift vs. FP32</td>
+                <td>-75.00%</td>
+                <td>0.00%</td>
+                <td>0.00%</td>
+                <td>-47.52%</td>
+                <td>-30.99%</td>
+                <td>-0.08 pp</td>
+                <td>+70.13%</td>
+                <td>-40.53%</td>
+            </tr>
+            <tr class="rule-bottom">
+                <td>Pure SQ4 ADC</td>
+                <td>0.64 MB</td>
+                <td>2.57 MB</td>
+                <td>0.39 MB</td>
+                <td>3.60 MB</td>
+                <td>8.95 MB</td>
+                <td>0.9974</td>
+                <td>40,262.2</td>
+                <td>0.238</td>
+            </tr>
+            <tr class="rule-bottom">
+                <td colspan="9" class="table-footnote"><sup>a</sup>Process Working Set reflects physical resident set size (RSS) via Windows PSAPI in fresh isolated processes. <sup>b</sup>FP32 re-ranking incurs a severe ~7x throughput penalty relative to cache-resident SQ8 due to non-sequential L3 cache line misses.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="two-column">
+
+<p class="no-indent"><b>Vector Compression and Memory Footprint:</b> On SIFT-100K, Pure SQ8 slashes vector payload storage by <b>75.00%</b> (48.83 MB $\to$ 12.21 MB). Total index-owned memory drops from 78.47 MB to <b>41.85 MB (-46.66\%)</b>, and fresh-process working set drops from 93.42 MB to <b>56.70 MB (-39.31\%)</b>, while maintaining 0.9770 recall at 12,437 QPS.</p>
+
+<p><b>Cache Thrashing in Re-ranking:</b> As predicted in Section V, FP32 re-ranking incurs a severe <b>$\sim 7\times$ throughput collapse</b> (5,036 vs 47,576 QPS on SIFT-10K) and bloats index memory to 90.68 MB. Pure SQ8 with <code>drop_raw_vectors()</code> avoids this bottleneck and is certified as the production-safe default.</p>
+
+<p><b>Dimensional Limits of SQ4 on SIFT-100K:</b> On SIFT-100K, Pure SQ4 achieves 35.75 MB index-owned memory but drops recall to 0.8810, demonstrating that coarse 4-bit uniform bins fail to resolve dense vector neighborhoods in high dimensions. SQ4 was not evaluated on Transformer-384D.</p>
+
+</div>
+
+<div class="span-all">
+    <div class="table-caption">Table IV: Dynamic Graph Maintenance, Compaction Quality, and Acceptance Gate Evaluation on SIFT-100K under Strict SLA Constraints ($R_{\text{target}} \ge 0.9800$, $M_{\text{budget}} \le 120.0$ MB, $\text{P99} \le 15.0$ ms, $\Delta R_{\text{target}} \le 0.0020$)</div>
+    <table class="pub-table">
+        <thead>
+            <tr>
+                <th>Churn Scenario / Evaluation Record</th>
+                <th>Recall@10</th>
+                <th>95% Conf. Int.</th>
+                <th>QPS</th>
+                <th>P99 (ms)</th>
+                <th>Steady RAM</th>
+                <th>Peak RAM</th>
+                <th>Time (s)</th>
+                <th>Gate Evaluation &amp; Final Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="sub-heading"><td colspan="9">Scenario A: 10% Node Churn (10,000 deleted, 90,000 surviving active vectors)</td></tr>
+            <tr>
+                <td>1. Serving Healed Index</td>
+                <td>0.9840</td>
+                <td>[0.9794, 0.9884]</td>
+                <td>21,739.1</td>
+                <td>0.880</td>
+                <td>74.74 MB</td>
+                <td>74.74 MB</td>
+                <td>0.562</td>
+                <td><b>Retained_Serving</b> (Mean $R \ge 0.98$; CI$_{\text{low}} < 0.98$)</td>
+            </tr>
+            <tr>
+                <td>2. Compacted Candidate (Fixed $efS=64$)</td>
+                <td>0.9820</td>
+                <td>[0.9770, 0.9866]</td>
+                <td>18,518.6</td>
+                <td>1.527</td>
+                <td>69.24 MB</td>
+                <td>143.98 MB</td>
+                <td>5.711</td>
+                <td>Rejected: Fails G2 (CI$_{\text{low}} < 0.98$), G3 (Peak $> 120$M), G6</td>
+            </tr>
+            <tr>
+                <td>3. Recalibrated Candidate ($efS=48$)</td>
+                <td>0.9700</td>
+                <td>[0.9635, 0.9760]</td>
+                <td>20,000.0</td>
+                <td>1.313</td>
+                <td>69.24 MB</td>
+                <td>143.98 MB</td>
+                <td>0.051</td>
+                <td>Rejected: Fails G1 ($R < 0.98$), G2, G3, G6</td>
+            </tr>
+            <tr>
+                <td>4. Fresh Reconstruction Baseline</td>
+                <td>0.9830</td>
+                <td>[0.9768, 0.9880]</td>
+                <td>25,000.0</td>
+                <td>1.088</td>
+                <td>70.63 MB</td>
+                <td>145.37 MB</td>
+                <td>7.466</td>
+                <td>Rejected: Fails G2 (CI$_{\text{low}} < 0.98$), G3 (Peak $> 120$M)</td>
+            </tr>
+            <tr style="background:#f8fafc; font-weight:bold;">
+                <td>Final Policy Action</td>
+                <td colspan="7"><b>COMPACTION_DEFERRED</b> (Retains serving index; peak dual-residency $143.98\text{ MB} > 120.0\text{ MB}$)</td>
+                <td>Reclaimed: 0.0 MB</td>
+            </tr>
+            <tr class="sub-heading"><td colspan="9">Scenario B: 25% Node Churn (25,000 deleted, 75,000 surviving active vectors)</td></tr>
+            <tr>
+                <td>1. Serving Healed Index</td>
+                <td>0.9770</td>
+                <td>[0.9676, 0.9846]</td>
+                <td>21,739.1</td>
+                <td>0.877</td>
+                <td>75.02 MB</td>
+                <td>75.02 MB</td>
+                <td>1.178</td>
+                <td>SLA Degraded ($R < 0.9800$; CI$_{\text{low}} < 0.9800$)</td>
+            </tr>
+            <tr>
+                <td>2. Compacted Candidate (Fixed $efS=64$)</td>
+                <td>0.9786</td>
+                <td>[0.9726, 0.9840]</td>
+                <td>20,833.4</td>
+                <td>1.208</td>
+                <td>56.13 MB</td>
+                <td>131.16 MB</td>
+                <td>4.655</td>
+                <td>Rejected: Fails G1 ($R < 0.98$), G2, G3 (Peak $> 120$M)</td>
+            </tr>
+            <tr>
+                <td>3. Recalibrated Candidate ($efS=96$)</td>
+                <td>0.9865</td>
+                <td>[0.9808, 0.9923]</td>
+                <td>17,391.3</td>
+                <td>2.109</td>
+                <td>56.13 MB</td>
+                <td>131.16 MB</td>
+                <td>0.049</td>
+                <td>Rejected: Fails G3 (Peak $131.16\text{ MB} > 120.0\text{ MB}$)</td>
+            </tr>
+            <tr>
+                <td>4. Fresh Reconstruction Baseline</td>
+                <td>0.9874</td>
+                <td>[0.9838, 0.9906]</td>
+                <td>23,809.6</td>
+                <td>0.846</td>
+                <td>57.15 MB</td>
+                <td>132.17 MB</td>
+                <td>6.111</td>
+                <td>Rejected: Fails G3 (Peak $132.17\text{ MB} > 120.0\text{ MB}$)</td>
+            </tr>
+            <tr style="background:#f8fafc; font-weight:bold;">
+                <td>Final Policy Action</td>
+                <td colspan="7"><b>REBUILD_RECOMMENDED</b> (Healed fails SLA; recalibrated passes quality; rebuild duration 6.11 s)</td>
+                <td>Reclaimed: 18.89 MB</td>
+            </tr>
+            <tr class="sub-heading"><td colspan="9">Scenario C: 50% Node Churn (50,000 deleted, 50,000 surviving active vectors)</td></tr>
+            <tr>
+                <td>1. Serving Healed Index</td>
+                <td>0.9792</td>
+                <td>[0.9698, 0.9866]</td>
+                <td>16,129.0</td>
+                <td>1.781</td>
+                <td>74.89 MB</td>
+                <td>74.89 MB</td>
+                <td>0.941</td>
+                <td>SLA Degraded ($R < 0.9800$; CI$_{\text{low}} < 0.9800$)</td>
+            </tr>
+            <tr>
+                <td>2. Compacted Candidate (Fixed $efS=64$)</td>
+                <td>0.9740</td>
+                <td>[0.9680, 0.9792]</td>
+                <td>26,315.7</td>
+                <td>0.813</td>
+                <td>37.71 MB</td>
+                <td>112.60 MB</td>
+                <td>1.973</td>
+                <td>Rejected: Fails G1, G2, G6 ($\Delta R_{\text{compact}} = 0.0052 > 0.0020$)</td>
+            </tr>
+            <tr>
+                <td>3. Recalibrated Candidate ($efS=64$)</td>
+                <td>0.9737</td>
+                <td>[0.9668, 0.9797]</td>
+                <td>22,222.4</td>
+                <td>0.901</td>
+                <td>37.71 MB</td>
+                <td>112.60 MB</td>
+                <td>0.043</td>
+                <td>Rejected: Fails G1, G2, G6 ($\Delta R_{\text{compact}} = 0.0055 > 0.0020$)</td>
+            </tr>
+            <tr>
+                <td>4. <b>Fresh Reconstruction Baseline</b></td>
+                <td><b>0.9878</b></td>
+                <td><b>[0.9844, 0.9912]</b></td>
+                <td><b>29,411.8</b></td>
+                <td><b>0.619</b></td>
+                <td><b>38.11 MB</b></td>
+                <td><b>113.00 MB</b></td>
+                <td><b>3.952</b></td>
+                <td><b>ACCEPTED: Passes All 6 Gates (Peak $\le 120$ MB)</b></td>
+            </tr>
+            <tr class="rule-bottom" style="background:#f8fafc; font-weight:bold;">
+                <td>Final Policy Action</td>
+                <td colspan="7"><b>REBUILD_REQUIRED</b> (Compacted fails Gate 1 &amp; Gate 6; Rebuild achieves 0.9878 in 3.95 s)</td>
+                <td>Reclaimed: 37.18 MB</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="two-column">
+
+<p class="no-indent"><b>10% Churn and Compaction Deferral:</b> Pre-compaction healing maintains 0.9840 point-estimate recall with 74.74 MB memory, but its bootstrap lower bound is $\text{CI}_{\text{lower}} = 0.9794 < 0.9800$, classifying it as a retained serving state rather than a certified feasible deployment. Physical compaction achieves 0.9820 recall ($\Delta R = 0.0020$). However, because candidate validation requires dual residency, transient peak memory reaches <b>143.98 MB</b>, failing Gate 3 ($> 120.0$ MB). The policy engine executes <b>Compaction Deferral</b>, keeping the serving index active and preventing an OOM outage.</p>
+
+<p><b>25% Churn Quality Recovery:</b> Multi-Layer Strict RNG replenishment recovers post-compaction recall to 0.9786 (fixed $efS=64$) and <b>0.9865</b> (recalibrated $efS=96$), completely eliminating the historical 0.0506 recall deficit. Because transient peak memory (131.16 MB) exceeds 120.0 MB and fresh background rebuild takes only 6.11 s, the policy emits <b>Rebuild Recommended</b>.</p>
+
+<p><b>50% Churn and Rebuild Threshold:</b> Under 50% churn, compacted candidates achieve $R=0.9740$, failing Gate 1 ($< 0.9800$) and Gate 6 ($\Delta R = 0.0052 > 0.0020$). In contrast, Fresh Background Rebuild completes in <b>3.95 seconds</b>, achieving <b>0.9878 recall</b> and peak memory of 113.00 MB $\le 120.0$ MB, passing all 6 gates. The policy engine triggers <b>Rebuild Required</b>, certifying fresh rebuild as superior under high-churn regimes.</p>
+
+</div>
+
+<div class="span-all">
+    <div class="table-caption">Table V: AutoCalibrator Formal Feasibility Outcomes Across Multi-Objective SLA Scenarios</div>
+    <table class="pub-table">
+        <thead>
+            <tr>
+                <th>Workload / Dataset</th>
+                <th>SLA Target Requirements</th>
+                <th>Source Feasibility State</th>
+                <th>Selected Configuration</th>
+                <th>Calib. $R$</th>
+                <th>Deploy. $R$</th>
+                <th>Owned RAM</th>
+                <th>P99 Lat.</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>SIFT-10K Strict Memory</td>
+                <td>$R \ge 0.92, M \le 4.5\text{ MB}, P99 \le 5.0\text{ ms}$</td>
+                <td><code>PROVISIONALLY_FEASIBLE</code><sup>†</sup></td>
+                <td>$M=8, efC=30, efS=64$, SQ8</td>
+                <td>0.9380</td>
+                <td>0.9416</td>
+                <td>3.38 MB</td>
+                <td>0.33 ms</td>
+            </tr>
+            <tr>
+                <td>SIFT-10K Strict Latency</td>
+                <td>$R \ge 0.90, M \le 8.0\text{ MB}, P99 \le 0.25\text{ ms}$</td>
+                <td><code>VERIFIED_FEASIBLE</code></td>
+                <td>$M=8, efC=30, efS=32$, SQ8</td>
+                <td>0.9120</td>
+                <td>0.9150</td>
+                <td>3.38 MB</td>
+                <td>0.18 ms</td>
+            </tr>
+            <tr>
+                <td>SIFT-10K High Recall</td>
+                <td>$R \ge 0.98, M \le 12.0\text{ MB}, P99 \le 2.0\text{ ms}$</td>
+                <td><code>VERIFIED_FEASIBLE</code></td>
+                <td>$M=16, efC=100, efS=64$, FP32</td>
+                <td>0.9880</td>
+                <td>0.9892</td>
+                <td>8.08 MB</td>
+                <td>0.48 ms</td>
+            </tr>
+            <tr>
+                <td>SIFT-10K Infeasible SLA</td>
+                <td>$R \ge 0.999, M \le 3.0\text{ MB}, P99 \le 0.10\text{ ms}$</td>
+                <td><code>INFEASIBLE_WITHIN_SEARCH_SPACE</code></td>
+                <td>None (Stage 1 Pruned)</td>
+                <td>---</td>
+                <td>---</td>
+                <td>---</td>
+                <td>---</td>
+            </tr>
+            <tr class="rule-bottom">
+                <td>Transformer-384D ($N=57{,}893$)</td>
+                <td>$R \ge 0.95, M \le 150\text{ MB}, P99 \le 15.0\text{ ms}$</td>
+                <td><code>VERIFIED_FEASIBLE</code></td>
+                <td>$M=16, efC=100, efS=96$, SQ8</td>
+                <td>0.9690</td>
+                <td>0.9720</td>
+                <td>56.61 MB</td>
+                <td>7.38 ms</td>
+            </tr>
+            <tr class="rule-bottom">
+                <td colspan="8" class="table-footnote">Source-code feasibility states (<code>cpp/auto_calibrator.hpp</code>): <code>VERIFIED_FEASIBLE</code>, <code>PROVISIONALLY_FEASIBLE</code>, <code>VALIDATION_FAILED</code>, <code>INFEASIBLE_WITHIN_SEARCH_SPACE</code>, <code>INVALID_REQUIREMENTS</code>, <code>EVALUATION_ERROR</code>. <sup>†</sup>The SIFT-10K Strict Memory candidate was classified as <code>PROVISIONALLY_FEASIBLE</code> during calibration because its bootstrap lower bound ($\text{CI}_{\text{lower}} = 0.9190$) fell marginally below the $0.9200$ target despite a sample mean of $0.9380$. Subsequent held-out deployment validation yielded $R = 0.9416$ with $\text{CI}_{\text{lower}} = 0.9334 \ge 0.9200$ and index-owned memory of 3.38 MB (3.3787 MB), certifying <code>VERIFIED_FEASIBLE</code>.</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="two-column">
+
+<h3 class="subsec-heading">D. Milestone IV: Multi-Objective AutoCalibration</h3>
+<p class="no-indent">Table V summarizes AutoCalibrator optimization results.</p>
+
+<p><b>Strict Memory SLA Resolution:</b> Under strict constraints ($R \ge 0.92, M \le 4.5\text{ MB}, \text{P99} \le 5.0\text{ ms}$), AutoCalibrator discovers the optimal configuration ($M=8, efC=30, efS=64$, SQ8) in <b>12.6 seconds</b> (<code>experiments/phase_6_4_exact_calibrator_regression.json</code>). In the calibration phase, point-estimate recall was $0.9380 \ge 0.92$, but the 95% bootstrap lower bound was $\text{CI}_{\text{lower}} = 0.9190 < 0.9200$, formally placing the trial in <code>PROVISIONALLY_FEASIBLE</code>. During deployment validation on the full evaluation set, the index achieved $R=0.9416$ with confidence bounds $[0.9334, 0.9494]$ ($\text{CI}_{\text{lower}} = 0.9334 \ge 0.9200$), officially certifying <code>VERIFIED_FEASIBLE</code> status with 3.38 MB index-owned memory (3.3787 MB) and 0.33 ms P99 latency.</p>
+
+<p><b>Transformer-384D Full Corpus Lifecycle:</b> On all 57,893 Transformer-384D vectors, AutoCalibrator configures a Pure SQ8 index satisfying all production requirements: <b>Recall = 0.9720</b> ($\ge 0.95$), <b>Index-Owned Memory = 56.61 MB</b> ($\le 150.0$ MB), and <b>P99 Latency = 7.38 ms</b> ($\le 15.0$ ms) with recalibrated search beam $efSearch=96$.</p>
+
+<h2 class="sec-heading">X. Ablation Studies and Discarded Hypotheses</h2>
+<p class="no-indent">In accordance with rigorous empirical standards, we document five investigated hypotheses that were discarded:</p>
+<ul class="paper-list">
+    <li><b>Query-Time Adaptive Controllers (Ada-ef / PID):</b> Dynamically adjusting $efSearch$ based on entry-point distance incurred synchronization overhead and inflated P99 tail latency by 35–48% without improving recall. All adaptation was moved to index construction.</li>
+    <li><b>Uncertainty-Aware Search Termination:</b> Halting graph search based on candidate distance convergence statistics caused premature termination in dense clusters, degrading recall by up to 2.3 pp.</li>
+    <li><b>Geometry-Conditioned Pruning (GCP):</b> Modulating RNG acceptance thresholds based on local cluster curvature resulted in -13.6% lower throughput and -0.26 pp lower recall compared to strict RNG selection.</li>
+    <li><b>Upper-Layer Geometric Modulation:</b> Modulating out-degrees on skip layers ($l \ge 1$) severed long-range routing highways, confirming the necessity of Layer Decoupling ($\beta_{\text{upper}} = 0.0$).</li>
+    <li><b>FP32 Vector Re-ranking:</b> Induced a $\sim 7\times$ throughput collapse due to non-sequential L3 cache line misses, establishing Pure SQ8 as the production default.</li>
+</ul>
+
+<h2 class="sec-heading">XI. System Limitations and Threats to Validity</h2>
+
+</div>
+
+<div class="span-all">
+    <div class="table-caption">Table VI: System Limitations, Algorithmic Boundaries, and Threats to Experimental Validity</div>
+    <table class="pub-table">
+        <thead>
+            <tr>
+                <th style="width:25%;">Architectural Domain</th>
+                <th style="width:35%;">Identified Boundary / Limitation</th>
+                <th style="width:40%;">Scientific Implication and Engineering Mitigation</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><b>Geometry Allocation</b></td>
+                <td>Boundary recall inversion under Reversed Control ($M_{\text{sparse}}=24, M_{\text{hub}}=8$) yields $+0.22\text{ pp}$ recall at $+5.6\%$ distance evaluations.</td>
+                <td>Proves Normalized Exponential allocation optimizes search velocity and tail latency per distance check rather than global maximum recall. Addressed via layer-decoupled routing ($\beta_{\text{upper}}=0$).</td>
+            </tr>
+            <tr>
+                <td><b>Quantized Storage</b></td>
+                <td>Pure SQ4 precision collapses on SIFT-100K ($88.10\%$ recall vs $97.70\%$ for SQ8 at $efS=64$).</td>
+                <td>16-bin uniform scalar quantization incurs severe clipping distortion on non-isotropic distributions. Pure SQ8 is certified as the production-safe default; SQ4 is not evaluated on Transformer-384D.</td>
+            </tr>
+            <tr>
+                <td><b>Two-Stage Re-ranking</b></td>
+                <td>FP32 raw vector re-ranking incurs a $\sim 7\times$ throughput penalty (5,036 vs 47,576 QPS) across wide candidate beams.</td>
+                <td>Cache line thrashing over non-sequential $D=128$ FP32 memory fetches invalidates re-ranking for ultra-low latency regimes. Pure SQ8 avoids re-ranking by dropping raw vectors.</td>
+            </tr>
+            <tr>
+                <td><b>Dynamic Compaction</b></td>
+                <td>Dual-residency transient peak memory during candidate validation ($143.98\text{ MB}$ at 10% churn) exceeds strict $120.0\text{ MB}$ budget.</td>
+                <td>In-process replacement requires concurrent memory for old and new indices. Handled via Compaction Deferral (serving index handles queries without SLA violation) or out-of-process rebuild.</td>
+            </tr>
+            <tr>
+                <td><b>High-Churn Degradation</b></td>
+                <td>At 50% churn, compacted candidates suffer graph distortion ($\Delta R = 0.0052 > 0.0020$), failing Gate 1 ($R=0.9740 < 0.9800$).</td>
+                <td>Bounded 2-hop neighbor bypasses cannot restore macroscopic connectivity after severe cluster destruction. Mitigated by triggering background Fresh Rebuild (3.95 s, $R=0.9878$).</td>
+            </tr>
+            <tr>
+                <td><b>Mutation Catch-Up Pause</b></td>
+                <td>Under 350 concurrent mutations (including 200 vector insertions), complete exclusive write-lock pause is 11.68 ms.</td>
+                <td>Includes candidate graph re-indexing of replayed insertions while holding the write lock. Atomic pointer swap alone takes $\approx 0.014$ ms when no insertions are queued.</td>
+            </tr>
+            <tr>
+                <td><b>Post-Replay Validation Gap</b></td>
+                <td>Mutations replayed during the write lock bypass the 6 offline acceptance gates.</td>
+                <td>While monotonic sequence journaling ensures correctness, extreme un-gated mutation bursts during lock acquisition could alter recall immediately post-swap.</td>
+            </tr>
+            <tr class="rule-bottom">
+                <td><b>Software Counter Instrumentation</b></td>
+                <td>Distance evaluations and search times captured via software instrumentation (<code>QuerySearchStats</code>), not hardware PMU counters.</td>
+                <td>Cache misses, branch mispredictions, and pipeline stalls are modeled analytically rather than measured via hardware PMU registers (<code>perf_event_open</code>).</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="two-column">
+
+<p class="no-indent">We explicitly delineate the operational boundaries of AdaptiveVec in Table VI:</p>
+<ul class="paper-list">
+    <li><b>Dual-Residency Transient Peak Memory:</b> Non-destructive in-process compaction requires simultaneous memory residency of old and new indices during validation, requiring operator headroom or compaction deferral.</li>
+    <li><b>Streaming Degree Drift:</b> In continuous streaming ingestion, local moving-window LID estimates exhibit slight degree drift ($\le 0.43\%$) relative to global batch allocation, mitigated by scheduled background recalibration.</li>
+    <li><b>Software Search Counters:</b> Distance evaluations and search times are captured via software instrumentation (<code>QuerySearchStats</code>), not hardware PMU performance counters.</li>
+</ul>
+
+<h2 class="sec-heading">XII. Concurrency and Thread Safety Verification</h2>
+<p class="no-indent">Thread safety was validated under concurrent multi-threaded read/write workloads. In a deterministic stress test executing 4 reader threads and 2 writer threads:</p>
+<ul class="paper-list">
+    <li><b>Throughput:</b> 12,494 reader queries served concurrently with 350 streaming insertions and deletions.</li>
+    <li><b>Consistency:</b> Sequence-numbered catch-up replay observed <b>zero lost mutations</b>, <b>zero memory faults</b>, and exact vector match ($\max |\Delta \mathbf{v}| = 0.0$) on the evaluated test workload.</li>
+    <li><b>Complete Exclusive Lock Pause:</b> Replaying 350 mutations (200 insertions, 100 deletions, 50 updates) during exclusive write-lock replacement incurred an exclusive lock pause of <b>11.68 ms</b> (including candidate graph re-indexing of replayed insertions while holding the lock). The atomic pointer swap itself takes $\approx 0.014$ ms.</li>
+</ul>
+
+<h2 class="sec-heading">XIII. Conclusion and Future Directions</h2>
+<p class="no-indent">AdaptiveVec establishes a principled foundation for resource-constrained vector retrieval:</p>
+<ul class="paper-list">
+    <li>Geometry-Aware Graph Intelligence delivers a +24.01% QPS throughput increase and -37.62% P95 latency reduction under strictly conserved edge budgets.</li>
+    <li>Pure SQ8 storage slashes vector memory by 75.00% with complete FP32 vector purging, avoiding re-ranking cache misses.</li>
+    <li>Multi-Layer Strict RNG replenishment and the SLA-Safe Replacement Gatekeeper resolve compaction recall collapse and manage transient peak memory.</li>
+    <li>The 6-state AutoCalibrator provides reliable multi-objective optimization with 1,000-sample bootstrap confidence intervals.</li>
+</ul>
+
+<p>Future research will explore extending geometric degree allocation to out-of-core SSD architectures (e.g., DiskANN) and optimizing SIMD execution on ARM NEON and AVX-512 platforms.</p>
+
+<h2 class="sec-heading">References</h2>
+<div class="reference-item">[1] Y. A. Malkov and D. A. Yashunin, "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs," <i>IEEE Trans. Pattern Anal. Mach. Intell.</i>, vol. 42, no. 4, pp. 824–836, 2020.</div>
+<div class="reference-item">[2] J. Johnson, M. Douze, and H. Jégou, "Billion-scale similarity search with GPUs," <i>IEEE Trans. Big Data</i>, vol. 7, no. 3, pp. 535–547, 2021.</div>
+<div class="reference-item">[3] E. Levina and P. J. Bickel, "Maximum likelihood estimation of intrinsic dimension," in <i>Adv. Neural Inf. Process. Syst. (NeurIPS)</i>, 2004, pp. 777–784.</div>
+<div class="reference-item">[4] M. E. Houle, "Local intrinsic dimensionality I: An extreme-value-theoretic foundation for similarity applications," in <i>Proc. Int. Conf. Similarity Search and Applications (SISAP)</i>, 2017, pp. 64–79.</div>
+<div class="reference-item">[5] S. Gollapudi, N. Karia, V. Sivashankar, R. Krishnaswamy, N. Soni, and S. J. Subramanya, "FreshDiskANN: A fast and accurate graph-based ANN index for streaming updates," <i>Proc. VLDB Endow.</i>, vol. 16, no. 11, pp. 2840–2852, 2023.</div>
+<div class="reference-item">[6] M. Wang, X. Xu, et al., "A comprehensive survey and experimental comparison of graph-based approximate nearest neighbor search," <i>Proc. VLDB Endow.</i>, vol. 14, no. 11, pp. 1964–1978, 2021.</div>
+<div class="reference-item">[7] G. T. Toussaint, "The relative neighbourhood graph of a finite planar set," <i>Pattern Recognit.</i>, vol. 12, no. 4, pp. 261–268, 1980.</div>
+<div class="reference-item">[8] Y. Malkov, A. Ponomarenko, et al., "Approximate nearest neighbor algorithm based on navigable small world graphs," <i>Inf. Syst.</i>, vol. 45, pp. 61–68, 2014.</div>
+<div class="reference-item">[9] C. Fu, C. Xiang, et al., "Fast approximate nearest neighbor search with the navigating spreading-out graph," <i>Proc. VLDB Endow.</i>, vol. 12, no. 5, pp. 461–474, 2019.</div>
+<div class="reference-item">[10] S. Subramanya, F. Devvrit, et al., "DiskANN: Fast accurate billion-point nearest neighbor search on a single node," in <i>Adv. Neural Inf. Process. Syst. (NeurIPS)</i>, 2019, pp. 13766–13776.</div>
+<div class="reference-item">[11] M. Radovanović, A. Nanopoulos, and M. Ivanović, "Hubs in space: Popular nearest neighbors in high-dimensional data," <i>J. Mach. Learn. Res.</i>, vol. 11, pp. 2487–2531, 2010.</div>
+<div class="reference-item">[12] H. Jin, J. Lee, S. Piao, S. Seo, S. Kwon, and S. Park, "Efficient approximate nearest neighbor search via data-adaptive parameter adjustment in hierarchical navigable small graphs," in <i>Proc. Design, Autom. Test Eur. Conf. (DATE)</i>, 2025, pp. 1–7.</div>
+<div class="reference-item">[13] H. Jégou, M. Douze, and C. Schmid, "Product quantization for nearest neighbor search," <i>IEEE Trans. Pattern Anal. Mach. Intell.</i>, vol. 33, no. 1, pp. 117–128, 2011.</div>
+<div class="reference-item">[14] M. Aumüller, E. Bernhardsson, and A. Faithfull, "ANN-Benchmarks: A benchmarking tool for approximate nearest neighbor algorithms," <i>Inf. Syst.</i>, vol. 87, p. 101374, 2020.</div>
+<div class="reference-item">[15] B. Efron, "Bootstrap methods: Another look at the jackknife," <i>Ann. Statist.</i>, vol. 7, no. 1, pp. 1–26, 1979.</div>
+<div class="reference-item">[16] M. L. Balinski and H. P. Young, <i>Fair Representation: Meeting the Ideal of One Man, One Vote</i>. Yale University Press, 1982.</div>
+<div class="reference-item">[17] R. M. Gray and D. L. Neuhoff, "Quantization," <i>IEEE Trans. Inf. Theory</i>, vol. 44, no. 6, pp. 2325–2383, 1998.</div>
+<div class="reference-item">[18] K. Echihabi, K. Zoumpatianos, and T. Palpanas, "The Lernaean Hydra of data series similarity search: An experimental evaluation of the state of the art," <i>Proc. VLDB Endow.</i>, vol. 13, no. 12, pp. 2731–2744, 2020.</div>
+<div class="reference-item">[19] L. Amsaleg, O. Chelly, et al., "Estimating local intrinsic dimensionality," in <i>Proc. ACM SIGMOD</i>, 2015, pp. 1039–1040.</div>
+<div class="reference-item">[20] W. Dong, C. Moses, and K. Li, "Efficient k-nearest neighbor graph construction for generic similarity measures," in <i>Proc. WWW</i>, 2011, pp. 577–586.</div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    renderMathInElement(document.body, {
+        delimiters: [
+            {left: "$$", right: "$$", display: true},
+            {left: "\\[", right: "\\]", display: true},
+            {left: "$", right: "$", display: false},
+            {left: "\\(", right: "\\)", display: false}
+        ],
+        throwOnError: false
+    });
+    window.mathRendered = true;
+});
+</script>
+
+</body>
+</html>
+"""
+    return html_content
+
+def build_pdf():
+    workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    paper_dir = os.path.join(workspace, "research", "paper")
+    pdf_dir = os.path.join(workspace, "pdf")
+    os.makedirs(paper_dir, exist_ok=True)
+    os.makedirs(pdf_dir, exist_ok=True)
+
+    html_file = os.path.join(paper_dir, "adaptivevec_paper.html")
+    with open(html_file, "w", encoding="utf-8") as f:
+        f.write(generate_html())
+    print(f"Generated HTML source at: {html_file}")
+
+    target_pdf_paper = os.path.join(paper_dir, "adaptivevec_paper.pdf")
+    target_pdf_master = os.path.join(pdf_dir, "AdaptiveVec_Research_Paper.pdf")
+
+    # Locate edge or chrome
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+    ]
+    chrome_paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+    ]
+    browser = None
+    for p in edge_paths + chrome_paths:
+        if os.path.exists(p):
+            browser = p
+            break
+
+    if not browser:
+        print("ERROR: Neither Edge nor Chrome found on system.")
+        return False
+
+    print(f"Using browser for PDF compilation: {browser}")
+    cmd = [
+        browser,
+        "--headless=new",
+        "--disable-gpu",
+        "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw",
+        f"--print-to-pdf={target_pdf_paper}",
+        html_file
+    ]
+    print("Executing print-to-pdf command...")
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    time.sleep(1)
+
+    if not os.path.exists(target_pdf_paper):
+        print(f"ERROR: Failed to generate PDF. Exit code: {res.returncode}")
+        print("stdout:", res.stdout)
+        print("stderr:", res.stderr)
+        return False
+
+    file_size = os.path.getsize(target_pdf_paper)
+    print(f"Successfully generated: {target_pdf_paper} ({file_size:,} bytes)")
+
+    # Copy to master pdf directory as well
+    shutil.copy2(target_pdf_paper, target_pdf_master)
+    print(f"Synchronized copy to: {target_pdf_master}")
+
+    # Verify text and page count with pypdf
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(target_pdf_paper)
+        print(f"PDF Verified: {len(reader.pages)} pages")
+        first_page_text = reader.pages[0].extract_text()
+        print(f"Page 1 Extracted Text Sample: {first_page_text[:180]}...")
+    except Exception as e:
+        print("pypdf check note:", e)
+
+    return True
+
+if __name__ == "__main__":
+    success = build_pdf()
+    sys.exit(0 if success else 1)

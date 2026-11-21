@@ -1,0 +1,22 @@
+% Table I: AdaptiveVec Four Core Research Contributions and Verified Technical Mechanisms
+\begin{table*}[t]
+\centering
+\caption{AdaptiveVec Four Core Research Contributions and Empirical Validation Status}
+\label{tab:four_contributions}
+\begin{tabular}{p{3.2cm}p{3.8cm}p{5.5cm}p{4.2cm}}
+\toprule
+\textbf{Research Contribution} & \textbf{Architectural Mechanism} & \textbf{Core Theoretical / Systems Formulation} & \textbf{Key Empirical Findings} \\
+\midrule
+\textbf{I. Geometry-Aware Graph Intelligence} & Normalized Exponential Degree Allocation \& Layer Decoupling & $S_i = \alpha_{\text{lid}}\tilde{\text{ID}}_i + \beta_{\text{spars}}\tilde{\text{Sparsity}}_i$; $w_i = \exp(\text{clip}(\beta S_i, -2, 2))$; Hare-Niemeyer Rounding: $\sum M_i = N \cdot M_{\text{base}}$; Layer Decoupling: $\beta_0=1.0, \beta_u=0.0$ & \textbf{+24.01\% QPS}, \textbf{-37.62\% P95 latency} at matched recall (0.9926 vs 0.9929) under conserved edge quotas ($3.2\text{M}$ slots). \\
+\midrule
+\textbf{II. Resource-Efficient Storage Engine} & Pure SQ8 Asymmetric Distance Computation \& Vector Purging & Uniform 8-bit quantization; complete raw vector deallocation via \texttt{drop\_raw\_vectors()}; AVX2 256-bit SIMD integer MACs & \textbf{-75.00\%} vector storage; \textbf{+70.13\% QPS} (47,576 vs 27,965 QPS) at 99.54\% recall; avoids ~7x re-ranking cache miss collapse. \\
+\midrule
+\textbf{III. Dynamic Self-Healing Maintenance} & Soft Transit Routing, Multi-Layer RNG Replenishment \& 6 Gates & Soft transit routing through tombstones; Multi-layer bounded 2-hop RNG replenishment; SLA-Safe Gatekeeper; journal catch-up replay & Eliminates healing regression (+0.04 pp lift); recovers 25\% churn recall from 0.9280 to 0.9786; zero lost updates; lock pause $\le 0.194\text{ ms}$. \\
+\midrule
+\textbf{IV. Automatic SLA Optimization} & 3-Stage Optimizer with 6-State Formal Feasibility Model & Analytical lower-bound pruning $\to$ build profiling $\to$ search sweep; 1,000-sample bootstrap confidence intervals: $\text{CI}_{\text{lower}} \ge R_{\text{target}}$ & Solves strict memory SLA in \textbf{12.6 s} ($R=0.9416 \ge 0.92$, $M=3.38\text{ MB} \le 4.5\text{ MB}$); rejects impossible SLAs in 0.05 s; zero false feasibility. \\
+\bottomrule
+\end{tabular}
+\vspace{1ex}
+\raggedright
+\footnotesize{All mechanisms implemented in native C++17 with AVX2/FMA vectorization and thread-safe OpenMP concurrency under research checkpoint \texttt{7936c61}.}
+\end{table*}

@@ -1,0 +1,490 @@
+\documentclass[10pt,journal,compsoc]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{tikz}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{multirow}
+
+\usetikzlibrary{shapes,arrows,positioning,fit,backgrounds,calc}
+
+% Theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+
+\hyphenation{Adaptive-Vec HNSW Auto-Calibrator}
+
+\begin{document}
+
+\title{AdaptiveVec: Geometry-Aware and Resource-Constrained Approximate Nearest Neighbor Search with Dynamic Graph Maintenance}
+
+\author{Aradhya~G.~S.%
+\thanks{Manuscript revised November 21, 2026; research consolidated for academic defense December 12, 2026. Author is with the Department of Computer Science and Engineering. Standardized hardware: Intel Core 5 210H (8 physical cores, 12 logical threads, AVX2/FMA, 16 GB DDR5 RAM), Windows 11 Build 26100, GCC 14.2.0 (\texttt{g++ -O3 -mavx2 -mfma -fopenmp -std=c++17}). Research checkpoint: \texttt{7936c61} on branch \texttt{phase-6.4-final-correctness-closure}. Open-source repository: \url{https://github.com/aradhyags7/AdaptiveVec}.}%
+}
+
+\markboth{Technical Report $\cdot$ Preprint --- Under Academic Revision, November~2026}%
+{AdaptiveVec: Geometry-Aware and Resource-Constrained ANN Search}
+
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+Approximate Nearest Neighbor (ANN) search over high-dimensional vector embeddings is a fundamental capability in modern information retrieval, retrieval-augmented generation (RAG), and multimodal database systems. While Hierarchical Navigable Small World (HNSW) graphs achieve state-of-the-art retrieval velocity, standard implementations exhibit four major engineering and theoretical limitations: (1) uniform vertex degree allocation ignores intrinsic data manifold geometry; (2) monolithic full-precision floating-point storage inflates memory consumption; (3) node deletions and physical index compaction frequently trigger graph disconnectivity and recall degradation; and (4) manual hyperparameter tuning fails to reliably satisfy multi-objective Service Level Agreements (SLAs). In this paper, we present \textbf{AdaptiveVec}, an integrated vector search engine architected around four coordinated contributions. First, we develop \textit{Geometry-Aware Graph Intelligence}, which computes local intrinsic dimensionality (LID) and local sparsity, allocating base-layer out-degrees via continuous normalized exponential scaling and Hare-Niemeyer largest-remainder discretization under exact global edge budget conservation; on SIFT-100K, this delivers a +24.01\% throughput lift (3,091.0 vs 2,492.5 QPS) and -37.62\% P95 latency reduction (0.486 vs 0.780 ms) over uniform baselines. Second, we engineer a \textit{Pure SQ8 Asymmetric Distance Computation} storage engine with complete raw-vector deallocation (\texttt{drop\_raw\_vectors()}), slashing vector payload memory by 75.00\% while accelerating query throughput by +70.13\% at 99.54\% recall on cache-resident workloads, avoiding the cache-line thrashing that degrades two-stage FP32 re-ranking. Third, we address dynamic maintenance via \textit{Soft Transit Bridge Routing} and \textit{Multi-Layer Strict RNG Replenishment}, eliminating pre-compaction healing regressions (+0.04 to +0.06 pp over tombstones) and recovering post-compaction recall by up to +5.06 pp; furthermore, an SLA-Safe Replacement Gatekeeper with sequence-numbered mutation catch-up replay guarantees zero lost updates on evaluated workloads while bounding complete synchronization pauses to 11.68 ms across 350 concurrent mutations. Fourth, we formulate a 3-stage \textit{AutoCalibrator} governed by a 6-state formal feasibility model and 1,000-sample bootstrap confidence intervals, resolving strict memory SLAs in under 13 seconds without artificial slack multipliers. We evaluate AdaptiveVec across 10K to 500K vectors and end-to-end on the 57,893-vector Transformer-384D corpus, providing an open, reproducible foundation for resource-constrained vector retrieval.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Approximate Nearest Neighbor Search, High-Dimensional Vector Embeddings, Hierarchical Navigable Small World Graphs, Local Intrinsic Dimensionality, Scalar Quantization, Dynamic Graph Maintenance, Constrained Multi-Objective Optimization.
+\end{IEEEkeywords}}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+\section{Introduction}
+\IEEEPARstart{H}{igh-dimensional} vector retrieval is the primary indexing substrate for large language model (LLM) contextual memory, neural semantic search, and recommendation systems~\cite{malkov2020efficient, johnson2021billion}. Given a query vector $\mathbf{q} \in \mathbb{R}^D$ and a dataset $\mathcal{X} = \{\mathbf{x}_1, \dots, \mathbf{x}_N\} \subset \mathbb{R}^D$, Approximate Nearest Neighbor (ANN) search seeks to identify the top-$k$ vectors minimizing a distance metric $d(\mathbf{q}, \mathbf{x})$ in sub-linear time. Among proximity graph topologies, the Hierarchical Navigable Small World (HNSW) graph~\cite{malkov2020efficient} achieves an attractive empirical Pareto frontier of recall versus query throughput by organizing vectors into a multi-layer hierarchy of proximity graphs with exponentially decreasing vertex densities.
+
+Despite its ubiquity, standard HNSW and its commercial derivatives face four operational bottlenecks in real-world environments:
+
+\begin{enumerate}
+    \item \textbf{Agnostic Degree Uniformity:} Canonical HNSW enforces a static maximum out-degree $M$ across all vertices regardless of the underlying manifold geometry. In real-world embedding spaces, data points exhibit extreme variance in local density, curvature, and intrinsic dimensionality~\cite{levina2004maximum, houle2017local}. Uniform connectivity allocates redundant edges to sparse peripheral clusters while under-connecting central hub vertices, creating routing bottlenecks and inflating tail latency.
+    \item \textbf{Monolithic Memory Footprints:} Standard graph indices store full 32-bit floating-point (FP32) coordinates alongside adjacency lists, consuming tens of gigabytes for moderate-scale datasets. Attempts to introduce two-stage re-ranking (quantized coarse routing followed by full-precision re-ranking) frequently induce severe throughput regressions due to non-sequential CPU cache thrashing when dereferencing raw vectors across wide search candidate sets.
+    \item \textbf{Compaction Degradation and Transient Memory Spikes:} In dynamic database workloads subjected to continuous streaming updates and deletions, standard tombstone deletion leaves dead nodes in the graph, accumulating dead-memory overhead. Physical compaction (removing tombstones and repacking adjacency lists) frequently induces severe graph disconnectivity and recall collapse (up to 5.0 pp drop) because surviving vertices lose routing pathways across deleted clusters~\cite{gollapudi2023freshdiskann}. Furthermore, concurrent non-destructive compaction creates transient dual-residency memory spikes that risk triggering Out-Of-Memory (OOM) operating system kills.
+    \item \textbf{Heuristic SLA Guesswork:} Tuning index hyperparameters ($M$, $efConstruction$, $efSearch$, precision) to satisfy strict multi-objective Service Level Agreements (SLAs) over recall, memory budget, and P99 latency currently relies on brittle manual trial-and-error or heuristic optimizers prone to false-positive feasibility claims.
+\end{enumerate}
+
+To address these challenges, we present \textbf{AdaptiveVec}, an integrated vector search engine architected around four coordinated research contributions summarized in Table~\ref{tab:four_contributions}.
+
+\input{tables/four_contributions.tex}
+
+The remainder of this paper is structured as follows. Section~\ref{sec:related_work} reviews related work and contrasts AdaptiveVec with recent adaptive graph paradigms. Section~\ref{sec:problem_formulation} establishes the formal problem definition, system architecture, and 6-state feasibility model. Section~\ref{sec:geometry} presents Geometry-Aware Graph Intelligence, Hare-Niemeyer discretization, and Layer Decoupling. Section~\ref{sec:quantization} details the pure quantized storage engine and analytical cache-hierarchy model. Section~\ref{sec:maintenance} presents Dynamic Graph Maintenance, Multi-Layer replenishment, and the SLA-Safe Replacement Gatekeeper. Section~\ref{sec:autocalibrator} describes the constrained AutoCalibrator. Section~\ref{sec:experimental_setup} outlines the experimental methodology. Section~\ref{sec:results} presents comprehensive empirical results across SIFT and Transformer datasets. Section~\ref{sec:ablations} documents negative findings and discarded hypotheses. Section~\ref{sec:limitations} analyzes system limitations and threats to validity. Section~\ref{sec:concurrency} evaluates concurrency and thread-safety verification. Section~\ref{sec:conclusion} concludes the paper.
+
+---
+
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{Proximity Graphs and HNSW}
+Proximity graph algorithms have demonstrated superior empirical search performance compared to tree-based partitioning (e.g., KD-trees) and locality-sensitive hashing (LSH)~\cite{wang2021comprehensive}. Seminal graph structures include the Relative Neighborhood Graph (RNG)~\cite{toussaint1980relative}, Navigable Small World (NSW)~\cite{malkov2014approximate}, and Hierarchical NSW (HNSW)~\cite{malkov2020efficient}. Subsequent developments have focused on monolithic index pruning, such as NSG~\cite{fu2019fast} and Vamana/DiskANN~\cite{subramanya2019diskann}. However, existing proximity graph topologies assign uniform out-degree caps to all vertices, remaining oblivious to local manifold dimensionality and hubness phenomena~\cite{radovanovic2010hubs}.
+
+\subsection{Data-Adaptive Parameter Tuning vs. AdaptiveVec}
+Recently, Jin et al.~\cite{jin2025efficient} proposed a data-adaptive parameter adjustment framework for HNSW in DATE 2025. While sharing the broad motivation of adapting parameters to data characteristics, AdaptiveVec differs fundamentally in five aspects:
+\begin{enumerate}
+    \item \textbf{Allocation Granularity:} Jin et al.~\cite{jin2025efficient} adjust parameters at the regional/cluster level. AdaptiveVec operates at per-node granularity, computing continuous normalized exponential degree targets for every individual vertex.
+    \item \textbf{Exact Budget Conservation:} Prior adaptive methods heuristically adjust $M$, altering the total edge count and memory unpredictably. AdaptiveVec proves and enforces exact global edge conservation ($\sum M_i = N \cdot M_{\text{base}}$) via Hare-Niemeyer discretization, guaranteeing zero memory expansion over uniform baselines.
+    \item \textbf{Geometric Signals:} While Jin et al. rely on local point density heuristics, AdaptiveVec combines extreme-value Local Intrinsic Dimensionality (LID)~\cite{levina2004maximum, houle2017local} with standardized local sparsity ($S_i = \alpha_{\text{lid}}\tilde{\text{ID}}_i + \beta_{\text{spars}}\tilde{\text{Sparsity}}_i$).
+    \item \textbf{Layer Decoupling:} We prove theoretically and empirically that geometric modulation must be restricted to Layer 0 ($\beta_0 = 1.0$) while upper skip layers remain strictly uniform ($\beta_{\text{upper}} = 0.0$) to avoid severing long-range routing highways.
+    \item \textbf{End-to-End Scope:} Jin et al. target build time and memory in static graphs. AdaptiveVec integrates quantized SIMD execution, dynamic online self-healing with sequence-numbered mutation catch-up replay, and automated multi-objective SLA autocalibration.
+\end{enumerate}
+
+\subsection{Vector Quantization and Systems Integration}
+To compress high-dimensional vectors, Product Quantization (PQ)~\cite{jegou2011product} and Scalar Quantization (SQ8, SQ4)~\cite{johnson2021billion, gray1998quantization} project real-valued vectors into discrete codebooks. Modern vector search systems leverage Asymmetric Distance Computation (ADC), evaluating distances between unquantized query vectors and quantized database entries. While FAISS~\cite{johnson2021billion} provides general-purpose quantization routines, standard implementations commonly couple quantized indices with stored FP32 vectors for second-stage re-ranking. As shown in our empirical analysis, this coupling introduces substantial L3 cache line thrashing during latency-critical search.
+
+\subsection{Dynamic Graph Maintenance and Deletions}
+Handling deletions in graph-based indices is notoriously challenging. Tombstoning preserves graph connectivity but inflates memory and degrades search speed over time. FreshDiskANN~\cite{gollapudi2023freshdiskann} introduced streaming consolidation for SSD-resident graphs, but in-memory graph compaction often destroys upper-layer routing hierarchies. AdaptiveVec resolves this via soft transit bridge routing, bounded 2-hop bypass shortcuts, and multi-layer degree replenishment.
+
+\subsection{Automated Hyperparameter Optimization}
+Existing parameter tuning frameworks for vector databases typically rely on Bayesian optimization, genetic algorithms, or unconstrained grid searches~\cite{aumueller2020ann}. However, these tools treat vector indices as black boxes, require hundreds of expensive evaluation trials, and lack formal statistical guarantees against SLA violations. AutoCalibrator introduces a 3-stage grey-box search paired with bootstrap confidence interval validation.
+
+---
+
+\section{Problem Formulation and System Overview}
+\label{sec:problem_formulation}
+
+\subsection{Mathematical Formulation}
+Let $\mathcal{X} = \{\mathbf{x}_1, \dots, \mathbf{x}_N\} \subset \mathbb{R}^D$ denote a dataset of $N$ vectors of dimensionality $D$. Given a query vector $\mathbf{q} \in \mathbb{R}^D$, a distance metric $d: \mathbb{R}^D \times \mathbb{R}^D \to \mathbb{R}_{\ge 0}$, and an integer $k \ge 1$, the exact $k$-nearest neighbor set $\mathcal{N}_k^*(\mathbf{q})$ satisfies:
+\begin{equation}
+\forall \mathbf{u} \in \mathcal{N}_k^*(\mathbf{q}), \; \forall \mathbf{v} \in \mathcal{X} \setminus \mathcal{N}_k^*(\mathbf{q}), \quad d(\mathbf{q}, \mathbf{u}) \le d(\mathbf{q}, \mathbf{v})
+\end{equation}
+An approximate nearest neighbor algorithm returns a candidate set $\mathcal{N}_k(\mathbf{q}) \subset \mathcal{X}$ of cardinality $k$. Retrieval quality is measured by Empirical Recall@$k$:
+\begin{equation}
+R@k = \frac{|\mathcal{N}_k(\mathbf{q}) \cap \mathcal{N}_k^*(\mathbf{q})|}{k}
+\end{equation}
+
+\subsection{Constrained Multi-Objective SLA Model}
+In industrial deployments, an index configuration $\theta \in \Theta$ must satisfy hard service-level constraints:
+\begin{align}
+\text{maximize} \quad & QPS(\theta) \quad (\text{or minimize } \text{Latency}) \\
+\text{subject to} \quad & R@k(\theta) \ge R_{\text{target}} \label{eq:sla_recall} \\
+& M_{\text{owned}}(\theta) \le M_{\text{budget}} \label{eq:sla_mem} \\
+& P99(\theta) \le \text{P99}_{\text{target}} \label{eq:sla_p99}
+\end{align}
+where $M_{\text{owned}}$ denotes index-owned memory, and $P99$ denotes the 99th percentile query latency.
+
+---
+
+\section{Milestone I: Geometry-Aware Graph Intelligence}
+\label{sec:geometry}
+
+\subsection{Local Intrinsic Dimensionality and Local Sparsity}
+High-dimensional datasets concentrate on lower-dimensional non-linear manifolds. AdaptiveVec estimates the Local Intrinsic Dimensionality (LID)~\cite{levina2004maximum, houle2017local} and local sparsity for each vector $\mathbf{x}_i \in \mathcal{X}$ over its $k_1$-nearest neighbors $\mathcal{N}_{k_1}(\mathbf{x}_i)$ ($k_1=16$):
+\begin{equation}
+\label{eq:lid_est}
+\widehat{\text{ID}}_i = \left( \frac{1}{k_1 - 1} \sum_{j=1}^{k_1 - 1} \ln \frac{r_i(k_1)}{r_i(j)} \right)^{-1}, \quad \text{Spars}_i = \frac{1}{k_1} \sum_{j=1}^{k_1} r_i(j)
+\end{equation}
+where $r_i(j)$ is the Euclidean distance to the $j$-th neighbor. We standardize both signals across the corpus and clip to $[-3.0, 3.0]$:
+\begin{equation}
+\tilde{\text{ID}}_i = \text{clip}\left( \frac{\widehat{\text{ID}}_i - \mu_{\text{ID}}}{\sigma_{\text{ID}}}, -3.0, 3.0 \right), \quad \tilde{\text{Spars}}_i = \text{clip}\left( \frac{\text{Spars}_i - \mu_{\text{Spars}}}{\sigma_{\text{Spars}}}, -3.0, 3.0 \right)
+\end{equation}
+In the actual C++ implementation (\texttt{cpp/budget\_allocator.hpp}), the combined geometric centrality score $S_i$ is computed as:
+\begin{equation}
+S_i = \alpha_{\text{lid}} \tilde{\text{ID}}_i + \beta_{\text{spars}} \tilde{\text{Spars}}_i
+\end{equation}
+with defaults $\alpha_{\text{lid}} = 0.7$ and $\beta_{\text{spars}} = 0.3$.
+
+\subsection{Continuous Degree Target Formulation}
+Standard HNSW assigns a static out-degree $M_{\text{base}}$ to every node on Layer 0. AdaptiveVec allocates dynamic out-degrees $M_i \in [M_{\min}, M_{\max}]$ proportional to geometric centrality. We compute exponential weights $w_i$ and continuous target degrees $\tilde{M}_i$:
+\begin{align}
+w_i &= \exp\left( \text{clip}(\beta S_i, -2.0, 2.0) \right) \label{eq:exp_weight} \\
+\tilde{M}_i &= M_{\min} + (N \cdot M_{\text{base}} - N \cdot M_{\min}) \cdot \frac{w_i}{\sum_{j=1}^N w_j} \label{eq:continuous_m}
+\end{align}
+Summing Equation~(\ref{eq:continuous_m}) over all $N$ vertices gives $\sum_{i=1}^N \tilde{M}_i = N \cdot M_{\text{base}}$ by construction.
+
+\subsection{Hare-Niemeyer Integer Discretization}
+To map continuous targets $\tilde{M}_i$ to integer out-degrees while preserving global edge budget constraints and respecting degree bounds $[M_{\min}, M_{\max}]$, we implement the \textbf{Hare-Niemeyer (Largest Remainder) Discretization} detailed in Algorithm~\ref{alg:geometry_allocation}.
+
+\begin{algorithm}[t]
+\caption{Hare-Niemeyer Integer Degree Discretization (\texttt{budget\_allocator.hpp})}
+\label{alg:geometry_allocation}
+\begin{algorithmic}[1]
+\REQUIRE Continuous degrees $\tilde{\mathbf{M}} \in \mathbb{R}^N$, Total budget $B = N \cdot M_{\text{base}}$, Bounds $[M_{\min}, M_{\max}]$
+\ENSURE Allocated integer degrees $\mathbf{M} \in \mathbb{N}^N$ s.t. $\sum M_i = B$ and $M_i \in [M_{\min}, M_{\max}]$
+\STATE \textbf{Initialize:} $m_i \gets \max(M_{\min}, \min(M_{\max}, \lfloor \tilde{M}_i \rfloor))$ for all $i \in \{1,\dots,N\}$
+\STATE $\text{deficit} \gets B - \sum_{i=1}^N m_i$
+\IF{$\text{deficit} > 0$}
+    \STATE $\mathcal{U}^+ \gets \{ i \in \{1,\dots,N\} \mid m_i < M_{\max} \}$
+    \STATE Sort $\mathcal{U}^+$ descending by fractional remainder $f_i = \tilde{M}_i - \lfloor \tilde{M}_i \rfloor$; tie-break ascending on index $i$
+    \FOR{$k = 1$ \TO $\min(\text{deficit}, |\mathcal{U}^+|)$}
+        \STATE $m_{\mathcal{U}^+[k]} \gets m_{\mathcal{U}^+[k]} + 1$
+    \ENDFOR
+\ELSIF{$\text{deficit} < 0$}
+    \STATE $\text{surplus} \gets -\text{deficit}$
+    \STATE $\mathcal{U}^- \gets \{ i \in \{1,\dots,N\} \mid m_i > M_{\min} \}$
+    \STATE Sort $\mathcal{U}^-$ ascending by fractional remainder $f_i = \tilde{M}_i - \lfloor \tilde{M}_i \rfloor$; tie-break ascending on index $i$
+    \FOR{$k = 1$ \TO $\min(\text{surplus}, |\mathcal{U}^-|)$}
+        \STATE $m_{\mathcal{U}^-[k]} \gets m_{\mathcal{U}^-[k]} - 1$
+    \ENDFOR
+\ENDIF
+\STATE \textbf{assert} $\sum_{i=1}^N m_i == B$ and $\forall i: M_{\min} \le m_i \le M_{\max}$
+\RETURN $\mathbf{M} = (m_1, \dots, m_N)$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposition}[Edge Budget Conservation and Single-Pass Feasibility]
+\label{prop:conservation}
+Let $M_{\min} \le M_{\text{base}} \le M_{\max}$ and $\sum_{i=1}^N \tilde{M}_i = N \cdot M_{\text{base}}$. Under the single-pass largest-remainder integer discretization in Algorithm~\ref{alg:geometry_allocation}:
+\begin{enumerate}
+    \item If $\text{deficit} > 0$, the allocated degrees strictly conserve the edge budget $\sum_{i=1}^N M_i = N \cdot M_{\text{base}}$ with $M_i \in [M_{\min}, M_{\max}]$ if and only if:
+    \begin{equation}
+    \text{deficit} \le |\mathcal{U}^+|
+    \end{equation}
+    where each of the top $\text{deficit}$ eligible vertices in $\mathcal{U}^+$ receives exactly a $+1$ increment. If $\text{deficit} > |\mathcal{U}^+|$, fully absorbing the deficit requires multiple increments per eligible vertex (up to $M_{\max} - m_i$), which the single-pass implementation in \texttt{cpp/budget\_allocator.hpp} does not execute, triggering an assertion failure.
+    \item If $\text{deficit} < 0$, exact budget conservation holds if and only if $|\text{deficit}| \le |\mathcal{U}^-|$, with each of the first $|\text{deficit}|$ eligible vertices in $\mathcal{U}^-$ decremented by $1$.
+    \item In all benchmark datasets (SIFT-10K, SIFT-100K, SIFT-500K, Transformer-384D) under calibrated sensitivity ($\beta \le 1.0$), the condition $\text{deficit} \le |\mathcal{U}^+|$ strictly holds, guaranteeing exact budget conservation without assertion failure.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+Let $S_0 = \sum_{i=1}^N m_i^{(0)}$ be the sum of clamped floors. When $\text{deficit} = B - S_0 > 0$, Algorithm~\ref{alg:geometry_allocation} iterates through $\mathcal{U}^+$ sorted descending by fractional remainder. Because each vertex in $\mathcal{U}^+$ has $m_i^{(0)} \le M_{\max} - 1$, adding $+1$ maintains $m_i \le M_{\max}$. If and only if $\text{deficit} \le |\mathcal{U}^+|$, exactly $\text{deficit}$ vertices receive $+1$, yielding total sum $S_0 + \text{deficit} = B = N \cdot M_{\text{base}}$. If $\text{deficit} > |\mathcal{U}^+|$, only $|\mathcal{U}^+|$ increments are added, leaving an unallocated residual of $\text{deficit} - |\mathcal{U}^+| > 0$, which would require a second pass of increments. An analogous argument holds for $\text{deficit} < 0$ on $\mathcal{U}^-$.
+\end{proof}
+
+\textbf{Distinction Between Budget Quota, Realized Degree, and Memory:}
+We explicitly distinguish three distinct concepts:
+\begin{enumerate}
+    \item \textbf{Assigned Forward Degree Quota ($M_i$):} The maximum out-degree candidate cap assigned to node $i$ during forward edge selection on Layer 0 ($\sum M_i = N \cdot M_{\text{base}} = 1.6\text{M}$ forward edges for $N=100\text{K}, M_{\text{base}}=16$).
+    \item \textbf{Realized Adjacency Count ($|E_i|$):} The actual number of directed edges stored in node $i$'s adjacency list. In HNSW, reverse (bidirectional) links are added dynamically and capped at $M_{\max 0} = 2 M_i$ (up to $3.2\text{M}$ capacity slots). Realized edges depend on insertion order and neighbor pruning.
+    \item \textbf{Physical Graph Memory:} Total bytes allocated to adjacency arrays in RAM, directly measured in MB (Table~\ref{tab:geometry_comparison}: 27.89 MB uniform vs 27.50 MB exponential).
+\end{enumerate}
+
+\subsection{Layer-Decoupled Routing Highways}
+A critical architectural discovery in AdaptiveVec is \textbf{Layer Decoupling}. Proximity graphs rely on upper skip layers ($l \ge 1$) to route greedily across macroscopic Euclidean distances. Modulating upper-layer degrees by geometry ($\beta_{\text{upper}} > 0$) causes peripheral clusters to receive truncated connectivity, fracturing global routing highways (see Section~\ref{sec:ablations}). AdaptiveVec strictly enforces:
+\begin{equation}
+\beta_{\text{Layer 0}} = 1.0, \quad \beta_{\text{Upper}} = 0.0
+\end{equation}
+All upper layers retain uniform out-degree $M_{\text{base}}$, preserving upper-layer long-range skip routing while maximizing base-layer resolution (Figure~\ref{fig:hierarchy_allocation}).
+
+\begin{figure}[t]
+\centering
+\input{figures/hierarchy_allocation.tex}
+\caption{Layer-Decoupled Hierarchical Connectivity: Uniform $M_{\text{base}}$ on upper skip highways ($\beta_u=0$) and geometrically allocated $M_i \in [8, 24]$ on Layer 0 ($\beta_0=1.0$).}
+\label{fig:hierarchy_allocation}
+\end{figure}
+
+---
+
+\section{Milestone II: Resource-Efficient Storage and Quantization}
+\label{sec:quantization}
+
+\subsection{Pure SQ8 Asymmetric Distance Computation}
+To eliminate the prohibitive memory footprint of storing FP32 vectors ($4D$ bytes per vector), AdaptiveVec implements uniform 8-bit Scalar Quantization (SQ8). Each vector dimension $d \in [1, D]$ is mapped into an 8-bit unsigned integer $u_{i,d} \in [0, 255]$:
+\begin{equation}
+u_{i,d} = \text{round}\left( 255 \cdot \frac{x_{i,d} - \min_d}{\max_d - \min_d} \right)
+\end{equation}
+During query evaluation, unquantized query coordinates $q_d$ interact with quantized database entries $u_{i,d}$ via Asymmetric Distance Computation (ADC):
+\begin{equation}
+d_{\text{ADC}}(\mathbf{q}, \mathbf{x}_i)^2 = \sum_{d=1}^D \left( q_d - \left( \min_d + \frac{u_{i,d}}{255} (\max_d - \min_d) \right) \right)^2
+\end{equation}
+This formulation is vectorized using AVX2 integer broadcast and fused multiply-accumulate (FMA) intrinsics, processing 32 dimensions per SIMD instruction cycle.
+
+\subsection{Complete Vector Purging and Analytical Cache Miss Model}
+Unlike standard hybrid frameworks that retain raw floating-point vectors for a second-stage re-ranking pass, AdaptiveVec executes \texttt{drop\_raw\_vectors()}, completely unmapping FP32 vector buffers from heap memory once quantization is complete.
+
+\begin{proposition}[Analytical Cache-Line Miss Model for Two-Stage Re-ranking]
+\label{prop:cache_miss}
+Let $K_{\text{rerank}}$ denote the number of candidates evaluated in a secondary full-precision re-ranking stage. For a vector of dimension $D=128$, each FP32 vector occupies $512$ bytes, spanning $\lceil 512 / L_{\text{cache}} \rceil = 8$ cache lines ($L_{\text{cache}} = 64$ bytes). Because candidate indices are distributed non-contiguously throughout heap memory, dereferencing $K_{\text{rerank}}$ candidates incurs up to:
+\begin{equation}
+\mathcal{C}_{\text{miss}} \approx 8 \cdot K_{\text{rerank}} \text{ non-sequential L3 cache line fetches}
+\end{equation}
+When $K_{\text{rerank}} = 128$, this generates $1{,}024$ random cache lines, saturating CPU memory bus bandwidth and precipitating a $\sim 7\times$ throughput collapse.
+\end{proposition}
+
+\textbf{Measurement Disclaimer:} Proposition~\ref{prop:cache_miss} represents an analytical memory-hierarchy model. Distance evaluations and latencies are captured via software instrumentation (\texttt{QuerySearchStats}), not hardware PMU performance counters.
+
+---
+
+\section{Milestone III: Dynamic Self-Healing Index and Compaction}
+\label{sec:maintenance}
+
+\subsection{Soft Transit Bridge Routing}
+When a node $v$ is deleted, removing its vertex immediately severs shortest-path routing bridges across clusters. AdaptiveVec implements \textbf{Soft Transit Bridge Routing}:
+\begin{enumerate}
+    \item Deletions mark node $v$ in a concurrent bitset tombstone mask (\texttt{mark\_deleted(v)}).
+    \item During greedy graph traversal, candidate node $v$ remains fully routable: the search beam traverses through $v$'s adjacency list to reach active neighbors.
+    \item When pushing candidates into the top-$k$ nearest-neighbor priority queue, tombstoned vertices are filtered out.
+\end{enumerate}
+
+\subsection{Multi-Layer Strict RNG Replenishment}
+While tombstones preserve navigability, they accumulate dead memory. Physical compaction removes tombstones and compacts node IDs into contiguous indices $1 \dots N_{\text{surviving}}$. 
+
+In naive compaction, removing edges to deleted nodes causes upper skip layers to wither, leading to graph disconnectivity. AdaptiveVec enforces \textbf{Multi-Layer Strict RNG Replenishment} across all levels $l \in [0, \text{max\_level}]$:
+\begin{equation}
+\text{Replenish}(u, l): \quad \text{Select } \mathcal{E}_{\text{new}} \subset \mathcal{N}_2(u) \quad \text{s.t.} \quad d(u, v) \le \max(d(u, w), d(w, v))
+\end{equation}
+Replenishing candidate edges from surviving 2-hop neighborhoods under Relative Neighborhood Graph (RNG) constraints helps preserve upper-layer connectivity, substantially mitigating post-compaction recall collapse (recovering up to +5.06 pp on SIFT-100K under 25\% churn).
+
+\begin{figure}[t]
+\centering
+\input{figures/dynamic_maintenance.tex}
+\caption{Safe Replacement Flowchart: Background Maintenance, 6 Acceptance Gates, Sequence-Numbered Mutation Replay, and Fallback Policies.}
+\label{fig:dynamic_maintenance}
+\end{figure}
+
+\subsection{The SLA-Safe Replacement Policy Matrix}
+Non-destructive compaction constructs a candidate index offline while the serving index answers live queries. This creates a transient dual-residency memory footprint:
+\begin{equation}
+\label{eq:peak_mem}
+\text{PeakMemory} = M_{\text{serving}} + M_{\text{candidate}} + M_{\text{scratch}}
+\end{equation}
+To prevent OOM failures and SLA violations, \texttt{ServingIndexManager} evaluates candidates against \textbf{6 Hard Acceptance Gates} (matching source-code implementations in \texttt{cpp/adaptive\_hnsw.hpp} and \texttt{experiments/phase\_6\_4\_dynamic\_maintenance\_investigation.json}):
+\begin{itemize}
+    \item \textbf{Gate 1 (Recall SLA):} $R_{\text{candidate}} \ge R_{\text{target}}$.
+    \item \textbf{Gate 2 (Confidence Bound):} $\text{CI}_{\text{lower}} \ge R_{\text{target}}$ (1,000 bootstrap samples).
+    \item \textbf{Gate 3 (Peak Memory):} $\text{PeakMemory} = M_{\text{serving}} + M_{\text{candidate}} \le M_{\text{budget}}$.
+    \item \textbf{Gate 4 (P99 Latency):} $\text{P99}_{\text{candidate}} \le \text{P99}_{\text{target}}$.
+    \item \textbf{Gate 5 (Graph Invariants):} Structural integrity checks (\texttt{ReplacementStatus::RejectedGraphInvariantViolation}: non-null index, enter-point valid and non-deleted, layer 0 size matches active count, no isolated active nodes).
+    \item \textbf{Gate 6 (Compaction Quality):} $\Delta R_{\text{compact}} = R_{\text{healed}} - R_{\text{compacted}} \le 0.0020$.
+\end{itemize}
+
+When any gate fails, the system executes deterministic policy fallbacks:
+\begin{itemize}
+    \item \textbf{Compaction Deferral:} Triggered when Gate 3 fails (transient peak memory exceeds budget) but the serving index satisfies the recall SLA. The serving index is retained as \texttt{Retained\_Serving} to avoid OOM crashes.
+    \item \textbf{Rebuild Required:} Triggered under high churn ($\ge 50\%$) when compaction candidate quality fails Gate 1 or Gate 6. A clean background rebuild is executed, taking advantage of reduced surviving cardinality.
+\end{itemize}
+
+\subsection{Mutation Journal Catch-Up Replay and Synchronization Pause}
+To preserve mutations occurring during offline candidate construction:
+\begin{equation}
+\mathcal{L} = \{ \langle \text{seq}_k, \text{op}, \text{id}, \mathbf{v} \rangle \mid \text{seq}_k > T_{\text{snapshot}} \}
+\end{equation}
+Upon candidate acceptance, the manager acquires an exclusive reader-writer lock, replays $\mathcal{L}$ onto the candidate, and performs an atomic pointer swap (\texttt{std::atomic\_store}).
+
+\textbf{Complete Synchronization Pause vs. Pointer Swap:}
+In our deterministic concurrency benchmark with 350 streaming mutations (200 insertions, 100 deletions, 50 updates), the complete exclusive write-lock pause was measured at \textbf{11.68 milliseconds} (\texttt{docs/phase\_6\_4\_dynamic\_maintenance\_investigation\_report.md}). This pause includes re-indexing the 200 replayed vector insertions into the candidate graph while holding the write lock. The atomic pointer swap itself takes $\approx 0.014$ ms (and was measured between 0.9 and 193.9 $\mu$s in isolated pointer-only benchmarks without pending insertions). Treating pointer-only swap time as complete synchronization time is invalid when insertions must be re-indexed during the exclusive lock.
+
+\textbf{Post-Replay Validation Limitation:}
+Because candidate validation occurs \textit{prior} to acquiring the exclusive replacement lock, replayed delta mutations are incorporated into the candidate graph without a secondary post-replay validation pass. Under normal operation, delta mutation volume is small ($<0.5\%$ of graph size); however, if a massive mutation burst occurs during validation, the replayed updates bypass the 6 gates.
+
+---
+
+\section{Milestone IV: Automatic Resource Optimization}
+\label{sec:autocalibrator}
+
+\subsection{3-Stage Hyperparameter Optimization Pipeline}
+\texttt{AutoCalibrator} discovers the optimal configuration satisfying Equations~(\ref{eq:sla_recall})--(\ref{eq:sla_p99}) via a 3-stage search:
+\begin{enumerate}
+    \item \textbf{Stage 1: Lower-Bound Filtering.} Evaluates analytical memory models. If the theoretical minimum footprint of the smallest viable precision mode ($M_{\min}=8$, SQ4) exceeds $M_{\text{budget}}$, the SLA is immediately rejected as \texttt{INFEASIBLE\_WITHIN\_SEARCH\_SPACE} in $< 0.05$ s without building graphs.
+    \item \textbf{Stage 2: Candidate Construction.} Evaluates candidate build parameters $(M, efConstruction, \text{Precision}) \in \{8, 12, 16\} \times \{30, 60, 100\} \times \{\text{FP32}, \text{SQ8}, \text{SQ4}\}$ on a stratified sample.
+    \item \textbf{Stage 3: Search Parameter Sweep.} Sweeps query-time beam widths $efSearch \in \{16, 32, 48, 64, 96, 128\}$ across feasible build candidates.
+\end{enumerate}
+
+\subsection{Formal Feasibility Model and Bootstrap Confidence Intervals}
+AutoCalibrator implements a formal 6-state feasibility model (\texttt{cpp/auto\_calibrator.hpp}):
+\begin{enumerate}
+    \item \texttt{VERIFIED\_FEASIBLE}: Configuration satisfies all mean SLA constraints and bootstrap $\text{CI}_{\text{lower}} \ge R_{\text{target}}$.
+    \item \texttt{PROVISIONALLY\_FEASIBLE}: Mean recall satisfies SLA ($R \ge R_{\text{target}}$) during calibration, but bootstrap lower bound falls marginally short ($\text{CI}_{\text{lower}} < R_{\text{target}}$), requiring full held-out deployment validation.
+    \item \texttt{VALIDATION\_FAILED}: Configuration accepted during calibration subsequently fails SLA constraints upon full deployment validation.
+    \item \texttt{INFEASIBLE\_WITHIN\_SEARCH\_SPACE}: Search grid exhausted without locating any parameter configuration meeting all SLA constraints.
+    \item \texttt{INVALID\_REQUIREMENTS}: Input SLA targets are mathematically contradictory or impossible (e.g., $R_{\text{target}} > 1.0$ or $M_{\text{budget}} \le 0$).
+    \item \texttt{EVALUATION\_ERROR}: Runtime execution failure, out-of-memory crash, or corrupted evaluation set during profiling.
+\end{enumerate}
+
+For every candidate passing point-estimate requirements, AutoCalibrator draws $B=1{,}000$ bootstrap query subsets with replacement from the held-out validation set $\mathcal{Q}_{\text{val}}$ ($|\mathcal{Q}_{\text{val}}| = 400$). The 95\% empirical confidence interval $[\text{CI}_{\text{lower}}, \text{CI}_{\text{upper}}]$ is computed:
+\begin{equation}
+\text{CI}_{\text{lower}} = \text{Percentile}_{2.5\%}\left( \{ R^{(b)} \}_{b=1}^B \right)
+\end{equation}
+A candidate is certified as \texttt{VERIFIED\_FEASIBLE} if and only if $\text{CI}_{\text{lower}} \ge R_{\text{target}}$. Artificial slack multipliers ($1.05\times, 1.08\times$) are strictly eliminated.
+
+---
+
+\section{Experimental Methodology}
+\label{sec:experimental_setup}
+
+\subsection{Hardware and Execution Environment}
+All benchmarks were conducted on a standardized dedicated hardware platform:
+\begin{itemize}
+    \item \textbf{Processor:} Intel Core 5 210H (8 physical cores, 12 logical threads, AVX2 and FMA support, base clock 2.50 GHz).
+    \item \textbf{Memory:} 16.0 GB DDR5 RAM.
+    \item \textbf{Operating System:} Microsoft Windows 11 Enterprise (Build 26100).
+    \item \textbf{Compiler:} GCC 14.2.0 (\texttt{g++ -O3 -mavx2 -mfma -fopenmp -std=c++17}).
+\end{itemize}
+
+\subsection{Benchmark Datasets}
+\begin{itemize}
+    \item \textbf{SIFT-10K:} 10,000 base vectors, 100 query vectors, $D=128$, Euclidean distance.
+    \item \textbf{SIFT-100K:} 100,000 base vectors, 1,000 query vectors, $D=128$, Euclidean distance.
+    \item \textbf{SIFT-500K:} 500,000 base vectors, 10,000 query vectors, $D=128$, Euclidean distance.
+    \item \textbf{Transformer-384D:} 57,893 sentence-transformer embedding vectors, 1,000 query vectors, $D=384$, Cosine/Euclidean distance.
+\end{itemize}
+Ground truth 10-nearest neighbors ($k=10$) were computed via exact brute-force linear scan.
+
+\subsection{Baselines and Controls}
+\begin{itemize}
+    \item \textbf{Strict RNG Uniform:} Standard HNSW with uniform $M=16$ on Layer 0 and strict RNG neighbor pruning.
+    \item \textbf{Shuffled Degree Control:} Shuffles geometrically computed degrees randomly across nodes, verifying that performance gains derive from manifold alignment rather than degree sequence variance.
+    \item \textbf{Reversed Geometry Control:} Inverts geometric allocation ($M=24$ for sparse peripheral nodes, $M=8$ for dense hub nodes).
+    \item \textbf{External Baselines:} Official \texttt{hnswlib} v0.8.0 and FAISS v1.16.0 (\texttt{IndexHNSWFlat}).
+\end{itemize}
+
+---
+
+\section{Empirical Results and Analysis}
+\label{sec:results}
+
+\input{tables/geometry_comparison.tex}
+
+\subsection{Milestone I: Geometry Allocation and Routing Efficiency}
+Table~\ref{tab:geometry_comparison} reports empirical search performance across graph allocation schemes on SIFT-100K under strictly matched edge budgets ($3{,}200{,}000$ slots).
+
+\textbf{Throughput and Latency Gains:} Normalized Exponential allocation achieves \textbf{3,091.0 QPS}, a \textbf{+24.01\% throughput lift} over Strict RNG Uniform (2,492.5 QPS). P95 latency is reduced by \textbf{-37.62\%} (0.486 ms vs 0.780 ms), and distance evaluations drop by \textbf{-2.62\%} (1,169.1 vs 1,200.5) at matched recall (0.9926 vs 0.9929).
+
+\textbf{Geometric Causality:} Shuffled Degree Control degrades throughput to 2,379.8 QPS (-23.01\%) and inflates P95 latency to 0.801 ms (+64.81\%). This demonstrates that random degree variance harms routing, and that performance improvements require geometric alignment between vertex degree and manifold density.
+
+\textbf{The Reversed Geometry Paradox:} Reversed Geometry Control achieves slightly higher recall (\textbf{0.9948 vs 0.9926, +0.22 pp}). However, this modest gain requires \textbf{+5.60\% more distance evaluations} (1,234.6 vs 1,169.1) and incurs a \textbf{-5.10\% throughput loss} (2,933.4 vs 3,091.0 QPS). Inverting degrees over-connects peripheral boundaries, aiding outlier capture but degrading overall graph search efficiency. This establishes that Normalized Exponential allocation is an \textbf{efficiency and throughput optimizer per distance evaluation}, rather than an unconstrained recall maximizer.
+
+\textbf{SIFT-500K Scalability:} On the 500,000-vector corpus ($N=500{,}000, D=128$), geometry-aware allocation achieves \textbf{+15.43\% QPS} and \textbf{-42.01\% P95 latency} at matched memory (178.4 MB with 8.0M edges), demonstrating consistent scaling across orders of magnitude.
+
+\input{tables/quantization_memory.tex}
+
+\begin{figure*}[t]
+\centering
+\input{figures/tradeoff_plots.tex}
+\caption{Empirical Pareto Trade-off Curves on SIFT-100K: (a) Throughput vs. Recall@10 across varying $efSearch \in \{16, 32, 48, 64, 96, 128\}$, and (b) Index-Owned Memory Footprint vs. Recall@10 across Quantization Modes.}
+\label{fig:tradeoffs}
+\end{figure*}
+
+\subsection{Milestone II: Quantized Storage and Cache Hierarchy}
+Table~\ref{tab:quantization_memory} and Figure~\ref{fig:tradeoffs}(b) document memory footprints and retrieval performance across precision modes.
+
+\textbf{Vector Compression and Memory Footprint:} On SIFT-100K, Pure SQ8 slashes vector payload storage by \textbf{75.00\%} (48.83 MB $\to$ 12.21 MB). Total index-owned memory drops from 78.47 MB to \textbf{41.85 MB (-46.66\%)}, and fresh-process working set drops from 93.42 MB to \textbf{56.70 MB (-39.31\%)}, while maintaining 0.9770 recall at 12,437 QPS.
+
+\textbf{Cache Thrashing in Re-ranking:} As predicted in Section~\ref{sec:quantization}, FP32 re-ranking incurs a severe \textbf{$\sim 7\times$ throughput collapse} (5,036 vs 47,576 QPS on SIFT-10K) and bloats index memory to 90.68 MB. Pure SQ8 with \texttt{drop\_raw\_vectors()} avoids this bottleneck and is certified as the production-safe default.
+
+\textbf{Dimensional Limits of SQ4 on SIFT-100K:} On SIFT-100K, Pure SQ4 achieves 35.75 MB index-owned memory but drops recall to 0.8810, demonstrating that coarse 4-bit uniform bins fail to resolve dense vector neighborhoods in high dimensions. SQ4 was not evaluated on Transformer-384D.
+
+\input{tables/dynamic_maintenance.tex}
+
+\subsection{Milestone III: Dynamic Maintenance and Acceptance Gates}
+Table~\ref{tab:dynamic_maintenance} presents the dynamic lifecycle evaluation on SIFT-100K under 10\%, 25\%, and 50\% churn against an SLA of $R_{\text{target}} \ge 0.9800$ and $M_{\text{budget}} \le 120.0$ MB.
+
+\textbf{10\% Churn and Compaction Deferral:} Pre-compaction healing maintains 0.9840 point-estimate recall with 74.74 MB memory, but its bootstrap lower bound is $\text{CI}_{\text{lower}} = 0.9794 < 0.9800$, classifying it as a retained serving state rather than a certified feasible deployment. Physical compaction achieves 0.9820 recall ($\Delta R = 0.0020$). However, because candidate validation requires dual residency, transient peak memory reaches \textbf{143.98 MB}, failing Gate 3 ($> 120.0$ MB). The policy engine executes \textbf{Compaction Deferral}, keeping the serving index active and preventing an OOM outage.
+
+\textbf{25\% Churn Quality Recovery:} Multi-Layer Strict RNG replenishment recovers post-compaction recall to 0.9786 (fixed $efS=64$) and \textbf{0.9865} (recalibrated $efS=96$), completely eliminating the historical 0.0506 recall deficit. Because transient peak memory (131.16 MB) exceeds 120.0 MB and fresh background rebuild takes only 6.11 s, the policy emits \textbf{Rebuild Recommended}.
+
+\textbf{50\% Churn and Rebuild Threshold:} Under 50\% churn, compacted candidates achieve $R=0.9740$, failing Gate 1 ($< 0.9800$) and Gate 6 ($\Delta R = 0.0052 > 0.0020$). In contrast, Fresh Background Rebuild completes in \textbf{3.95 seconds}, achieving \textbf{0.9878 recall} and peak memory of 113.00 MB $\le 120.0$ MB, passing all 6 gates. The policy engine triggers \textbf{Rebuild Required}, certifying fresh rebuild as superior under high-churn regimes.
+
+\input{tables/autocalibrator_feasibility.tex}
+
+\subsection{Milestone IV: Multi-Objective AutoCalibration}
+Table~\ref{tab:autocalibrator_feasibility} summarizes AutoCalibrator optimization results.
+
+\textbf{Strict Memory SLA Resolution:} Under strict constraints ($R \ge 0.92, M \le 4.5\text{ MB}, \text{P99} \le 5.0\text{ ms}$), AutoCalibrator discovers the optimal configuration ($M=8, efC=30, efS=64$, SQ8) in \textbf{12.6 seconds} (\texttt{experiments/phase\_6\_4\_exact\_calibrator\_regression.json}). In the calibration phase, point-estimate recall was $0.9380 \ge 0.92$, but the 95\% bootstrap lower bound was $\text{CI}_{\text{lower}} = 0.9190 < 0.9200$, formally placing the trial in \texttt{PROVISIONALLY\_FEASIBLE}. During deployment validation on the full evaluation set, the index achieved $R=0.9416$ with confidence bounds $[0.9334, 0.9494]$ ($\text{CI}_{\text{lower}} = 0.9334 \ge 0.9200$), officially certifying \texttt{VERIFIED\_FEASIBLE} status with 3.38 MB index-owned memory (3.3787 MB) and 0.33 ms P99 latency.
+
+\textbf{Transformer-384D Full Corpus Lifecycle:} On all 57,893 Transformer-384D vectors, AutoCalibrator configures a Pure SQ8 index satisfying all production requirements: \textbf{Recall = 0.9720} ($\ge 0.95$), \textbf{Index-Owned Memory = 56.61 MB} ($\le 150.0$ MB), and \textbf{P99 Latency = 7.38 ms} ($\le 15.0$ ms) with recalibrated search beam $efSearch=96$.
+
+---
+
+\section{Ablation Studies and Discarded Hypotheses}
+\label{sec:ablations}
+
+In accordance with rigorous empirical standards, we document five investigated hypotheses that were discarded:
+\begin{enumerate}
+    \item \textbf{Query-Time Adaptive Controllers (Ada-ef / PID):} Dynamically adjusting $efSearch$ based on entry-point distance incurred synchronization overhead and inflated P99 tail latency by 35–48\% without improving recall. All adaptation was moved to index construction.
+    \item \textbf{Uncertainty-Aware Search Termination:} Halting graph search based on candidate distance convergence statistics caused premature termination in dense clusters, degrading recall by up to 2.3 pp.
+    \item \textbf{Geometry-Conditioned Pruning (GCP):} Modulating RNG acceptance thresholds based on local cluster curvature resulted in -13.6\% lower throughput and -0.26 pp lower recall compared to strict RNG selection.
+    \item \textbf{Upper-Layer Geometric Modulation:} Modulating out-degrees on skip layers ($l \ge 1$) severed long-range routing highways, confirming the necessity of Layer Decoupling ($\beta_{\text{upper}} = 0.0$).
+    \item \textbf{FP32 Vector Re-ranking:} Induced a $\sim 7\times$ throughput collapse due to non-sequential L3 cache line misses, establishing Pure SQ8 as the production default.
+\end{enumerate}
+
+---
+
+\section{System Limitations and Threats to Validity}
+\label{sec:limitations}
+
+\input{tables/limitations_validity.tex}
+
+We explicitly delineate the operational boundaries of AdaptiveVec in Table~\ref{tab:limitations_validity}:
+\begin{enumerate}
+    \item \textbf{Dual-Residency Transient Peak Memory:} Non-destructive in-process compaction requires simultaneous memory residency of old and new indices during validation, requiring operator headroom or compaction deferral.
+    \item \textbf{Streaming Degree Drift:} In continuous streaming ingestion, local moving-window LID estimates exhibit slight degree drift ($\le 0.43\%$) relative to global batch allocation, mitigated by scheduled background recalibration.
+    \item \textbf{Post-Replay Validation Gap:} Replayed mutations during the exclusive swap lock are not re-evaluated against the 6 acceptance gates.
+    \item \textbf{Software Search Instrumentation:} Distance evaluations and search times are captured via software instrumentation (\texttt{QuerySearchStats}), not hardware PMU performance counters.
+\end{enumerate}
+
+---
+
+\section{Concurrency and Thread Safety Verification}
+\label{sec:concurrency}
+
+Thread safety was validated under concurrent multi-threaded read/write workloads. In a deterministic stress test executing 4 reader threads and 2 writer threads:
+\begin{itemize}
+    \item \textbf{Throughput:} 12,494 reader queries served concurrently with 350 streaming insertions and deletions.
+    \item \textbf{Consistency:} Sequence-numbered catch-up replay observed zero lost mutations, zero memory faults, and exact vector match ($\max |\Delta \mathbf{v}| = 0.0$) on the evaluated test workload.
+    \item \textbf{Complete Exclusive Lock Pause:} Replaying 350 mutations (200 insertions, 100 deletions, 50 updates) during exclusive write-lock replacement incurred an exclusive lock pause of 11.68 ms (including candidate graph re-indexing of replayed insertions while holding the lock). The atomic pointer swap itself takes $\approx 0.014$ ms.
+\end{itemize}
+
+---
+
+\section{Conclusion and Future Directions}
+\label{sec:conclusion}
+
+AdaptiveVec establishes a principled foundation for resource-constrained vector retrieval:
+\begin{enumerate}
+    \item Geometry-Aware Graph Intelligence delivers a +24.01\% QPS throughput increase and -37.62\% P95 latency reduction under strictly conserved edge budgets.
+    \item Pure SQ8 storage slashes vector memory by 75.00\% with complete FP32 vector purging, avoiding re-ranking cache misses.
+    \item Multi-Layer Strict RNG replenishment and the SLA-Safe Replacement Gatekeeper resolve compaction recall collapse and manage transient peak memory.
+    \item The 6-state AutoCalibrator provides reliable multi-objective optimization with 1,000-sample bootstrap confidence intervals.
+\end{enumerate}
+
+Future research will explore extending geometric degree allocation to out-of-core SSD architectures (e.g., DiskANN) and optimizing SIMD execution on ARM NEON and AVX-512 platforms.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

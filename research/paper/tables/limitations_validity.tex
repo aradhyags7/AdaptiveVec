@@ -1,0 +1,28 @@
+% Table VI: System Limitations, Algorithmic Boundaries, and Threats to Experimental Validity
+\begin{table*}[t]
+\centering
+\caption{System Limitations, Algorithmic Boundaries, and Threats to Experimental Validity}
+\label{tab:limitations_validity}
+\scriptsize
+\begin{tabular}{p{3.2cm}p{5.5cm}p{7.5cm}}
+\toprule
+\textbf{Architectural Domain} & \textbf{Identified Boundary / Limitation} & \textbf{Scientific Implication and Engineering Mitigation} \\
+\midrule
+\textbf{Geometry Allocation} & Boundary recall inversion under Reversed Control ($M_{\text{sparse}}=24, M_{\text{hub}}=8$) yields $+0.22\text{ pp}$ recall at $+5.6\%$ distance evaluations. & Proves Normalized Exponential allocation optimizes search velocity and tail latency per distance check rather than global maximum recall. Addressed via layer-decoupled routing ($\beta_{\text{upper}}=0$). \\
+\addlinespace
+\textbf{Quantized Storage} & Pure SQ4 precision collapses on SIFT-100K ($88.10\%$ recall vs $97.70\%$ for SQ8 at $efS=64$). & 16-bin uniform scalar quantization incurs severe clipping distortion on non-isotropic distributions. Pure SQ8 is certified as the production-safe default; SQ4 is not evaluated on Transformer-384D. \\
+\addlinespace
+\textbf{Two-Stage Re-ranking} & FP32 raw vector re-ranking incurs a $\sim 7\times$ throughput penalty (5,036 vs 47,576 QPS) across wide candidate beams. & Cache line thrashing over non-sequential $D=128$ FP32 memory fetches invalidates re-ranking for ultra-low latency regimes. Pure SQ8 avoids re-ranking by dropping raw vectors. \\
+\addlinespace
+\textbf{Dynamic Compaction} & Dual-residency transient peak memory during candidate validation ($143.98\text{ MB}$ at 10\% churn) exceeds strict $120.0\text{ MB}$ budget. & In-process replacement requires concurrent memory for old and new indices. Handled via Compaction Deferral (serving index handles queries without SLA violation) or out-of-process rebuild. \\
+\addlinespace
+\textbf{High-Churn Degradation} & At 50\% churn, compacted candidates suffer graph distortion ($\Delta R = 0.0052 > 0.0020$), failing Gate 1 ($R=0.9740 < 0.9800$). & Bounded 2-hop neighbor bypasses cannot restore macroscopic connectivity after severe cluster destruction. Mitigated by triggering background Fresh Rebuild (3.95 s, $R=0.9878$). \\
+\addlinespace
+\textbf{Mutation Catch-Up Pause} & Under 350 concurrent mutations (including 200 vector insertions), complete exclusive write-lock pause is 11.68 ms. & Includes candidate graph re-indexing of replayed insertions while holding the write lock. Atomic pointer swap alone takes $\approx 0.014$ ms when no insertions are queued. \\
+\addlinespace
+\textbf{Post-Replay Validation Gap} & Mutations replayed during the write lock bypass the 6 offline acceptance gates. & While monotonic sequence journaling ensures correctness, extreme un-gated mutation bursts during lock acquisition could alter recall immediately post-swap. \\
+\addlinespace
+\textbf{Software Counter Instrumentation} & Distance evaluations and search times captured via software instrumentation (\texttt{QuerySearchStats}), not hardware PMU counters. & Cache misses, branch mispredictions, and pipeline stalls are modeled analytically rather than measured via hardware PMU registers (\texttt{perf\_event\_open}). \\
+\bottomrule
+\end{tabular}
+\end{table*}

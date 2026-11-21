@@ -1,0 +1,33 @@
+% Table III: Quantization and Storage Memory Breakdown on SIFT-100K and SIFT-10K
+% Audited against raw benchmark artifacts:
+%   SIFT-100K: experiments/phase_6_4_fresh_precision_memory.json (Fresh process isolation)
+%   SIFT-10K:  experiments/phase_6_1_quantization_memory_audit.json (CRT shared-process sequential)
+\begin{table*}[t]
+\centering
+\caption{Vector Storage, Memory Footprint, and Search Throughput Across Precision Modes on SIFT-100K ($N=100{,}000$, $D=128$) and SIFT-10K}
+\label{tab:quantization_memory}
+\begin{tabular}{lcccccccc}
+\toprule
+\textbf{Precision Configuration} & \textbf{Vector Mem.} & \textbf{Graph Mem.} & \textbf{Metadata} & \textbf{Index-Owned} & \textbf{Process WS\textsuperscript{a}} & \textbf{Recall@10} & \textbf{QPS} & \textbf{P99 Lat. (ms)} \\
+\midrule
+\multicolumn{9}{l}{\textit{SIFT-100K Corpus ($N=100{,}000, D=128$, Standardized AVX2 Subprocess Isolation)}} \\
+Pure FP32 Baseline & 48.83 MB & 25.70 MB & 3.91 MB & 78.47 MB & 93.42 MB & 0.9910 & 12{,}705.2 & 0.984 \\
+\textbf{Pure SQ8 ADC} & \textbf{12.21 MB} & \textbf{25.70 MB} & \textbf{3.91 MB} & \textbf{41.85 MB} & \textbf{56.70 MB} & \textbf{0.9770} & \textbf{12{,}437.2} & \textbf{0.998} \\
+\quad \textit{Reduction vs. FP32} & \textit{-75.00\%} & \textit{0.00\%} & \textit{0.00\%} & \textit{-46.66\%} & \textit{-39.31\%} & \textit{-1.40 pp} & \textit{-2.11\%} & \textit{+1.42\%} \\
+Pure SQ4 ADC & 6.10 MB & 25.70 MB & 3.91 MB & 35.75 MB & 49.30 MB & 0.8810 & 12{,}987.0 & 0.952 \\
+\quad \textit{Reduction vs. FP32} & \textit{-87.50\%} & \textit{0.00\%} & \textit{0.00\%} & \textit{-54.44\%} & \textit{-47.23\%} & \textit{-11.00 pp} & \textit{+2.22\%} & \textit{-3.25\%} \\
+\midrule
+\multicolumn{9}{l}{\textit{SIFT-10K Scaling Corpus ($N=10{,}000, D=128$, Cache-Resident Subsystem)\textsuperscript{b}}} \\
+Pure FP32 Baseline & 5.12 MB & 2.23 MB & 0.00 MB & 7.46 MB & 159.45 MB & 0.9962 & 27{,}965.0 & --- \\
+\textbf{Pure SQ8 ADC} & \textbf{1.28 MB} & \textbf{2.23 MB} & \textbf{0.001 MB} & \textbf{4.58 MB} & \textbf{162.95 MB} & \textbf{0.9954} & \textbf{47{,}576.0} & --- \\
+\quad \textit{Performance Lift vs. FP32} & \textit{-75.00\%} & \textit{0.00\%} & --- & \textit{-38.61\%} & --- & \textit{-0.08 pp} & \textit{+70.13\%} & --- \\
+Pure SQ4 ADC & 0.64 MB & 2.29 MB & 0.001 MB & 3.63 MB & 167.07 MB & 0.9974 & 40{,}262.2 & --- \\
+FP32 Re-ranking (Mode 4)\textsuperscript{c} & 6.40 MB & 2.24 MB & 0.001 MB & 9.46 MB & 175.81 MB & 0.9954 & 5{,}036.5 & --- \\
+\bottomrule
+\end{tabular}
+\vspace{1ex}
+\raggedright
+\footnotesize{\textsuperscript{a}On SIFT-100K, Process Working Set reflects physical resident set size (RSS) via Windows PSAPI in fresh isolated subprocesses, eliminating CRT virtual heap pooling artifacts. \\
+\textsuperscript{b}On SIFT-10K, benchmarks executed sequentially in a single process; CRT heap retention accounts for the base working set level ($\sim 160$ MB). \\
+\textsuperscript{c}FP32 re-ranking incurs a severe $\sim 7\times$ throughput penalty relative to cache-resident Pure SQ8 due to non-sequential memory cache misses during raw vector dereferencing across wide candidate beams.}
+\end{table*}
