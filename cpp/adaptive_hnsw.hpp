@@ -825,8 +825,8 @@ public:
 
     void reserve(size_t n) {
         if (policy.keep_raw_vectors) data.reserve(n * dim);
-        quantized_data.reserve(n * dim);
-        quantized_data_sq4.reserve(n * ((dim + 1) / 2));
+        if (policy.enable_sq8 || use_mixed_storage) quantized_data.reserve(n * dim);
+        if (policy.enable_sq4 || use_mixed_storage) quantized_data_sq4.reserve(n * ((dim + 1) / 2));
         node_levels.reserve(n);
         node_params.reserve(n);
         in_degrees.reserve(n);
@@ -1051,6 +1051,11 @@ public:
                 quantizer.encode(&data[i * dim], &quantized_data[i * dim]);
             }
             policy.enable_sq8 = true;
+            if (!sq4) {
+                quantized_data_sq4.clear();
+                quantized_data_sq4.shrink_to_fit();
+                policy.enable_sq4 = false;
+            }
         }
         if (sq4) {
             if (!quantizer_sq4.is_trained && num_elements > 0 && !data.empty()) {
@@ -1065,6 +1070,11 @@ public:
                 quantizer_sq4.encode(&data[i * dim], &quantized_data_sq4[i * packed_dim]);
             }
             policy.enable_sq4 = true;
+            if (!sq8) {
+                quantized_data.clear();
+                quantized_data.shrink_to_fit();
+                policy.enable_sq8 = false;
+            }
         }
     }
 
@@ -2528,10 +2538,11 @@ public:
         deleted.assign(new_count, 0);
 
         // Bounded degree replenishment for depleted nodes in Layer 0 with Strict RNG diversity
-        int min_deg_target = std::max(10, policy.m_base);
         for (tableint u = 0; u < new_count; ++u) {
             int max_deg_u = (u < node_params.size()) ? node_params[u].m_max0 : (policy.m_base * 2);
-            if ((int)graphs[0][u].size() < min_deg_target) {
+            int target_deg_u = (u < node_params.size()) ? node_params[u].m : policy.m_base;
+            target_deg_u = std::max(std::min(target_deg_u, max_deg_u), std::max(10, policy.m_base));
+            if ((int)graphs[0][u].size() < target_deg_u) {
                 // Collect 2-hop candidate neighbors
                 std::vector<tableint> candidates;
                 for (tableint v : graphs[0][u]) {
@@ -2616,14 +2627,14 @@ public:
                             discarded.push_back(w);
                         }
                         
-                        if ((int)graphs[0][u].size() >= min_deg_target) break;
+                        if ((int)graphs[0][u].size() >= target_deg_u) break;
                     }
                     
-                    // Fallback safeguard: if diversity pruning left the node below min_deg_target,
+                    // Fallback safeguard: if diversity pruning left the node below target_deg_u,
                     // add nearest discarded candidates to prevent network disconnection
-                    if ((int)graphs[0][u].size() < min_deg_target) {
+                    if ((int)graphs[0][u].size() < target_deg_u) {
                         for (tableint w : discarded) {
-                            if ((int)graphs[0][u].size() >= min_deg_target || (int)graphs[0][u].size() >= max_deg_u) break;
+                            if ((int)graphs[0][u].size() >= target_deg_u || (int)graphs[0][u].size() >= max_deg_u) break;
                             graphs[0][u].push_back(w);
                             int max_deg_w = (w < node_params.size()) ? node_params[w].m_max0 : (policy.m_base * 2);
                             if ((int)graphs[0][w].size() < max_deg_w) {
@@ -2637,7 +2648,7 @@ public:
             }
         }
 
-        // Upper-layer connectivity preservation: avoid isolated nodes at higher layers
+        // Upper-layer connectivity preservation: avoid isolated or severely depleted nodes at higher layers
         for (int lc = 1; lc <= max_level; ++lc) {
             std::vector<tableint> active_at_level;
             for (tableint u = 0; u < new_count; ++u) {
@@ -2645,22 +2656,29 @@ public:
                     active_at_level.push_back(u);
                 }
             }
+            if (active_at_level.size() <= 1) continue;
+            int target_lc = std::min((int)active_at_level.size() - 1, std::max(2, policy.m_base / 2));
             for (tableint u : active_at_level) {
-                if (graphs[lc][u].empty() && active_at_level.size() > 1) {
-                    tableint best_w = u;
-                    dist_t min_d = 1e9f;
+                if ((int)graphs[lc][u].size() < target_lc) {
+                    std::vector<std::pair<dist_t, tableint>> cand_dists;
+                    cand_dists.reserve(active_at_level.size());
                     for (tableint w : active_at_level) {
-                        if (w != u) {
-                            dist_t d = get_node_to_node_distance_sq(u, w);
-                            if (d < min_d) {
-                                min_d = d;
-                                best_w = w;
-                            }
+                        if (w != u && std::find(graphs[lc][u].begin(), graphs[lc][u].end(), w) == graphs[lc][u].end()) {
+                            cand_dists.push_back({get_node_to_node_distance_sq(u, w), w});
                         }
                     }
-                    if (best_w != u) {
-                        graphs[lc][u].push_back(best_w);
-                        graphs[lc][best_w].push_back(u);
+                    std::sort(cand_dists.begin(), cand_dists.end());
+                    int max_deg_lc = (u < node_params.size()) ? node_params[u].m_max : policy.m_base;
+                    for (const auto& cd : cand_dists) {
+                        if ((int)graphs[lc][u].size() >= target_lc || (int)graphs[lc][u].size() >= max_deg_lc) break;
+                        tableint w = cd.second;
+                        graphs[lc][u].push_back(w);
+                        int max_deg_w = (w < node_params.size()) ? node_params[w].m_max : policy.m_base;
+                        if ((int)graphs[lc][w].size() < max_deg_w) {
+                            if (std::find(graphs[lc][w].begin(), graphs[lc][w].end(), u) == graphs[lc][w].end()) {
+                                graphs[lc][w].push_back(u);
+                            }
+                        }
                     }
                 }
             }
@@ -2935,9 +2953,10 @@ public:
         if (use_mixed_storage) {
             mb.allocated_quantized_capacity_bytes = pool_sq8.capacity() + pool_sq4.capacity();
         } else {
-            mb.allocated_quantized_capacity_bytes = 
-                quantized_data_sq4.capacity() * sizeof(uint8_t) +
-                quantized_data.capacity() * sizeof(uint8_t);
+            size_t q_cap = 0;
+            if (policy.enable_sq4) q_cap += quantized_data_sq4.capacity() * sizeof(uint8_t);
+            if (policy.enable_sq8) q_cap += quantized_data.capacity() * sizeof(uint8_t);
+            mb.allocated_quantized_capacity_bytes = q_cap;
         }
             
         // 3. Resident FP32 vectors

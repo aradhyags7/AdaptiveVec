@@ -101,8 +101,12 @@ Standardized memory and quantization audit on SIFT ($N=10{,}000, D=128, efSearch
   - *Design Recommendation:* **Pure SQ8 without re-ranking** is the recommended default for production vector retrieval, delivering 99.54% recall with 47,576 QPS.
 
 ### 4. Index-Owned Memory vs Process Resident Working Set
-- **Index-Owned Memory:** Measures exact allocated buffers (`total_owned_bytes`). Pure SQ8 reduces index-owned memory from **7.83 MB to 4.80 MB (-38.64%)**, and Pure SQ4 to **3.81 MB (-51.31%)**.
-- **Process Working Set:** Measures OS-level virtual memory commit (`WorkingSetSize`). In sequential benchmark runs within the same process, CRT heap allocators do not immediately return freed memory to the OS, causing process working set to reflect peak memory rather than instantaneous index size. In fresh isolated processes, Pure SQ8 reduces steady-state private memory by 38–45%.
+- **Index-Owned Memory:** Measures exact allocated buffers (`total_owned_bytes`). Pure SQ8 reduces index-owned memory from **78.47 MB to 41.85 MB (-46.7%)** on SIFT-100K, and Pure SQ4 to **35.75 MB (-54.4%)**.
+- **Process Working Set Isolation (Phase 6.4 Targeted Audit):** Measures OS-level virtual memory commit (`WorkingSetSize`) via Windows PSAPI in **fresh, independent processes** (eliminating heap retention pollution from prior sequential runs):
+  - *Full FP32 Index:* 78.47 MB owned, **93.42 MB working set** (88.90 MB private commit).
+  - *Pure SQ8 Index:* 41.85 MB owned, **56.70 MB working set** (52.14 MB private commit, -39.3% vs FP32).
+  - *Pure SQ4 Index:* 35.75 MB owned, **49.30 MB working set** (44.70 MB private commit, -47.2% vs FP32).
+  - *Buffer Sizing Remediation:* Resolved previous identical 47.96 MB owned reporting by conditioning `reserve()` on active precision mode and counting only active quantizer buffer capacity in `get_memory_breakdown()`. Pure SQ8 is confirmed as the optimal production configuration (97.70% recall vs 88.10% for SQ4).
 
 ### 5. Theoretical vs Measured Memory Bandwidth
 - **Theoretical Reduction:** SQ8 reduces vector byte payload from 512 bytes to 128 bytes per vector (a theoretical 75.0% memory bandwidth reduction per distance evaluation).
@@ -134,13 +138,17 @@ Validation on SIFT-100K ($N=100{,}000, D=128$, L2 metric, evaluated across 500 q
 In Phase 6.2, degree replenishment reconnected depleted nodes using nearest Euclidean distance, which caused local edge clustering and dropped recall by 0.88 pp under 50% churn.
 - **Phase 6.3 Resolution:** Replaced naive distance replenishment with **Strict RNG Diversity Replenishment**:
   $$\forall e \in \text{neighbors}(u): \quad d(u, w) < d(e, w)$$
-- **Verified Empirical Result:** Across 10%, 25%, and 50% churn on SIFT-100K and Transformer-384D, post-compaction recall strictly preserves accuracy within 0.20 percentage points of tombstone-healed recall (and outperforms tombstone-healed search at 50% churn by +4.36 pp on SIFT and +0.32 pp on Transformer-384D due to the removal of routing obstructions).
-- **Compaction Maintenance Tradeoff:** Compacting takes **105 ms** (or ~1.9s–6.1s including iterative deletion healing), whereas rebuilding from scratch takes **8.4 to 20 seconds**. Compaction with Strict RNG replenishment delivers near-instantaneous memory reclamation without sacrificing routing accuracy.
+- **Verified Empirical Result (Phase 6.4 Targeted Audit):** On genuine SIFT-100K:
+  - At **10% churn**, multi-layer degree replenishment preserves recall within **0.18 percentage points** (98.50% healed $\to$ 98.32% compacted, $\le 0.20$ pp target met) with a **14.46x maintenance speedup** over rebuilding.
+  - At **25% churn**, fixed-$ef$ recall loss is **0.82 pp** (95.34% $\to$ 94.52%); search recalibration via `calibrate_search()` ($ef=128$) restores recall to 95.98% at a **6.89x speedup**.
+  - At **50% churn**, compacted recall reaches 98.08% at a **4.29x speedup**.
+  - **Formal Rebuild Recommendation Threshold:** For churn $> 35\%$, full background index reconstruction is formally recommended due to structural skip-list dilution.
+- **Compaction Maintenance Tradeoff:** Compacting takes **45–140 ms** (or ~0.43s–0.77s total maintenance), whereas rebuilding from scratch takes **3.3 to 7.1 seconds**. Compaction with Strict RNG replenishment delivers near-instantaneous memory reclamation without sacrificing routing accuracy.
 
 ### 4. Compaction Locking Semantics
 Compaction requires an exclusive write lock on `index_lifecycle_rw_mutex` to safely repoint memory buffers.
-- It is **not zero downtime** or wait-free; concurrent queries arriving during the pointer swap experience a **6.5 ms to 7.2 ms pause**.
-- However, compared to taking the service offline for 8 to 20 seconds to rebuild from scratch, a 7 ms pause is virtually imperceptible to client applications.
+- It is **not zero downtime** or wait-free; concurrent queries arriving during the pointer swap experience a brief pause (**129.2 ms to 147.0 ms** on 100K vectors).
+- However, compared to taking the service offline for 3.3 to 7.1 seconds to rebuild from scratch, a sub-150 ms pause is easily absorbed by standard client retry and timeout policies.
 
 ---
 

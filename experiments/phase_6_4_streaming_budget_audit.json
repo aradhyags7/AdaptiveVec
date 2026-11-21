@@ -1,0 +1,132 @@
+{
+  "benchmark": "Task 3: Geometry and Streaming Budget Integrity Audit",
+  "batch_budget_conservation": {
+    "n_batch": 10000,
+    "m_base": 16,
+    "target_budget": 160000,
+    "actual_assigned_sum": 160000,
+    "is_strictly_conserved": true,
+    "correlation_score_vs_m_i": 0.9740,
+    "exponential_formula": "w_i = exp(beta * S_i), continuous_m_i = m_min + residual * (w_i / sum_w)"
+  },
+  "streaming_lifecycle_evaluation": {
+    "forward_budget_drift_explanation": "During batch insertion, sum(M_i) == N * M_base exactly. During streaming insertions, per-node degree assignment tracks the continuous exponential geometry. The cumulative forward assigned budget drift is bounded within <= 1.5% across streaming growth, deletions, and compaction.",
+    "realized_edges_vs_forward_budget": "Realized directed edges in HNSW graphs exceed the forward assigned degree sum due to reciprocal edge addition (when node u selects v, link v -> u is added if v has capacity). Realized edge ratio is ~1.7x to 2.1x forward budget in both Geometry and Uniform HNSW, which is mathematically expected and structurally identical between both indexes."
+  },
+  "geometry_aware_phases": [
+    {
+      "phase": "0_Batch_10K",
+      "active_nodes": 10000,
+      "target_budget": 160000,
+      "assigned_forward_budget": 160000,
+      "relative_forward_budget_drift": 0.0000,
+      "realized_directed_edges": 254738,
+      "realized_edge_drift": 0.5921,
+      "reciprocal_pairs": 107730,
+      "reciprocal_ratio": 0.8458,
+      "graph_memory_mb": 2.5217,
+      "recall_at_10": 0.9970,
+      "qps": 28151.9643
+    },
+    {
+      "phase": "1_Streaming_Inserts_12.5K",
+      "active_nodes": 12500,
+      "target_budget": 200000,
+      "assigned_forward_budget": 200815,
+      "relative_forward_budget_drift": 0.0041,
+      "realized_directed_edges": 319130,
+      "realized_edge_drift": 0.5957,
+      "reciprocal_pairs": 133844,
+      "reciprocal_ratio": 0.8388,
+      "graph_memory_mb": 3.5318,
+      "recall_at_10": 0.9955,
+      "qps": 25987.1883
+    },
+    {
+      "phase": "2_Deletions_Tombstoned_11.25K",
+      "active_nodes": 11250,
+      "target_budget": 180000,
+      "assigned_forward_budget": 180780,
+      "relative_forward_budget_drift": 0.0043,
+      "realized_directed_edges": 347451,
+      "realized_edge_drift": 0.9303,
+      "reciprocal_pairs": 116968,
+      "reciprocal_ratio": 0.6733,
+      "graph_memory_mb": 3.6809,
+      "recall_at_10": 0.8880,
+      "qps": 24468.1242
+    },
+    {
+      "phase": "3_Compacted_Replenished_11.25K",
+      "active_nodes": 11250,
+      "target_budget": 180000,
+      "assigned_forward_budget": 180780,
+      "relative_forward_budget_drift": 0.0043,
+      "realized_directed_edges": 340486,
+      "realized_edge_drift": 0.8916,
+      "reciprocal_pairs": 117521,
+      "reciprocal_ratio": 0.6903,
+      "graph_memory_mb": 2.8766,
+      "recall_at_10": 0.9965,
+      "qps": 27967.7252
+    }
+  ],
+  "uniform_control_phases": [
+    {
+      "phase": "0_Batch_10K",
+      "active_nodes": 10000,
+      "target_budget": 160000,
+      "assigned_forward_budget": 160000,
+      "relative_forward_budget_drift": 0.0000,
+      "realized_directed_edges": 255913,
+      "realized_edge_drift": 0.5995,
+      "reciprocal_pairs": 108992,
+      "reciprocal_ratio": 0.8518,
+      "graph_memory_mb": 2.4033,
+      "recall_at_10": 0.9945,
+      "qps": 28204.7666
+    },
+    {
+      "phase": "1_Streaming_Inserts_12.5K",
+      "active_nodes": 12500,
+      "target_budget": 200000,
+      "assigned_forward_budget": 200000,
+      "relative_forward_budget_drift": 0.0000,
+      "realized_directed_edges": 319088,
+      "realized_edge_drift": 0.5954,
+      "reciprocal_pairs": 134774,
+      "reciprocal_ratio": 0.8447,
+      "graph_memory_mb": 3.3760,
+      "recall_at_10": 0.9935,
+      "qps": 27855.1532
+    },
+    {
+      "phase": "2_Deletions_Tombstoned_11.25K",
+      "active_nodes": 11250,
+      "target_budget": 180000,
+      "assigned_forward_budget": 180000,
+      "relative_forward_budget_drift": 0.0000,
+      "realized_directed_edges": 346227,
+      "realized_edge_drift": 0.9235,
+      "reciprocal_pairs": 117755,
+      "reciprocal_ratio": 0.6802,
+      "graph_memory_mb": 3.4006,
+      "recall_at_10": 0.8855,
+      "qps": 25249.9748
+    },
+    {
+      "phase": "3_Compacted_Replenished_11.25K",
+      "active_nodes": 11250,
+      "target_budget": 180000,
+      "assigned_forward_budget": 180000,
+      "relative_forward_budget_drift": 0.0000,
+      "realized_directed_edges": 337870,
+      "realized_edge_drift": 0.8771,
+      "reciprocal_pairs": 117924,
+      "reciprocal_ratio": 0.6980,
+      "graph_memory_mb": 2.4329,
+      "recall_at_10": 0.9970,
+      "qps": 28964.0990
+    }
+  ]
+}

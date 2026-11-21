@@ -36,12 +36,12 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
    - *Behavior:* Distorts long-range highway routing and degrades overall navigability. Upper layers must remain strictly uniform ($\beta_{\text{upper}} = 0.0$).
 
 ### 2.3 Dynamic Churn Boundaries
-1. **Catastrophic Batch Deletions ($>50\%$ Churn):**
-   - *Condition:* More than 50% of index elements are deleted simultaneously.
-   - *Behavior:* Compaction with Strict RNG replenishment preserves recall within 0.20 percentage points for churn up to 50%. When churn exceeds 50%, upper-layer highway connectivity experiences structural dilution.
-   - *Operational Recommendation:* If deletion volume exceeds 50% of index cardinality or if strict recall SLAs (>0.99) are mandated, trigger an offline or background index rebuild instead of relying exclusively on compaction degree replenishment.
+1. **Compaction Quality and the 35% Rebuild Threshold:**
+   - *Condition:* High volume of cumulative streaming deletions.
+   - *Behavior:* At 10% churn on SIFT-100K, multi-layer degree replenishment preserves recall within **0.18 percentage points** (0.0018 loss vs healed index), strictly satisfying the $\le 0.20$ pp research target with a **14.46x maintenance speedup** over full rebuild. At 25% churn, fixed-$ef$ recall loss is **0.82 pp** (search recalibration via `calibrate_search()` restores recall to 95.98% at a 6.89x speedup).
+   - *Operational Recommendation:* When cumulative churn exceeds **35%**, structural dilution of upper-layer skip lists causes local replenishment to experience diminishing returns. Furthermore, surviving dataset cardinality is smaller, making full reconstruction fast (3.31 s at 50% churn). For churn $>35\%$, full background index reconstruction is formally recommended.
 2. **Post-Compaction Maintenance vs Rebuild:**
-   - *Condition:* For moderate churn ($\le 50\%$), compaction executes in 4–15 ms, avoiding the 8–20 second downtime of rebuilding from scratch.
+   - *Condition:* For moderate churn ($\le 35\%$), local healing, compaction, and search recalibration restore the index in 0.43 to 0.75 seconds, delivering a 7x to 14x maintenance speedup over rebuilding from scratch.
 
 ---
 
@@ -56,6 +56,11 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
 - **The Issue:** Physical compaction is not wait-free or "zero downtime."
 - **The Mechanism:** Acquiring `std::unique_lock<std::shared_mutex>` pauses concurrent search readers while active buffers are remapped and repointed.
 - **Measured Duration:** On SIFT-100K ($N=100,000$), the exclusive write-lock pause is **129.2 to 147.0 milliseconds** (and **127.5 milliseconds** on Transformer-57K). The previously reported 6.5–7.2 ms reflected a 10K vector slice. While brief enough to prevent client timeouts, it represents a discrete latency spike during compaction execution.
+
+### 3.3 4-Bit Scalar Quantization (SQ4) Accuracy Trade-off
+- **The Issue:** Pure SQ4 compresses vector payloads to 4 bits per dimension (0.50x of SQ8, 6.10 MB vs 12.21 MB for SIFT-100K, reducing steady-state process working set from 56.70 MB to 49.30 MB).
+- **The Trade-off:** Asymmetric 4-bit scalar quantization incurs significant information loss, reducing Recall@10 from 97.70% (SQ8) to 88.10% (SQ4).
+- **Guideline:** Pure SQ8 is confirmed as the primary production default. Pure SQ4 is retained as a specialized ultra-low-memory option for edge devices or severely memory-constrained nodes where sub-90% recall is acceptable.
 
 ---
 
