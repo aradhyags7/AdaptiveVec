@@ -36,16 +36,14 @@ AdaptiveVec is an embedded, single-node C++ vector search library engineered for
    - *Behavior:* Distorts long-range highway routing and degrades overall navigability. Upper layers must remain strictly uniform ($\beta_{\text{upper}} = 0.0$).
 
 ### 2.3 Dynamic Churn Boundaries
-1. **Dynamic Graph Healing and the Multi-Attribute Decision Policy:**
+1. **Dynamic Graph Healing and the SLA-Safe Maintenance Policy:**
    - *Condition:* Streaming vector deletions under varying churn ratios (10% to 50%).
-   - *Behavior:* Soft Transit Bridge routing and Strict RNG bypass shortcuts completely eliminate pre-compaction recall drops, maintaining or lifting recall (+0.04 to +0.06 pp) before compaction. Following physical compaction, degree replenishment maintains full graph navigability (zero isolated nodes, minimum degree $\ge 16$).
-   - *Operational Policy:* The rigid 35% static churn threshold is superseded by a three-gate **Multi-Attribute Decision Policy**:
-     1. *Scale Gate:* If surviving cardinality $N_{\text{surv}} \le 25{,}000$, direct fresh rebuild is permitted (latency $\le 1.5\text{ s}$).
-     2. *Low-Churn Invariance Gate:* If churn $\le 20\%$, local maintenance is mandated (recall delta $\le 0.24$ pp, speedup $>16\text{x}$).
-     3. *High-Churn SLA Gate (churn $> 20\%$):* Execute local maintenance followed by `calibrate_search()`. If status is `VerifiedFeasible`, deploy the recalibrated index (achieving 3x–10x maintenance efficiency); if status is `ValidationFailed` or `InfeasibleWithinSearchSpace`, trigger an asynchronous, non-blocking background Rebuild.
-2. **Post-Compaction Maintenance vs Rebuild:**
-   - *Condition:* Compaction requires an exclusive write lock on `index_lifecycle_rw_mutex` (129 to 147 ms pause on 100K vectors), whereas full index reconstruction takes 4.1 to 8.4 seconds. Local maintenance delivers a 2.7x to 16.2x execution speedup over rebuilding from scratch.
-
+   - *Behavior:* Soft Transit Bridge routing and Strict RNG bypass shortcuts completely eliminate pre-compaction recall drops, maintaining or lifting recall (+0.04 to +0.06 pp) before compaction. Following physical compaction, Multi-Layer Strict RNG Replenishment completely resolves upper-layer hierarchy collapse, recovering 25% churn compacted recall from 0.9280 to 0.9798.
+   - *Operational Policy:* The unconditional rule mandating compaction for churn $\le 20\%$ is eliminated. Maintenance operations are governed by six independent hard gates (recall, bootstrap confidence bound, memory budget, latency SLA, graph invariants, and $\le 0.20$ pp compaction quality).
+   - *Compaction Deferral:* If the healed tombstone index satisfies the SLA but compaction candidate validation fails, Compaction Deferral safely retains the serving index.
+2. **Safe Replacement Semantics & Peak Memory Budgeting:**
+   - *Condition:* Non-destructive candidate replacement via ServingIndexManager.
+   - *Behavior:* Evaluating a candidate replacement index offline requires concurrent in-memory residency of both the old serving index and the new candidate index. On SIFT-100K, peak memory reaches **143.98 MB** at 10% churn and **131.15 MB** at 25% churn. If the system memory budget is capped at 120.0 MB, ServingIndexManager rejects replacement with REJECTED_PEAK_MEMORY_VIOLATION. In memory-constrained environments, either peak memory budgets must be provisioned for 1.5x–2.0x steady-state RAM, or direct in-place compaction with brief write-lock pausing must be selected.
 ---
 
 ## 3. Performance Tradeoffs

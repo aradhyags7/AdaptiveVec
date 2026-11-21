@@ -2509,8 +2509,9 @@ public:
         // Bounded degree replenishment for depleted nodes in Layer 0 with Strict RNG diversity
         for (tableint u = 0; u < new_count; ++u) {
             int max_deg_u = (u < node_params.size()) ? node_params[u].m_max0 : (policy.m_base * 2);
-            int target_deg_u = (u < node_params.size()) ? node_params[u].m : policy.m_base;
-            target_deg_u = std::max(std::min(target_deg_u, max_deg_u), std::max(10, policy.m_base));
+            int target_deg_u = (u < node_params.size()) 
+                ? std::min(max_deg_u, std::max(policy.m_base + 4, (int)(max_deg_u * 0.75f)))
+                : (policy.m_base + 8);
             if ((int)graphs[0][u].size() < target_deg_u) {
                 // Collect 2-hop candidate neighbors
                 std::vector<tableint> candidates;
@@ -2617,7 +2618,7 @@ public:
             }
         }
 
-        // Upper-layer connectivity preservation: avoid isolated or severely depleted nodes at higher layers
+        // Upper-layer connectivity preservation: avoid isolated or severely depleted nodes at higher layers with Strict RNG diversity
         for (int lc = 1; lc <= max_level; ++lc) {
             std::vector<tableint> active_at_level;
             for (tableint u = 0; u < new_count; ++u) {
@@ -2626,9 +2627,11 @@ public:
                 }
             }
             if (active_at_level.size() <= 1) continue;
-            int target_lc = std::min((int)active_at_level.size() - 1, std::max(2, policy.m_base / 2));
+
+            int target_deg = std::min((int)active_at_level.size() - 1, policy.m_base);
+
             for (tableint u : active_at_level) {
-                if ((int)graphs[lc][u].size() < target_lc) {
+                if ((int)graphs[lc][u].size() < target_deg) {
                     std::vector<std::pair<dist_t, tableint>> cand_dists;
                     cand_dists.reserve(active_at_level.size());
                     for (tableint w : active_at_level) {
@@ -2637,15 +2640,27 @@ public:
                         }
                     }
                     std::sort(cand_dists.begin(), cand_dists.end());
+
                     int max_deg_lc = (u < node_params.size()) ? node_params[u].m_max : policy.m_base;
                     for (const auto& cd : cand_dists) {
-                        if ((int)graphs[lc][u].size() >= target_lc || (int)graphs[lc][u].size() >= max_deg_lc) break;
+                        if ((int)graphs[lc][u].size() >= target_deg || (int)graphs[lc][u].size() >= max_deg_lc) break;
                         tableint w = cd.second;
-                        graphs[lc][u].push_back(w);
-                        int max_deg_w = (w < node_params.size()) ? node_params[w].m_max : policy.m_base;
-                        if ((int)graphs[lc][w].size() < max_deg_w) {
-                            if (std::find(graphs[lc][w].begin(), graphs[lc][w].end(), u) == graphs[lc][w].end()) {
-                                graphs[lc][w].push_back(u);
+                        dist_t d_uw = cd.first;
+
+                        bool is_diverse = true;
+                        for (tableint existing : graphs[lc][u]) {
+                            if (get_node_to_node_distance_sq(w, existing) < d_uw) {
+                                is_diverse = false;
+                                break;
+                            }
+                        }
+                        if (is_diverse) {
+                            graphs[lc][u].push_back(w);
+                            int max_deg_w = (w < node_params.size()) ? node_params[w].m_max : policy.m_base;
+                            if ((int)graphs[lc][w].size() < max_deg_w) {
+                                if (std::find(graphs[lc][w].begin(), graphs[lc][w].end(), u) == graphs[lc][w].end()) {
+                                    graphs[lc][w].push_back(u);
+                                }
                             }
                         }
                     }
@@ -2985,6 +3000,159 @@ public:
 
     size_t get_total_memory_bytes() const {
         return get_memory_breakdown().total_owned_bytes;
+    }
+};
+
+/**
+ * Section 3: Safe Index Replacement & Controlled Deployment
+ */
+enum class ReplacementStatus {
+    Success,
+    RejectedSlaViolation,
+    RejectedPeakMemoryViolation,
+    RejectedGraphInvariantViolation
+};
+
+inline const char* to_string(ReplacementStatus status) {
+    switch (status) {
+        case ReplacementStatus::Success: return "SUCCESS";
+        case ReplacementStatus::RejectedSlaViolation: return "REJECTED_SLA_VIOLATION";
+        case ReplacementStatus::RejectedPeakMemoryViolation: return "REJECTED_PEAK_MEMORY_VIOLATION";
+        case ReplacementStatus::RejectedGraphInvariantViolation: return "REJECTED_GRAPH_INVARIANT_VIOLATION";
+    }
+    return "UNKNOWN";
+}
+
+struct ReplacementResult {
+    ReplacementStatus status = ReplacementStatus::RejectedSlaViolation;
+    std::string details = "";
+    double peak_memory_mb = 0.0;
+    double steady_state_memory_mb = 0.0;
+    float candidate_val_recall = 0.0f;
+    float candidate_p99_latency_ms = 0.0f;
+};
+
+class ServingIndexManager {
+private:
+    std::shared_ptr<AdaptiveHNSWIndex> active_index;
+    mutable std::shared_mutex index_mutex;
+
+public:
+    explicit ServingIndexManager(std::shared_ptr<AdaptiveHNSWIndex> initial_index)
+        : active_index(std::move(initial_index)) {}
+
+    std::shared_ptr<AdaptiveHNSWIndex> get_serving_index() const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        return active_index;
+    }
+
+    ReplacementResult evaluate_and_replace(
+        std::shared_ptr<AdaptiveHNSWIndex> candidate,
+        const float* val_queries,
+        size_t n_val_queries,
+        const std::vector<std::vector<tableint>>& val_gt,
+        float target_recall,
+        double max_memory_mb,
+        float target_p99_latency_ms,
+        int k = 10,
+        int ef_search = 64
+    ) {
+        ReplacementResult res;
+        if (!candidate) {
+            res.status = ReplacementStatus::RejectedGraphInvariantViolation;
+            res.details = "Candidate index is null";
+            return res;
+        }
+
+        // 1. Graph Invariant Validation
+        if (candidate->num_elements == 0 || candidate->get_active_count() == 0 ||
+            candidate->enter_point >= candidate->num_elements ||
+            candidate->is_deleted(candidate->enter_point) ||
+            candidate->graphs.empty() || candidate->graphs[0].size() != candidate->num_elements) {
+            res.status = ReplacementStatus::RejectedGraphInvariantViolation;
+            res.details = "Candidate index failed structural graph invariants";
+            return res;
+        }
+        for (size_t u = 0; u < candidate->num_elements; ++u) {
+            if (!candidate->is_deleted(static_cast<tableint>(u)) && candidate->graphs[0][u].empty()) {
+                res.status = ReplacementStatus::RejectedGraphInvariantViolation;
+                res.details = "Candidate index contains isolated node: " + std::to_string(u);
+                return res;
+            }
+        }
+
+        // 2. Resource Checks (Peak Memory Accounting)
+        double current_mem_mb = 0.0;
+        {
+            std::shared_lock<std::shared_mutex> lock(index_mutex);
+            if (active_index) {
+                current_mem_mb = active_index->get_memory_breakdown().total_owned_bytes / (1024.0 * 1024.0);
+            }
+        }
+        double candidate_mem_mb = candidate->get_memory_breakdown().total_owned_bytes / (1024.0 * 1024.0);
+        double peak_mem_mb = current_mem_mb + candidate_mem_mb;
+        res.peak_memory_mb = peak_mem_mb;
+        res.steady_state_memory_mb = candidate_mem_mb;
+
+        if (max_memory_mb > 0.0 && peak_mem_mb > max_memory_mb) {
+            res.status = ReplacementStatus::RejectedPeakMemoryViolation;
+            res.details = "Peak memory during replacement " + std::to_string(peak_mem_mb) + " MB exceeds budget " + std::to_string(max_memory_mb) + " MB";
+            return res;
+        }
+
+        // 3. Held-Out SLA Validation
+        std::vector<float> val_per_q_recall(n_val_queries, 0.0f);
+        std::vector<double> val_latencies(n_val_queries, 0.0);
+        #pragma omp parallel for schedule(dynamic, 16)
+        for (int q = 0; q < (int)n_val_queries; ++q) {
+            const float* q_ptr = &val_queries[q * candidate->dim];
+            auto t0 = std::chrono::high_resolution_clock::now();
+            auto q_res = candidate->search(q_ptr, k, ef_search);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            val_latencies[q] = std::chrono::duration<double, std::milli>(t1 - t0).count();
+
+            if (q < (int)val_gt.size() && !val_gt[q].empty()) {
+                size_t hits = 0;
+                size_t k_comp = std::min((size_t)k, val_gt[q].size());
+                std::unordered_set<tableint> gt_set(val_gt[q].begin(), val_gt[q].begin() + k_comp);
+                for (const auto& item : q_res) {
+                    if (gt_set.count(item.id)) hits++;
+                }
+                val_per_q_recall[q] = static_cast<float>(hits) / static_cast<float>(k_comp);
+            }
+        }
+
+        double sum_r = 0.0;
+        for (float r : val_per_q_recall) sum_r += r;
+        float mean_recall = sum_r / std::max((size_t)1, n_val_queries);
+        res.candidate_val_recall = mean_recall;
+
+        std::sort(val_latencies.begin(), val_latencies.end());
+        size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
+        if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
+        float p99_lat = static_cast<float>(val_latencies[p99_idx]);
+        res.candidate_p99_latency_ms = p99_lat;
+
+        // SLA validation check
+        if (target_recall > 0.0f && mean_recall < target_recall) {
+            res.status = ReplacementStatus::RejectedSlaViolation;
+            res.details = "Candidate validation recall " + std::to_string(mean_recall) + " < target " + std::to_string(target_recall);
+            return res;
+        }
+        if (target_p99_latency_ms > 0.0f && p99_lat > target_p99_latency_ms) {
+            res.status = ReplacementStatus::RejectedSlaViolation;
+            res.details = "Candidate p99 latency " + std::to_string(p99_lat) + " ms > target " + std::to_string(target_p99_latency_ms) + " ms";
+            return res;
+        }
+
+        // 4. Controlled Index Replacement & Safe Retirement of Old Index
+        {
+            std::unique_lock<std::shared_mutex> write_lock(index_mutex);
+            active_index = std::move(candidate);
+        }
+        res.status = ReplacementStatus::Success;
+        res.details = "Candidate validated and atomically deployed. Old index safely retired.";
+        return res;
     }
 };
 

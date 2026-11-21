@@ -122,11 +122,16 @@ Standardized memory and quantization audit on SIFT ($N=10{,}000, D=128, efSearch
 ### 2. What concrete evidence proves it?
 Validation on SIFT-100K ($N=100{,}000, D=128$, L2 metric, evaluated across 500 queries):
 
-| Churn % | Deleted Nodes | Initial Recall | Healed Recall | Post-Compact Recall | Rebuild Recall | Healing Latency (ms) | Compaction Latency (ms) | **Complete Maint Latency (ms)** | Rebuild Latency (ms) | **Complete Maint Speedup** | Reclaimed Memory |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **10%** | 10,000 | 0.9915 | 0.9940 | 0.9895 | 0.9910 | 1,953.6 | 147.0 | **2,100.6** | 18,327.1 | **8.72x** | 9.36 MB |
-| **25%** | 25,000 | 0.9850 | 0.9865 | 0.9790 | 0.9900 | 2,961.6 | 129.2 | **3,090.8** | 16,584.6 | **5.37x** | 20.67 MB |
-| **50%** | 50,000 | 0.9845 | 0.9840 | 0.9695 | 0.9925 | 6,197.6 | 140.1 | **6,337.7** | 10,420.6 | **1.64x** | 39.66 MB |
+| Churn % | Deleted Nodes | Tombstone Recall | Healed Recall | Corrected Compact Recall | Rebuild Recall | Healing Latency (s) | Compaction Latency (s) | Rebuild Latency (s) | Reclaimed Memory |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **10%** | 10,000 | 0.9826 | 0.9834 | **0.9830 (-0.04 pp)** | 0.9842 | 0.706 s | 6.339 s | 7.431 s | 4.95 MB |
+| **25%** | 25,000 | 0.9758 | 0.9768 | **0.9798 (+0.30 pp)** | 0.9878 | 1.064 s | 4.211 s | 6.056 s | 17.55 MB |
+| **50%** | 50,000 | 0.9780 | 0.9786 | **0.9728 (-0.58 pp)** | 0.9880 | 1.009 s | 2.166 s | 3.878 s | 34.08 MB |
+
+*Compaction Quality Restoration at 25% Churn:*
+- In earlier Phase 6.4 benchmarks, compacted recall at 25% churn collapsed from 0.9752 (healed) down to 0.9280 (-4.72 pp drop).
+- Diagnostic trace analysis revealed that purging upper-layer tombstoned nodes severed global skip highways because upper-layer replenishment had an artificially low target degree without diversity enforcement, stranding queries in dead-end cluster basins.
+- Multi-Layer Strict RNG Replenishment (elevating Layer 0 target to 24 with Strict RNG diversity and replenishing upper layers $l \ge 1$ to $M_{\text{base}}$) restored 25% churn compacted recall from **0.9280 to 0.9798 (+5.18 pp recovery)**, completely meeting the $\le 0.20$ pp preservation requirement.
 
 *Multi-Threaded Concurrency Safety & Lock Latency:*
 - **Active Search Threads:** 4 threads executing continuous search queries.
@@ -148,12 +153,17 @@ In early Phase 6.4 benchmarks, local neighborhood healing (`heal_neighborhood()`
   - **50% Churn:** Tombstone = 0.9766 $\to$ Healed = **0.9770 (+0.04 pp)**.
   - The pre-compaction healing regression is completely eliminated; healed recall strictly matches or exceeds tombstoned recall across all tested churn rates.
 
-### 4. Post-Compaction SLA Recalibration and Multi-Attribute Rebuild Decision Policy
-- **Recalibration Quality:** Post-compaction search beam tuning via `calibrate_search()` with `OptimizationGoal::MaxThroughput` legitimately selects the minimum beam width ($efSearch=48$) satisfying calibration targets. Under conservative CI verification (`require_conservative_recall = true`), the optimizer guarantees that configurations violating target recall on held-out validation are strictly rejected with formal status `ValidationFailed` or `InfeasibleWithinSearchSpace`.
-- **Replacement of the Static 35% Threshold:** The ungrounded 35% scalar rule has been replaced by a **Multi-Attribute Decision Policy**:
-  1. *Scale Gate:* If surviving cardinality $N_{\text{surv}} \le 25{,}000$, direct fresh rebuild is permitted (latency $\le 1.5\text{ s}$).
-  2. *Low-Churn Invariance Gate:* If churn $\le 20\%$, local maintenance is mandated (recall delta $\le 0.24$ pp, speedup $>16\text{x}$).
-  3. *High-Churn SLA Gate (churn $> 20\%$):* Execute local maintenance followed by `calibrate_search()`. If status is `VerifiedFeasible`, deploy the recalibrated index (achieving 3x–10x maintenance efficiency); if status is `ValidationFailed` or `InfeasibleWithinSearchSpace`, trigger an asynchronous, non-blocking background Rebuild.
+### 4. Post-Compaction SLA Recalibration and SLA-Safe Maintenance Policy
+- **Recalibration Quality:** Post-compaction search beam tuning via `calibrate_search()` with `OptimizationGoal::MaxThroughput` selects the minimum beam width satisfying calibration targets. Under conservative CI verification (`require_conservative_recall = true`), configurations violating target recall on held-out validation are strictly rejected with formal status `ValidationFailed` or `InfeasibleWithinSearchSpace`.
+- **Elimination of Unconditional Low-Churn Compaction:** The historical heuristic that "churn $\le 20\%$ mandates physical compaction" has been eliminated. In its place, an independent **Six-Gate SLA-Safe Maintenance Policy** evaluates:
+  1. *Absolute Recall Gate:* $R_{\text{eval}} \ge R_{\text{target}}$.
+  2. *Statistical Confidence Gate:* $CI_{\text{lower}} \ge R_{\text{target}}$.
+  3. *Memory Budget Gate:* $M_{\text{steady}} \le M_{\text{budget}}$.
+  4. *Latency SLA Gate:* $P99 \le P99_{\text{target}}$.
+  5. *Graph Invariant Gate:* 0 isolated nodes, active count match.
+  6. *Compaction Quality Gate:* Recall loss $\le 0.0020$ (0.20 pp).
+- **Compaction Deferral:** If the healed tombstone index meets the user SLA but compaction candidate validation fails, Compaction Deferral keeps the serving index intact without degradation.
+- **Safe Replacement Semantics (`ServingIndexManager`):** Candidate indices are evaluated non-destructively offline. The manager verifies peak memory limits ($\text{Memory}_{\text{old}} + \text{Memory}_{\text{candidate}} \le M_{\text{budget}}$), executes held-out validation, performs an atomic pointer swap under `std::shared_mutex`, and safely retires the old index once active reader references drain.
 
 ### 5. Compaction Locking Semantics
 Compaction requires an exclusive write lock on `index_lifecycle_rw_mutex` to safely repoint memory buffers.
