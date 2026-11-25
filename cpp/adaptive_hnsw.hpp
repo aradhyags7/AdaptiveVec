@@ -29,6 +29,9 @@
 #include <mutex>
 #include <shared_mutex>
 #include <thread>
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 #if defined(_OPENMP)
 #include <omp.h>
 #endif
@@ -654,6 +657,79 @@ struct ScalarQuantizer4Bit {
     dist_t asymmetric_l2_distance(const float* q, const uint8_t* code) const {
         return std::sqrt(asymmetric_l2_sq_distance(q, code));
     }
+
+    dist_t asymmetric_cosine_distance(const float* q, const uint8_t* code) const {
+        float dot = 0.0f;
+        float norm_a = 0.0f;
+        float norm_b = 0.0f;
+        size_t d = 0;
+#if defined(__AVX2__)
+        __m256 dot256 = _mm256_setzero_ps();
+        __m256 norm_a256 = _mm256_setzero_ps();
+        __m256 norm_b256 = _mm256_setzero_ps();
+        const __m128i mask_low = _mm_set1_epi8(0x0F);
+
+        for (; d + 16 <= dim; d += 16) {
+            size_t byte_idx = d / 2;
+            __m128i raw = _mm_loadl_epi64((const __m128i*)(code + byte_idx));
+            __m128i low_nibbles = _mm_and_si128(raw, mask_low);
+            __m128i high_nibbles = _mm_and_si128(_mm_srli_epi16(raw, 4), mask_low);
+            __m128i unpacked = _mm_unpacklo_epi8(low_nibbles, high_nibbles);
+
+            // First 8 dimensions
+            __m256i epi32_lo = _mm256_cvtepu8_epi32(unpacked);
+            __m256 vc_lo = _mm256_cvtepi32_ps(epi32_lo);
+            __m256 vq_lo = _mm256_loadu_ps(q + d);
+            __m256 vmin_lo = _mm256_loadu_ps(&min_vals[d]);
+            __m256 vscale_lo = _mm256_loadu_ps(&scales[d]);
+#if defined(__FMA__)
+            __m256 approx_lo = _mm256_fmadd_ps(vc_lo, vscale_lo, vmin_lo);
+            dot256 = _mm256_fmadd_ps(vq_lo, approx_lo, dot256);
+            norm_a256 = _mm256_fmadd_ps(vq_lo, vq_lo, norm_a256);
+            norm_b256 = _mm256_fmadd_ps(approx_lo, approx_lo, norm_b256);
+#else
+            __m256 approx_lo = _mm256_add_ps(vmin_lo, _mm256_mul_ps(vc_lo, vscale_lo));
+            dot256 = _mm256_add_ps(dot256, _mm256_mul_ps(vq_lo, approx_lo));
+            norm_a256 = _mm256_add_ps(norm_a256, _mm256_mul_ps(vq_lo, vq_lo));
+            norm_b256 = _mm256_add_ps(norm_b256, _mm256_mul_ps(approx_lo, approx_lo));
+#endif
+
+            // Second 8 dimensions
+            __m128i unpacked_hi = _mm_srli_si128(unpacked, 8);
+            __m256i epi32_hi = _mm256_cvtepu8_epi32(unpacked_hi);
+            __m256 vc_hi = _mm256_cvtepi32_ps(epi32_hi);
+            __m256 vq_hi = _mm256_loadu_ps(q + d + 8);
+            __m256 vmin_hi = _mm256_loadu_ps(&min_vals[d + 8]);
+            __m256 vscale_hi = _mm256_loadu_ps(&scales[d + 8]);
+#if defined(__FMA__)
+            __m256 approx_hi = _mm256_fmadd_ps(vc_hi, vscale_hi, vmin_hi);
+            dot256 = _mm256_fmadd_ps(vq_hi, approx_hi, dot256);
+            norm_a256 = _mm256_fmadd_ps(vq_hi, vq_hi, norm_a256);
+            norm_b256 = _mm256_fmadd_ps(approx_hi, approx_hi, norm_b256);
+#else
+            __m256 approx_hi = _mm256_add_ps(vmin_hi, _mm256_mul_ps(vc_hi, vscale_hi));
+            dot256 = _mm256_add_ps(dot256, _mm256_mul_ps(vq_hi, approx_hi));
+            norm_a256 = _mm256_add_ps(norm_a256, _mm256_mul_ps(vq_hi, vq_hi));
+            norm_b256 = _mm256_add_ps(norm_b256, _mm256_mul_ps(approx_hi, approx_hi));
+#endif
+        }
+        dot = _mm256_reduce_add_ps(dot256);
+        norm_a = _mm256_reduce_add_ps(norm_a256);
+        norm_b = _mm256_reduce_add_ps(norm_b256);
+#endif
+        for (; d < dim; ++d) {
+            size_t byte_idx = d / 2;
+            uint8_t byte = code[byte_idx];
+            uint8_t nibble = (d % 2 == 0) ? (byte & 0x0F) : ((byte >> 4) & 0x0F);
+            float approx = min_vals[d] + (float)nibble * scales[d];
+            dot += q[d] * approx;
+            norm_a += q[d] * q[d];
+            norm_b += approx * approx;
+        }
+        if (norm_a < 1e-9f || norm_b < 1e-9f) return 1.0f;
+        dist_t cos_sim = dot / (std::sqrt(norm_a) * std::sqrt(norm_b));
+        return std::max(0.0f, 1.0f - cos_sim);
+    }
 };
 
 // Online Signal Estimators
@@ -829,16 +905,82 @@ public:
         m_l = 1.0 / std::log(policy.m_base > 1 ? policy.m_base : 2);
     }
 
-    void reserve(size_t n) {
+    inline uint32_t atomic_load_in_degree(tableint id) const {
+        if (id >= in_degrees.size()) return 0;
+#if defined(__GNUC__) || defined(__clang__)
+        return __atomic_load_n(&in_degrees[id], __ATOMIC_RELAXED);
+#elif defined(_MSC_VER)
+        return static_cast<uint32_t>(_InterlockedOr(reinterpret_cast<volatile long*>(const_cast<uint32_t*>(&in_degrees[id])), 0));
+#else
+        return in_degrees[id];
+#endif
+    }
+
+    inline void atomic_inc_in_degree(tableint id) {
+#if defined(__GNUC__) || defined(__clang__)
+        __atomic_fetch_add(&in_degrees[id], 1u, __ATOMIC_RELAXED);
+#elif defined(_MSC_VER)
+        _InterlockedIncrement(reinterpret_cast<volatile long*>(&in_degrees[id]));
+#else
+        in_degrees[id]++;
+#endif
+    }
+
+    inline bool atomic_dec_in_degree_if_pos(tableint id) {
+#if defined(__GNUC__) || defined(__clang__)
+        uint32_t cur = __atomic_load_n(&in_degrees[id], __ATOMIC_RELAXED);
+        while (cur > 0) {
+            if (__atomic_compare_exchange_n(&in_degrees[id], &cur, cur - 1, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+                return true;
+            }
+        }
+        return false;
+#elif defined(_MSC_VER)
+        while (true) {
+            long cur = static_cast<long>(in_degrees[id]);
+            if (cur <= 0) return false;
+            if (_InterlockedCompareExchange(reinterpret_cast<volatile long*>(&in_degrees[id]), cur - 1, cur) == cur) {
+                return true;
+            }
+        }
+#else
+        if (in_degrees[id] > 0) {
+            in_degrees[id]--;
+            return true;
+        }
+        return false;
+#endif
+    }
+
+    void reserve_unlocked(size_t n) {
         if (policy.keep_raw_vectors) data.reserve(n * dim);
         if (policy.enable_sq8 || use_mixed_storage) quantized_data.reserve(n * dim);
         if (policy.enable_sq4 || use_mixed_storage) quantized_data_sq4.reserve(n * ((dim + 1) / 2));
+        if (use_mixed_storage) {
+            vector_descriptors.reserve(n);
+            if (policy.keep_raw_vectors) pool_fp32.reserve(n * dim);
+            if (policy.enable_sq8) pool_sq8.reserve(n * dim);
+            if (policy.enable_sq4) pool_sq4.reserve(n * ((dim + 1) / 2));
+        }
         node_levels.reserve(n);
         node_params.reserve(n);
         in_degrees.reserve(n);
+        bridge_scores.reserve(n);
         deleted.reserve(n);
         if (graphs.empty()) graphs.resize(16);
-        graphs[0].reserve(n);
+        for (size_t l = 0; l < graphs.size(); ++l) {
+            if (l == 0) {
+                graphs[l].reserve(n);
+            } else {
+                size_t upper_cap = std::min(n, std::max<size_t>(n / (1ULL << std::min<size_t>(l * 2, 16)), 1024));
+                graphs[l].reserve(upper_cap);
+            }
+        }
+    }
+
+    void reserve(size_t n) {
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+        reserve_unlocked(n);
     }
 
     void assign_preassigned_degrees(const std::vector<int>& degrees, const std::vector<float>* lids = nullptr, const std::vector<float>* densities = nullptr) {
@@ -853,6 +995,7 @@ public:
     }
 
     std::unique_ptr<AdaptiveHNSWIndex> clone() const {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         auto other = std::make_unique<AdaptiveHNSWIndex>(dim, space, is_adaptive, policy);
         other->max_level = max_level;
         other->enter_point = enter_point;
@@ -923,14 +1066,18 @@ public:
         total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         size_t packed_dim = (dim + 1) / 2;
         const uint8_t* code = &quantized_data_sq4[id * packed_dim];
-        return quantizer_sq4.asymmetric_l2_distance(query, code);
+        return space == SpaceType::Cosine
+               ? quantizer_sq4.asymmetric_cosine_distance(query, code)
+               : quantizer_sq4.asymmetric_l2_distance(query, code);
     }
 
     inline dist_t get_sq4_distance_sq(const float* query, tableint id) const {
         total_dist_computations.fetch_add(1, std::memory_order_relaxed);
         size_t packed_dim = (dim + 1) / 2;
         const uint8_t* code = &quantized_data_sq4[id * packed_dim];
-        return quantizer_sq4.asymmetric_l2_sq_distance(query, code);
+        return space == SpaceType::Cosine
+               ? quantizer_sq4.asymmetric_cosine_distance(query, code)
+               : quantizer_sq4.asymmetric_l2_sq_distance(query, code);
     }
     
     inline const float* get_vector(tableint id) const {
@@ -982,7 +1129,9 @@ public:
                            ? quantizer.asymmetric_cosine_distance(query, &pool_sq8[desc.offset])
                            : quantizer.asymmetric_l2_sq_distance(query, &pool_sq8[desc.offset]);
                 case VectorPrecision::SQ4:
-                    return quantizer_sq4.asymmetric_l2_sq_distance(query, &pool_sq4[desc.offset]);
+                    return (space == SpaceType::Cosine)
+                           ? quantizer_sq4.asymmetric_cosine_distance(query, &pool_sq4[desc.offset])
+                           : quantizer_sq4.asymmetric_l2_sq_distance(query, &pool_sq4[desc.offset]);
                 default:
                     return 0.0f;
             }
@@ -991,7 +1140,10 @@ public:
         if (policy.enable_sq4 && quantizer_sq4.is_trained && !quantized_data_sq4.empty()) {
             total_dist_computations.fetch_add(1, std::memory_order_relaxed);
             size_t packed_dim = (dim + 1) / 2;
-            return quantizer_sq4.asymmetric_l2_sq_distance(query, &quantized_data_sq4[id * packed_dim]);
+            const uint8_t* code = &quantized_data_sq4[id * packed_dim];
+            return (space == SpaceType::Cosine)
+                   ? quantizer_sq4.asymmetric_cosine_distance(query, code)
+                   : quantizer_sq4.asymmetric_l2_sq_distance(query, code);
         }
         if (policy.enable_sq8 && quantizer.is_trained && !quantized_data.empty()) {
             total_dist_computations.fetch_add(1, std::memory_order_relaxed);
@@ -1005,6 +1157,23 @@ public:
         std::vector<float> tmp(dim);
         get_vector_reconstructed(id, tmp.data());
         return get_distance_sq(query, tmp.data());
+    }
+
+    inline dist_t eval_layer_distance_sq(const float* query, tableint id, bool use_asym_sq8, bool use_asym_sq4) const {
+        if (use_mixed_storage && id < vector_descriptors.size()) {
+            return get_node_distance_sq(query, id);
+        }
+        size_t packed_dim = (dim + 1) / 2;
+        if (use_asym_sq4 && quantizer_sq4.is_trained && (static_cast<size_t>(id) + 1) * packed_dim <= quantized_data_sq4.size()) {
+            return get_sq4_distance_sq(query, id);
+        }
+        if (use_asym_sq8 && quantizer.is_trained && (static_cast<size_t>(id) + 1) * dim <= quantized_data.size()) {
+            return get_sq8_distance_sq(query, id);
+        }
+        if (!data.empty() && (static_cast<size_t>(id) + 1) * dim <= data.size()) {
+            return get_distance_sq(query, get_vector(id));
+        }
+        return get_node_distance_sq(query, id);
     }
 
     inline const float* get_vector_or_reconstruct(tableint id, std::vector<float>& buf) const {
@@ -1175,14 +1344,6 @@ public:
                 }
             }
 
-            double cost_fp32 = static_cast<double>(dim * sizeof(float));
-            double cost_sq8 = static_cast<double>(dim * sizeof(uint8_t));
-            double cost_sq4 = static_cast<double>(packed_dim * sizeof(uint8_t));
-
-            double min_total_cost = num_elements * cost_sq4;
-            double max_total_cost = num_elements * cost_fp32;
-            double target_cost = min_total_cost + budget_ratio * (max_total_cost - min_total_cost);
-
             std::vector<size_t> order(num_elements);
             std::iota(order.begin(), order.end(), 0);
             std::sort(order.begin(), order.end(), [&scores](size_t a, size_t b) {
@@ -1190,19 +1351,17 @@ public:
             });
 
             // Exact linear budget interpolation relative to FP32 total size
-            double n_fp32 = 0.0, n_sq8 = 0.0, n_sq4 = 0.0;
+            double n_fp32 = 0.0, n_sq8 = 0.0;
             if (budget_ratio <= 0.25) {
                 // Interpolate between SQ4 (0.125) and SQ8 (0.25)
                 double f = std::max(0.0, std::min(1.0, (budget_ratio - 0.125) / 0.125));
                 n_sq8 = num_elements * f;
-                n_sq4 = num_elements - n_sq8;
                 n_fp32 = 0.0;
             } else {
                 // Interpolate between SQ8 (0.25) and FP32 (1.0)
                 double f = std::max(0.0, std::min(1.0, (budget_ratio - 0.25) / 0.75));
                 n_fp32 = num_elements * f;
                 n_sq8 = num_elements - n_fp32;
-                n_sq4 = 0.0;
             }
 
             size_t n_fp32_target = static_cast<size_t>(n_fp32);
@@ -1413,7 +1572,7 @@ public:
         
         for (tableint ep : enter_points) {
             visited.mark_visited(ep);
-            dist_t d = get_node_distance_sq(query, ep);
+            dist_t d = eval_layer_distance_sq(query, ep, use_asym_sq8, use_asym_sq4);
             if (stats) {
                 if (lc > 0) stats->upper_layer_dist_evals++;
                 else stats->layer0_dist_evals++;
@@ -1459,7 +1618,7 @@ public:
                     
                     if (!visited.is_visited(neighbor)) {
                         visited.mark_visited(neighbor);
-                        dist_t d = get_node_distance_sq(query, neighbor);
+                        dist_t d = eval_layer_distance_sq(query, neighbor, use_asym_sq8, use_asym_sq4);
                         if (stats) {
                             if (lc > 0) stats->upper_layer_dist_evals++;
                             else stats->layer0_dist_evals++;
@@ -1673,13 +1832,24 @@ public:
         // Phase 5.1: Compute effective alpha for diversity pruning
         float effective_alpha = policy.pruning_alpha_base;
         if (policy.enable_geometry_pruning && base_node_id != (tableint)-1 && base_node_id < node_params.size()) {
+            float lid_mean = policy.lid_mean;
+            float lid_std = policy.lid_std;
+            float density_mean = policy.density_mean;
+            float density_std = policy.density_std;
+            if (policy.use_streaming_welford) {
+                std::lock_guard<std::mutex> lk(tracker_mutex);
+                lid_mean = policy.lid_mean;
+                lid_std = policy.lid_std;
+                density_mean = policy.density_mean;
+                density_std = policy.density_std;
+            }
             float z_lid = 0.0f;
-            if (policy.lid_std > 1e-4f) {
-                z_lid = (node_params[base_node_id].lid - policy.lid_mean) / policy.lid_std;
+            if (lid_std > 1e-4f) {
+                z_lid = (node_params[base_node_id].lid - lid_mean) / lid_std;
             }
             float z_dens = 0.0f;
-            if (policy.density_std > 1e-4f) {
-                z_dens = (node_params[base_node_id].density - policy.density_mean) / policy.density_std;
+            if (density_std > 1e-4f) {
+                z_dens = (node_params[base_node_id].density - density_mean) / density_std;
             }
             // Higher LID / sparse boundary -> higher alpha (relax pruning, keep shortcuts)
             // Lower LID / dense cluster -> lower alpha (strict pruning, drop collinear edges)
@@ -1700,7 +1870,7 @@ public:
                 
                 // Hubness Regulation: Penalize high-degree hubs from shadowing diverse neighbors
                 if (policy.enable_hubness_regulation && lc == 0 && !in_degrees.empty()) {
-                    float deg_r = (r_id < in_degrees.size()) ? (float)in_degrees[r_id] : 0.0f;
+                    float deg_r = (r_id < in_degrees.size()) ? (float)atomic_load_in_degree(r_id) : 0.0f;
                     float h_r = deg_r / mean_deg;
                     float b_r = (policy.enable_bridge_aware && r_id < bridge_scores.size()) ? bridge_scores[r_id] : 0.0f;
                     float penalty = 1.0f + policy.hubness_mu * h_r * (1.0f - policy.bridge_alpha * b_r);
@@ -1747,25 +1917,26 @@ public:
     
     tableint insert(const float* vec) {
         std::unique_lock<std::recursive_mutex> insert_lock(insertion_mutex);
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
 
-        // Pre-check capacity growth under exclusive write lock if reallocation is necessary
+        // Pre-check capacity growth if reallocation is necessary
         size_t cur_n = num_elements;
         bool needs_grow = (policy.keep_raw_vectors && (data.size() + dim > data.capacity())) ||
                           (policy.enable_sq8 && (quantized_data.size() + dim > quantized_data.capacity())) ||
                           (policy.enable_sq4 && (quantized_data_sq4.size() + (dim + 1) / 2 > quantized_data_sq4.capacity())) ||
+                          (use_mixed_storage && cur_n + 1 > vector_descriptors.capacity()) ||
                           (cur_n + 1 > node_levels.capacity()) ||
                           (cur_n + 1 > node_params.capacity()) ||
                           (cur_n + 1 > in_degrees.capacity()) ||
+                          (cur_n + 1 > bridge_scores.capacity()) ||
                           (cur_n + 1 > deleted.capacity()) ||
                           (graphs.empty() || cur_n + 1 > graphs[0].capacity());
 
         if (needs_grow) {
-            std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
             size_t new_cap = std::max((size_t)1024, cur_n * 2 + 1024);
-            reserve(new_cap);
+            reserve_unlocked(new_cap);
         }
 
-        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
         tableint q_idx = (tableint)num_elements++;
         if (policy.keep_raw_vectors) {
             data.insert(data.end(), vec, vec + dim);
@@ -1937,12 +2108,14 @@ public:
     void batch_insert(const float* vectors, size_t n_vectors, int num_threads = 0) {
         if (n_vectors == 0) return;
 
+        std::unique_lock<std::recursive_mutex> insert_lock(insertion_mutex);
+
         // Reserve memory up-front under write lock to ensure zero reallocation during insertion
         {
             std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
-            reserve(num_elements + n_vectors);
+            reserve_unlocked(num_elements + n_vectors);
         }
-        
+
         if (num_threads <= 0) {
             #if defined(_OPENMP)
             num_threads = omp_get_max_threads();
@@ -1951,58 +2124,63 @@ public:
             #endif
         }
 
-        // If single thread requested, simply run sequential insert
-        if (num_threads == 1) {
+        // If single-threaded, raw vectors are purged, or mixed-precision storage is active,
+        // execute sequential insert() to preserve exact storage pool and quantization invariants.
+        if (num_threads == 1 || !policy.keep_raw_vectors || use_mixed_storage) {
             for (size_t i = 0; i < n_vectors; ++i) {
                 insert(&vectors[i * dim]);
             }
             return;
         }
 
-        // Seed Phase: Insert the first min(n_vectors, 256) sequentially to establish graph root hierarchy
-        size_t seed_count = std::min((size_t)256, n_vectors);
+        // Seed Phase: Insert up to 256 initial nodes sequentially when graph root is sparse
+        size_t initial_n = num_elements;
+        size_t seed_count = (initial_n < 256) ? std::min<size_t>(256 - initial_n, n_vectors) : 0;
         for (size_t i = 0; i < seed_count; ++i) {
             insert(&vectors[i * dim]);
         }
         if (seed_count >= n_vectors) return;
 
-        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
 
-        // Reserve and copy vector memory up-front
-        size_t start_idx = num_elements;
-        num_elements = n_vectors;
-        data.resize(n_vectors * dim);
-        std::memcpy(&data[start_idx * dim], &vectors[start_idx * dim], (n_vectors - start_idx) * dim * sizeof(float));
+        const size_t start_idx = num_elements;
+        const size_t batch_start = seed_count;
+        const size_t rem_vectors = n_vectors - batch_start;
+        const size_t total_n = start_idx + rem_vectors;
+        num_elements = total_n;
 
-        if (policy.enable_sq8) {
-            quantized_data.resize(n_vectors * dim);
+        data.resize(total_n * dim);
+        std::memcpy(&data[start_idx * dim], &vectors[batch_start * dim], rem_vectors * dim * sizeof(float));
+
+        if (policy.enable_sq8 && quantizer.is_trained) {
+            quantized_data.resize(total_n * dim);
             #pragma omp parallel for num_threads(num_threads) schedule(static)
-            for (size_t i = start_idx; i < n_vectors; ++i) {
+            for (size_t i = start_idx; i < total_n; ++i) {
                 quantizer.encode(&data[i * dim], &quantized_data[i * dim]);
             }
         }
 
-        if (policy.enable_sq4) {
+        if (policy.enable_sq4 && quantizer_sq4.is_trained) {
             size_t packed_dim = (dim + 1) / 2;
-            quantized_data_sq4.resize(n_vectors * packed_dim);
+            quantized_data_sq4.resize(total_n * packed_dim);
             #pragma omp parallel for num_threads(num_threads) schedule(static)
-            for (size_t i = start_idx; i < n_vectors; ++i) {
+            for (size_t i = start_idx; i < total_n; ++i) {
                 quantizer_sq4.encode(&data[i * dim], &quantized_data_sq4[i * packed_dim]);
             }
         }
 
-        node_levels.resize(n_vectors);
-        node_params.resize(n_vectors);
-        for (size_t i = start_idx; i < n_vectors; ++i) {
+        node_levels.resize(total_n);
+        node_params.resize(total_n);
+        for (size_t i = start_idx; i < total_n; ++i) {
             node_params[i] = NodeParams{policy.m_base, policy.m_base, 2 * policy.m_base, policy.ef_c_base, 0.0f, 0.0f, 0.0f};
         }
-        in_degrees.resize(n_vectors, 0);
-        bridge_scores.resize(n_vectors, 0.0f);
-        deleted.resize(n_vectors, 0);
+        in_degrees.resize(total_n, 0);
+        bridge_scores.resize(total_n, 0.0f);
+        deleted.resize(total_n, 0);
 
-        // Pre-generate levels and ensure graphs layers exist
+        // Pre-generate levels and ensure graph layers exist
         int expected_max_level = max_level;
-        for (size_t i = start_idx; i < n_vectors; ++i) {
+        for (size_t i = start_idx; i < total_n; ++i) {
             int lvl = generate_node_level(static_cast<tableint>(i));
             node_levels[i] = lvl;
             if (lvl > expected_max_level) expected_max_level = lvl;
@@ -2011,11 +2189,11 @@ public:
             graphs.resize(expected_max_level + 1);
         }
         for (size_t l = 0; l < graphs.size(); ++l) {
-            if (graphs[l].size() < n_vectors) {
-                graphs[l].resize(n_vectors);
+            if (graphs[l].size() < total_n) {
+                graphs[l].resize(total_n);
             }
             int r_cap = (l == 0) ? (policy.m_base * 2 + 4) : (policy.m_base + 4);
-            for (size_t i = 0; i < n_vectors; ++i) {
+            for (size_t i = start_idx; i < total_n; ++i) {
                 if (l == 0 || node_levels[i] >= (int)l) {
                     graphs[l][i].reserve(r_cap);
                 }
@@ -2026,10 +2204,10 @@ public:
         #if defined(_OPENMP)
         #pragma omp parallel for num_threads(num_threads) schedule(dynamic, 64)
         #endif
-        for (size_t q_idx = start_idx; q_idx < n_vectors; ++q_idx) {
+        for (size_t q_idx = start_idx; q_idx < total_n; ++q_idx) {
             const float* vec = &data[q_idx * dim];
             int q_level = node_levels[q_idx];
-            
+
             tableint curr_ep;
             int top_level;
             {
@@ -2058,22 +2236,29 @@ public:
                 float density = estimate_local_density(probe_dists);
                 float lid = estimate_mle_lid(probe_dists);
 
-                if (policy.use_streaming_welford) {
+                PolicyConfig local_policy;
+                {
                     std::lock_guard<std::mutex> lk(tracker_mutex);
-                    density_tracker.update(density);
-                    lid_tracker.update(lid);
-                    if (density_tracker.count >= 10) {
-                        policy.density_mean = density_tracker.get_mean();
-                        policy.density_std = density_tracker.get_std();
-                        policy.lid_mean = lid_tracker.get_mean();
-                        policy.lid_std = lid_tracker.get_std();
+                    if (policy.use_streaming_welford) {
+                        density_tracker.update(density);
+                        lid_tracker.update(lid);
+                        if (density_tracker.count >= 10) {
+                            policy.density_mean = density_tracker.get_mean();
+                            policy.density_std = density_tracker.get_std();
+                            policy.lid_mean = lid_tracker.get_mean();
+                            policy.lid_std = lid_tracker.get_std();
+                        }
                     }
+                    local_policy = policy;
                 }
-                params = evaluate_policy(density, lid, policy);
+                params = evaluate_policy(density, lid, local_policy);
             } else {
                 params = {policy.m_base, policy.m_base, 2 * policy.m_base, policy.ef_c_base, 0.0f, 0.0f, 0.0f};
             }
-            node_params[q_idx] = params;
+            {
+                std::lock_guard<std::mutex> lk(node_locks[q_idx % NUM_NODE_LOCKS]);
+                node_params[q_idx] = params;
+            }
 
             // Phase 2: Insert into levels min(top_level, q_level) down to 0
             for (int lc = std::min(top_level, q_level); lc >= 0; --lc) {
@@ -2090,8 +2275,9 @@ public:
                     std::lock_guard<std::mutex> lk(node_locks[neighbor % NUM_NODE_LOCKS]);
                     graphs[lc][neighbor].push_back((tableint)q_idx);
                     if (lc == 0) {
-                        __atomic_fetch_add(&in_degrees[neighbor], 1, __ATOMIC_RELAXED);
-                        __atomic_fetch_add(&in_degrees[q_idx], 1, __ATOMIC_RELAXED);
+                        atomic_inc_in_degree(neighbor);
+                        atomic_inc_in_degree((tableint)q_idx);
+                        total_in_degrees.fetch_add(2, std::memory_order_relaxed);
                     }
 
                     int n_limit = (node_params[neighbor].m > 0)
@@ -2110,9 +2296,10 @@ public:
                             std::unordered_set<tableint> kept(pruned.begin(), pruned.end());
                             for (tableint old_cand : graphs[lc][neighbor]) {
                                 if (kept.find(old_cand) == kept.end()) {
-                                    if (in_degrees[old_cand] > 0) {
-                                        __atomic_fetch_sub(&in_degrees[old_cand], 1, __ATOMIC_RELAXED);
-                                    }
+                                    atomic_dec_in_degree_if_pos(old_cand);
+                                    atomic_dec_in_degree_if_pos(neighbor);
+                                    uint64_t cur_tot = total_in_degrees.load(std::memory_order_relaxed);
+                                    while (cur_tot >= 2 && !total_in_degrees.compare_exchange_weak(cur_tot, cur_tot - 2, std::memory_order_relaxed)) {}
                                 }
                             }
                         }
@@ -2121,10 +2308,6 @@ public:
                 }
 
                 if (!w.empty()) curr_ep = w[0].id;
-            }
-
-            if (policy.enable_bridge_aware) {
-                bridge_scores[q_idx] = compute_bridge_score((tableint)q_idx);
             }
 
             if (q_level > max_level) {
@@ -2138,35 +2321,39 @@ public:
 
         // Recompute exact in-degrees in parallel directly from layer 0 graph
         std::fill(in_degrees.begin(), in_degrees.end(), 0);
-        #if defined(_OPENMP)
-        #pragma omp parallel
-        {
-            std::vector<uint32_t> local_in(n_vectors, 0);
-            #pragma omp for schedule(static)
-            for (size_t u = 0; u < n_vectors; ++u) {
-                if (!graphs[0].empty() && u < graphs[0].size()) {
-                    for (tableint v : graphs[0][u]) {
-                        if (v < n_vectors) local_in[v]++;
+        if (!graphs.empty()) {
+            #if defined(_OPENMP)
+            #pragma omp parallel
+            {
+                std::vector<uint32_t> local_in(total_n, 0);
+                #pragma omp for schedule(static)
+                for (size_t u = 0; u < total_n; ++u) {
+                    if (u < graphs[0].size()) {
+                        for (tableint v : graphs[0][u]) {
+                            if (v < total_n) local_in[v]++;
+                        }
+                    }
+                }
+                #pragma omp critical
+                {
+                    for (size_t i = 0; i < total_n; ++i) {
+                        in_degrees[i] += local_in[i];
                     }
                 }
             }
-            #pragma omp critical
-            {
-                for (size_t i = 0; i < n_vectors; ++i) {
-                    in_degrees[i] += local_in[i];
+            #else
+            for (size_t u = 0; u < total_n; ++u) {
+                if (u < graphs[0].size()) {
+                    for (tableint v : graphs[0][u]) {
+                        if (v < total_n) in_degrees[v]++;
+                    }
                 }
             }
+            #endif
         }
-        #else
-        for (size_t u = 0; u < n_vectors; ++u) {
-            for (tableint v : graphs[0][u]) {
-                if (v < n_vectors) in_degrees[v]++;
-            }
-        }
-        #endif
 
         uint64_t total = 0;
-        for (size_t i = 0; i < n_vectors; ++i) total += in_degrees[i];
+        for (size_t i = 0; i < total_n; ++i) total += in_degrees[i];
         total_in_degrees = total;
 
         // Finalize bridge scores across all nodes if bridge awareness is active
@@ -2174,7 +2361,7 @@ public:
             #if defined(_OPENMP)
             #pragma omp parallel for schedule(dynamic, 1024)
             #endif
-            for (size_t i = 0; i < n_vectors; ++i) {
+            for (size_t i = 0; i < total_n; ++i) {
                 bridge_scores[i] = compute_bridge_score((tableint)i);
             }
         }
@@ -2298,8 +2485,8 @@ public:
                     for (tableint cand : to_add) {
                         u_adj.push_back(cand);
                         if (lc == 0) {
-                            __atomic_fetch_add(&in_degrees[cand], 1, __ATOMIC_RELAXED);
-                            __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
+                            atomic_inc_in_degree(cand);
+                            atomic_inc_in_degree(u);
                             total_in_degrees.fetch_add(2, std::memory_order_relaxed);
                         }
                     }
@@ -2316,8 +2503,8 @@ public:
                         if ((int)c_adj.size() < c_limit && std::find(c_adj.begin(), c_adj.end(), u) == c_adj.end()) {
                             c_adj.push_back(u);
                             if (lc == 0) {
-                                __atomic_fetch_add(&in_degrees[u], 1, __ATOMIC_RELAXED);
-                                __atomic_fetch_add(&in_degrees[cand], 1, __ATOMIC_RELAXED);
+                                atomic_inc_in_degree(u);
+                                atomic_inc_in_degree(cand);
                                 total_in_degrees.fetch_add(2, std::memory_order_relaxed);
                             }
                         }
@@ -2333,7 +2520,7 @@ public:
         }
     }
 
-    bool mark_deleted(tableint id, bool heal = true) {
+    bool mark_deleted_unlocked(tableint id, bool heal = true) {
         if (id >= num_elements || is_deleted(id)) {
             return false;
         }
@@ -2358,14 +2545,22 @@ public:
         return true;
     }
 
+    bool mark_deleted(tableint id, bool heal = true) {
+        std::unique_lock<std::recursive_mutex> insert_lock(insertion_mutex);
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+        return mark_deleted_unlocked(id, heal);
+    }
+
     inline bool delete_vector(tableint id, bool heal = true) {
         return mark_deleted(id, heal);
     }
 
     size_t batch_delete(const std::vector<tableint>& ids, bool heal = true) {
+        std::unique_lock<std::recursive_mutex> insert_lock(insertion_mutex);
+        std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
         size_t count = 0;
         for (tableint id : ids) {
-            if (mark_deleted(id, heal)) {
+            if (mark_deleted_unlocked(id, heal)) {
                 count++;
             }
         }
@@ -2729,15 +2924,38 @@ public:
         return id_map;
     }
     
-    std::vector<Candidate> search(const float* query, int k, int ef, QuerySearchStats* stats = nullptr) const {
-        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
+    std::vector<Candidate> search_unlocked(const float* query, int k, int ef, QuerySearchStats* stats = nullptr) const {
         if (num_elements == 0 || get_active_count() == 0) return {};
-        
+
         tableint curr_ep = enter_point;
+        int top_level = max_level;
         if (is_deleted(curr_ep)) {
-            const_cast<AdaptiveHNSWIndex*>(this)->migrate_entry_point();
-            curr_ep = enter_point;
-            if (is_deleted(curr_ep)) return {};
+            bool found_ep = false;
+            for (int lc = top_level; lc >= 0 && !found_ep; --lc) {
+                if (lc >= (int)graphs.size()) continue;
+                size_t max_deg = 0;
+                for (tableint u = 0; u < graphs[lc].size(); ++u) {
+                    if (!is_deleted(u) && !graphs[lc][u].empty()) {
+                        if (!found_ep || graphs[lc][u].size() > max_deg) {
+                            curr_ep = u;
+                            max_deg = graphs[lc][u].size();
+                            top_level = lc;
+                            found_ep = true;
+                        }
+                    }
+                }
+            }
+            if (!found_ep) {
+                for (tableint u = 0; u < num_elements; ++u) {
+                    if (!is_deleted(u)) {
+                        curr_ep = u;
+                        top_level = 0;
+                        found_ep = true;
+                        break;
+                    }
+                }
+            }
+            if (!found_ep) return {};
         }
 
         bool use_asym_sq8 = policy.enable_sq8 && quantizer.is_trained;
@@ -2745,7 +2963,7 @@ public:
         bool use_asym = use_asym_sq8 || use_asym_sq4 || use_mixed_storage;
         bool use_ada = policy.enable_ada_ef;
         
-        for (int lc = max_level; lc > 0; --lc) {
+        for (int lc = top_level; lc > 0; --lc) {
             auto w = search_layer(query, {curr_ep}, 1, lc, false, use_asym_sq8, false, use_asym_sq4, stats);
             if (!w.empty()) curr_ep = w[0].id;
         }
@@ -2828,6 +3046,25 @@ public:
         return final_results;
     }
 
+    std::vector<Candidate> search(const float* query, int k, int ef, QuerySearchStats* stats = nullptr) const {
+        std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
+        if (num_elements == 0 || get_active_count() == 0) return {};
+
+        if (is_deleted(enter_point)) {
+            read_lock.unlock();
+            {
+                std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+                if (num_elements > 0 && is_deleted(enter_point)) {
+                    const_cast<AdaptiveHNSWIndex*>(this)->migrate_entry_point();
+                }
+            }
+            read_lock.lock();
+            if (num_elements == 0 || get_active_count() == 0) return {};
+        }
+
+        return search_unlocked(query, k, ef, stats);
+    }
+
     inline std::vector<Candidate> search(const float* query, int k, int ef, QuerySearchStats& stats) const {
         return search(query, k, ef, &stats);
     }
@@ -2843,7 +3080,26 @@ public:
         int ef,
         int num_threads = 0
     ) const {
+        if (n_queries == 0) return {};
         std::shared_lock<std::shared_mutex> read_lock(index_lifecycle_rw_mutex);
+        if (num_elements == 0 || get_active_count() == 0) {
+            return std::vector<std::vector<Candidate>>(n_queries);
+        }
+
+        if (is_deleted(enter_point)) {
+            read_lock.unlock();
+            {
+                std::unique_lock<std::shared_mutex> write_lock(index_lifecycle_rw_mutex);
+                if (num_elements > 0 && is_deleted(enter_point)) {
+                    const_cast<AdaptiveHNSWIndex*>(this)->migrate_entry_point();
+                }
+            }
+            read_lock.lock();
+            if (num_elements == 0 || get_active_count() == 0) {
+                return std::vector<std::vector<Candidate>>(n_queries);
+            }
+        }
+
         if (num_threads <= 0) {
             #if defined(_OPENMP)
             num_threads = omp_get_max_threads();
@@ -2857,7 +3113,7 @@ public:
         #if defined(_OPENMP)
         #pragma omp parallel for num_threads(num_threads) schedule(dynamic, 32)
         for (size_t q = 0; q < n_queries; ++q) {
-            results[q] = search(&queries[q * dim], k, ef);
+            results[q] = search_unlocked(&queries[q * dim], k, ef);
         }
         #else
         std::vector<std::thread> workers;
@@ -2868,7 +3124,7 @@ public:
             if (start >= end) continue;
             workers.emplace_back([this, queries, &results, k, ef, start, end]() {
                 for (size_t q = start; q < end; ++q) {
-                    results[q] = this->search(&queries[q * dim], k, ef);
+                    results[q] = this->search_unlocked(&queries[q * dim], k, ef);
                 }
             });
         }
@@ -3056,8 +3312,13 @@ struct ReplacementResult {
     std::string details = "";
     double peak_memory_mb = 0.0;
     double steady_state_memory_mb = 0.0;
+    double manager_overhead_mb = 0.0;
     float candidate_val_recall = 0.0f;
+    float candidate_val_ci_lower = 0.0f;
+    float candidate_val_ci_upper = 0.0f;
     float candidate_p99_latency_ms = 0.0f;
+    double baseline_val_recall = -1.0;
+    double compaction_recall_loss = 0.0;
     double exclusive_lock_pause_us = 0.0;
     size_t replayed_mutations_count = 0;
 };
@@ -3072,9 +3333,49 @@ private:
     std::unordered_map<tableint, uint64_t> id_to_label;
     std::unordered_map<uint64_t, std::vector<float>> label_payloads;
 
-    // Mutation log for concurrent catch-up replay
+    // Mutation log and pinned snapshot sequence tracking for safe concurrent catch-up replay
     std::vector<MutationRecord> mutation_log;
     uint64_t current_seq = 0;
+    mutable std::vector<uint64_t> active_snapshot_seqs;
+
+    static std::pair<float, float> compute_bootstrap_ci(
+        const std::vector<float>& scores,
+        int n_boot = 1000,
+        float alpha = 0.05f
+    ) {
+        if (scores.empty()) return {0.0f, 0.0f};
+        size_t n = scores.size();
+        if (n == 1) return {scores[0], scores[0]};
+        std::vector<float> boot_means(n_boot);
+        std::mt19937 rng(42);
+        std::uniform_int_distribution<size_t> dist(0, n - 1);
+        for (int b = 0; b < n_boot; ++b) {
+            double s = 0.0;
+            for (size_t i = 0; i < n; ++i) {
+                s += scores[dist(rng)];
+            }
+            boot_means[b] = static_cast<float>(s / static_cast<double>(n));
+        }
+        std::sort(boot_means.begin(), boot_means.end());
+        size_t lo = std::min(static_cast<size_t>(std::floor((alpha / 2.0f) * n_boot)), static_cast<size_t>(n_boot - 1));
+        size_t hi = std::min(static_cast<size_t>(std::floor((1.0f - alpha / 2.0f) * n_boot)), static_cast<size_t>(n_boot - 1));
+        return {boot_means[lo], boot_means[hi]};
+    }
+
+    size_t get_manager_overhead_bytes_unlocked() const {
+        size_t total = 0;
+        total += label_to_id.bucket_count() * sizeof(void*) + label_to_id.size() * (sizeof(uint64_t) + sizeof(tableint) + sizeof(void*));
+        total += id_to_label.bucket_count() * sizeof(void*) + id_to_label.size() * (sizeof(tableint) + sizeof(uint64_t) + sizeof(void*));
+        total += label_payloads.bucket_count() * sizeof(void*) + label_payloads.size() * (sizeof(uint64_t) + sizeof(std::vector<float>) + sizeof(void*));
+        for (const auto& kv : label_payloads) {
+            total += kv.second.capacity() * sizeof(float);
+        }
+        total += mutation_log.capacity() * sizeof(MutationRecord);
+        for (const auto& op : mutation_log) {
+            total += op.vec.capacity() * sizeof(float);
+        }
+        return total;
+    }
 
 public:
     explicit ServingIndexManager(std::shared_ptr<AdaptiveHNSWIndex> initial_index)
@@ -3134,9 +3435,15 @@ public:
         tableint new_id = active_index->insert(vec);
         label_to_id[label] = new_id;
         id_to_label[new_id] = label;
-        label_payloads[label] = std::vector<float>(vec, vec + active_index->dim);
 
-        mutation_log.push_back({MutationType::Insert, label, label_payloads[label], ++current_seq});
+        std::vector<float> vec_copy(vec, vec + active_index->dim);
+        if (active_index->policy.keep_raw_vectors) {
+            label_payloads[label] = vec_copy;
+        } else {
+            label_payloads.erase(label);
+        }
+
+        mutation_log.push_back({MutationType::Insert, label, std::move(vec_copy), ++current_seq});
         return new_id;
     }
 
@@ -3165,9 +3472,21 @@ public:
     bool get_vector(uint64_t label, float* out_vec) const {
         std::shared_lock<std::shared_mutex> lock(index_mutex);
         auto it = label_payloads.find(label);
-        if (it == label_payloads.end()) return false;
-        std::memcpy(out_vec, it->second.data(), it->second.size() * sizeof(float));
-        return true;
+        if (it != label_payloads.end()) {
+            std::memcpy(out_vec, it->second.data(), it->second.size() * sizeof(float));
+            return true;
+        }
+        auto id_it = label_to_id.find(label);
+        if (id_it != label_to_id.end() && active_index) {
+            active_index->get_vector_reconstructed(id_it->second, out_vec);
+            return true;
+        }
+        return false;
+    }
+
+    size_t get_manager_overhead_bytes() const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        return get_manager_overhead_bytes_unlocked();
     }
 
     size_t get_active_label_count() const {
@@ -3189,7 +3508,16 @@ public:
         snap.index_copy = active_index ? active_index->clone() : nullptr;
         snap.label_to_id = label_to_id;
         snap.snapshot_seq = current_seq;
+        active_snapshot_seqs.push_back(snap.snapshot_seq);
         return snap;
+    }
+
+    void release_candidate_snapshot(uint64_t snapshot_seq) const {
+        std::shared_lock<std::shared_mutex> lock(index_mutex);
+        auto it = std::find(active_snapshot_seqs.begin(), active_snapshot_seqs.end(), snapshot_seq);
+        if (it != active_snapshot_seqs.end()) {
+            active_snapshot_seqs.erase(it);
+        }
     }
 
     ReplacementResult evaluate_and_replace(
@@ -3204,16 +3532,29 @@ public:
         int ef_search = 64,
         uint64_t snapshot_seq = 0,
         std::unordered_map<uint64_t, tableint> candidate_label_to_id = {},
-        const std::vector<tableint>& compaction_id_map = {}
+        const std::vector<tableint>& compaction_id_map = {},
+        bool enforce_conservative_ci = true,
+        double max_compaction_loss = 0.0020,
+        double baseline_recall = -1.0
     ) {
         ReplacementResult res;
+        struct SnapshotUnpinGuard {
+            const ServingIndexManager* mgr;
+            uint64_t seq;
+            ~SnapshotUnpinGuard() {
+                if (mgr && seq > 0) {
+                    mgr->release_candidate_snapshot(seq);
+                }
+            }
+        } unpin_guard{this, snapshot_seq};
+
         if (!candidate) {
             res.status = ReplacementStatus::RejectedGraphInvariantViolation;
             res.details = "Candidate index is null";
             return res;
         }
 
-        // 1. Graph Invariant Validation
+        // Gate 5: Graph Invariant Validation
         if (candidate->num_elements == 0 || candidate->get_active_count() == 0 ||
             candidate->enter_point >= candidate->num_elements ||
             candidate->is_deleted(candidate->enter_point) ||
@@ -3230,18 +3571,23 @@ public:
             }
         }
 
-        // 2. Resource Checks (Peak Memory Accounting)
+        // Gate 3: Resource Checks (Peak Memory Accounting including ServingIndexManager overhead)
+        std::shared_ptr<AdaptiveHNSWIndex> live_snap = nullptr;
         double current_mem_mb = 0.0;
+        double manager_mem_mb = 0.0;
         {
             std::shared_lock<std::shared_mutex> lock(index_mutex);
-            if (active_index) {
-                current_mem_mb = active_index->get_memory_breakdown().total_owned_bytes / (1024.0 * 1024.0);
+            live_snap = active_index;
+            if (live_snap) {
+                current_mem_mb = live_snap->get_memory_breakdown().total_owned_bytes / (1024.0 * 1024.0);
             }
+            manager_mem_mb = get_manager_overhead_bytes_unlocked() / (1024.0 * 1024.0);
         }
         double candidate_mem_mb = candidate->get_memory_breakdown().total_owned_bytes / (1024.0 * 1024.0);
-        double peak_mem_mb = current_mem_mb + candidate_mem_mb;
+        double peak_mem_mb = current_mem_mb + candidate_mem_mb + manager_mem_mb;
         res.peak_memory_mb = peak_mem_mb;
-        res.steady_state_memory_mb = candidate_mem_mb;
+        res.steady_state_memory_mb = candidate_mem_mb + manager_mem_mb;
+        res.manager_overhead_mb = manager_mem_mb;
 
         if (max_memory_mb > 0.0 && peak_mem_mb > max_memory_mb) {
             res.status = ReplacementStatus::RejectedPeakMemoryViolation;
@@ -3249,7 +3595,7 @@ public:
             return res;
         }
 
-        // 3. Held-Out SLA Validation
+        // Held-Out SLA Validation (Gates 1, 2, 4, 6)
         std::vector<float> val_per_q_recall(n_val_queries, 0.0f);
         std::vector<double> val_latencies(n_val_queries, 0.0);
         #pragma omp parallel for schedule(dynamic, 16)
@@ -3273,8 +3619,11 @@ public:
 
         double sum_r = 0.0;
         for (float r : val_per_q_recall) sum_r += r;
-        float mean_recall = sum_r / std::max((size_t)1, n_val_queries);
+        float mean_recall = static_cast<float>(sum_r / std::max((size_t)1, n_val_queries));
+        auto [ci_low, ci_high] = compute_bootstrap_ci(val_per_q_recall, 1000, 0.05f);
         res.candidate_val_recall = mean_recall;
+        res.candidate_val_ci_lower = ci_low;
+        res.candidate_val_ci_upper = ci_high;
 
         float p99_lat = 0.0f;
         if (!val_latencies.empty()) {
@@ -3285,16 +3634,64 @@ public:
         }
         res.candidate_p99_latency_ms = p99_lat;
 
-        // SLA validation check
+        // Gate 1: Mean Recall
         if (target_recall > 0.0f && mean_recall < target_recall) {
             res.status = ReplacementStatus::RejectedSlaViolation;
-            res.details = "Candidate validation recall " + std::to_string(mean_recall) + " < target " + std::to_string(target_recall);
+            res.details = "Gate 1 fail: Candidate validation recall " + std::to_string(mean_recall) + " < target " + std::to_string(target_recall);
             return res;
         }
+        // Gate 2: Conservative Bootstrap 95% CI Lower Bound
+        if (enforce_conservative_ci && target_recall > 0.0f && n_val_queries >= 2 && ci_low < target_recall) {
+            res.status = ReplacementStatus::RejectedSlaViolation;
+            res.details = "Gate 2 fail: Candidate 95% CI recall lower bound " + std::to_string(ci_low) + " < target " + std::to_string(target_recall);
+            return res;
+        }
+        // Gate 4: Tail Latency
         if (target_p99_latency_ms > 0.0f && p99_lat > target_p99_latency_ms) {
             res.status = ReplacementStatus::RejectedSlaViolation;
-            res.details = "Candidate p99 latency " + std::to_string(p99_lat) + " ms > target " + std::to_string(target_p99_latency_ms) + " ms";
+            res.details = "Gate 4 fail: Candidate p99 latency " + std::to_string(p99_lat) + " ms > target " + std::to_string(target_p99_latency_ms) + " ms";
             return res;
+        }
+        // Gate 6: Compaction / Replacement Recall Loss Budget vs Live Serving Baseline
+        if (target_recall > 0.0f && max_compaction_loss >= 0.0) {
+            double ref_recall = baseline_recall;
+            if (ref_recall < 0.0 && live_snap && n_val_queries > 0 && val_queries &&
+                (!compaction_id_map.empty() || live_snap->num_elements == candidate->num_elements)) {
+                std::vector<float> base_per_q_recall(n_val_queries, 0.0f);
+                #pragma omp parallel for schedule(dynamic, 16)
+                for (int q = 0; q < (int)n_val_queries; ++q) {
+                    const float* q_ptr = &val_queries[q * live_snap->dim];
+                    auto q_res = live_snap->search(q_ptr, k, ef_search);
+                    if (q < (int)val_gt.size() && !val_gt[q].empty()) {
+                        size_t hits = 0;
+                        size_t k_comp = std::min((size_t)k, val_gt[q].size());
+                        std::unordered_set<tableint> gt_set(val_gt[q].begin(), val_gt[q].begin() + k_comp);
+                        for (const auto& item : q_res) {
+                            tableint mapped_id = item.id;
+                            if (!compaction_id_map.empty()) {
+                                if (mapped_id >= compaction_id_map.size()) continue;
+                                mapped_id = compaction_id_map[mapped_id];
+                                if (mapped_id == (tableint)-1) continue;
+                            }
+                            if (gt_set.count(mapped_id)) hits++;
+                        }
+                        base_per_q_recall[q] = static_cast<float>(hits) / static_cast<float>(k_comp);
+                    }
+                }
+                double b_sum = 0.0;
+                for (float r : base_per_q_recall) b_sum += r;
+                ref_recall = b_sum / static_cast<double>(n_val_queries);
+            }
+            if (ref_recall >= 0.0) {
+                res.baseline_val_recall = ref_recall;
+                res.compaction_recall_loss = ref_recall - static_cast<double>(mean_recall);
+                if (res.compaction_recall_loss > max_compaction_loss) {
+                    res.status = ReplacementStatus::RejectedSlaViolation;
+                    res.details = "Gate 6 fail: Compaction/replacement recall loss " + std::to_string(res.compaction_recall_loss) +
+                                  " > max allowed " + std::to_string(max_compaction_loss);
+                    return res;
+                }
+            }
         }
 
         // 4. Controlled Index Replacement & Safe Replay of Concurrent Mutations
@@ -3339,19 +3736,70 @@ public:
                         }
                     }
                 }
-                label_to_id = candidate_label_to_id;
+                label_to_id = std::move(candidate_label_to_id);
                 id_to_label.clear();
                 for (const auto& kv : label_to_id) {
                     id_to_label[kv.second] = kv.first;
                 }
+            } else {
+                // Keep external label maps synchronized even on direct replacement calls without snapshot_seq
+                std::unordered_map<uint64_t, tableint> synced_label_to_id;
+                std::unordered_map<tableint, uint64_t> synced_id_to_label;
+                if (!compaction_id_map.empty() && !label_to_id.empty()) {
+                    for (const auto& kv : label_to_id) {
+                        if (kv.second < compaction_id_map.size()) {
+                            tableint new_id = compaction_id_map[kv.second];
+                            if (new_id != (tableint)-1 && !candidate->is_deleted(new_id)) {
+                                synced_label_to_id[kv.first] = new_id;
+                                synced_id_to_label[new_id] = kv.first;
+                            }
+                        }
+                    }
+                } else {
+                    for (const auto& kv : id_to_label) {
+                        if (kv.first < candidate->num_elements && !candidate->is_deleted(kv.first)) {
+                            synced_label_to_id[kv.second] = kv.first;
+                            synced_id_to_label[kv.first] = kv.second;
+                        }
+                    }
+                    uint64_t next_auto_label = 0;
+                    for (const auto& kv : synced_label_to_id) {
+                        if (kv.first >= next_auto_label) next_auto_label = kv.first + 1;
+                    }
+                    for (size_t i = 0; i < candidate->num_elements; ++i) {
+                        tableint tid = static_cast<tableint>(i);
+                        if (!candidate->is_deleted(tid) && synced_id_to_label.find(tid) == synced_id_to_label.end()) {
+                            while (synced_label_to_id.count(next_auto_label) > 0) next_auto_label++;
+                            synced_label_to_id[next_auto_label] = tid;
+                            synced_id_to_label[tid] = next_auto_label;
+                            next_auto_label++;
+                        }
+                    }
+                }
+                label_to_id = std::move(synced_label_to_id);
+                id_to_label = std::move(synced_id_to_label);
             }
 
             // C. Atomic pointer swap
             active_index = std::move(candidate);
 
-            // D. Trim mutation log
+            // D. Unpin snapshot_seq and trim only mutation records older than any remaining pinned snapshot
+            if (snapshot_seq > 0) {
+                auto snap_it = std::find(active_snapshot_seqs.begin(), active_snapshot_seqs.end(), snapshot_seq);
+                if (snap_it != active_snapshot_seqs.end()) {
+                    active_snapshot_seqs.erase(snap_it);
+                }
+            }
             if (mutation_log.size() > 50000) {
-                mutation_log.clear();
+                uint64_t prune_before = active_snapshot_seqs.empty()
+                    ? current_seq
+                    : *std::min_element(active_snapshot_seqs.begin(), active_snapshot_seqs.end());
+                mutation_log.erase(
+                    std::remove_if(mutation_log.begin(), mutation_log.end(), [prune_before](const MutationRecord& rec) {
+                        return rec.seq <= prune_before;
+                    }),
+                    mutation_log.end()
+                );
             }
 
             auto t_swap1 = std::chrono::high_resolution_clock::now();

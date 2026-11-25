@@ -90,7 +90,8 @@ struct CalibrationConstraints {
     OptimizationGoal optimization_goal = OptimizationGoal::MaxThroughput;
     bool sample_construction_if_large = true;
     size_t sample_size_cap = 20000;
-    bool require_conservative_recall = false; // If true, requires CI_lower >= target_recall for Feasible status
+    bool require_conservative_recall = true;  // Require CI_lower >= target_recall for VerifiedFeasible
+    bool enable_adaptive_geometry = true;    // Enable AdaptiveVec geometry-aware degree and hubness rules
 };
 
 struct CalibrationTrial {
@@ -467,19 +468,33 @@ public:
                 
                 PolicyConfig cfg;
                 cfg.m_base = bc.m;
+                cfg.m_min = std::max(4, bc.m - std::max(2, bc.m / 3));
+                cfg.m_max = bc.m + std::max(2, bc.m / 3);
                 cfg.ef_c_base = bc.ef_c;
-                cfg.enable_hubness_regulation = false;
-                cfg.enable_bridge_aware = false;
+                cfg.enable_hubness_regulation = constraints.enable_adaptive_geometry;
+                cfg.enable_bridge_aware = constraints.enable_adaptive_geometry;
                 
                 auto build_start = std::chrono::high_resolution_clock::now();
-                auto index = std::make_unique<AdaptiveHNSWIndex>(dim, space, false, cfg);
+                auto index = std::make_unique<AdaptiveHNSWIndex>(dim, space, constraints.enable_adaptive_geometry, cfg);
                 
                 index->batch_insert(base_vectors, n_vectors, constraints.threads);
+
+                size_t q_sample_n = (constraints.sample_construction_if_large && constraints.sample_size_cap > 0)
+                    ? std::min(n_vectors, constraints.sample_size_cap)
+                    : n_vectors;
                 
                 if (prec_str == "SQ8") {
+                    index->policy.enable_sq8 = true;
+                    if (q_sample_n > 0) {
+                        index->quantizer.train(base_vectors, q_sample_n);
+                    }
                     index->policy.keep_raw_vectors = false;
                     index->allocate_mixed_precision(AllocationStrategy::UniformSQ8, 0.25);
                 } else if (prec_str == "SQ4") {
+                    index->policy.enable_sq4 = true;
+                    if (q_sample_n > 0) {
+                        index->quantizer_sq4.train(base_vectors, q_sample_n);
+                    }
                     index->policy.keep_raw_vectors = false;
                     index->allocate_mixed_precision(AllocationStrategy::UniformSQ4, 0.125);
                 }
@@ -489,6 +504,24 @@ public:
                 
                 MemoryBreakdown mb = index->get_memory_breakdown();
                 double measured_memory_mb = mb.total_owned_bytes / (1024.0 * 1024.0);
+
+                if (constraints.max_construction_time_s > 0.0 && build_time_s > constraints.max_construction_time_s) {
+                    CalibrationTrial reject_trial;
+                    reject_trial.trial_id = trial_counter++;
+                    reject_trial.stage = "Construction";
+                    reject_trial.m = bc.m;
+                    reject_trial.ef_construction = bc.ef_c;
+                    reject_trial.precision = prec_str;
+                    reject_trial.enable_adaptive = constraints.enable_adaptive_geometry;
+                    reject_trial.memory_mb = measured_memory_mb;
+                    reject_trial.trial_duration_s = build_time_s;
+                    reject_trial.is_feasible = false;
+                    reject_trial.status = FeasibilityStatus::InfeasibleWithinSearchSpace;
+                    reject_trial.violations = compute_normalized_violations(0.0f, measured_memory_mb, 0.0f, constraints);
+                    reject_trial.rejection_reason = "Construction time " + std::to_string(build_time_s) + " s exceeded max_construction_time_s " + std::to_string(constraints.max_construction_time_s) + " s";
+                    report.evaluated_trials.push_back(reject_trial);
+                    continue;
+                }
                 
                 // ---------------------------------------------------------
                 // Stage 4 Phase C: Search Configuration Sweep on Fixed Graph
@@ -578,7 +611,7 @@ public:
                         trial.ef_construction = bc.ef_c;
                         trial.ef_search = ef_s;
                         trial.precision = prec_str;
-                        trial.enable_adaptive = false;
+                        trial.enable_adaptive = constraints.enable_adaptive_geometry;
                         trial.enable_ada_ef = ada_val;
                         trial.memory_mb = measured_memory_mb;
                         trial.recall_mean = mean_recall;
@@ -681,25 +714,43 @@ public:
             double val_r_sum = 0.0;
             for (float r : val_per_query_recall) val_r_sum += r;
             float val_mean_recall = static_cast<float>(val_r_sum / std::max((size_t)1, n_val_q));
+            auto [val_ci_low, val_ci_high] = bootstrap_confidence_interval(val_per_query_recall, 1000, 0.05f);
             
             std::sort(val_latencies.begin(), val_latencies.end());
             size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
             if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
             float val_p99_lat = static_cast<float>(val_latencies[p99_idx]);
+
+            bool val_mean_ok = (val_mean_recall >= constraints.target_recall && val_p99_lat <= constraints.target_p99_latency_ms);
+            bool val_ci_ok = (!constraints.require_conservative_recall || n_val_q < 2 || val_ci_low >= constraints.target_recall);
             
-            if (val_mean_recall >= constraints.target_recall && val_p99_lat <= constraints.target_p99_latency_ms) {
+            if (val_mean_ok && val_ci_ok) {
                 report.is_feasible = true;
                 report.status = FeasibilityStatus::VerifiedFeasible;
                 best_feasible_trial.status = FeasibilityStatus::VerifiedFeasible;
+                best_feasible_trial.is_feasible = true;
+                best_feasible_trial.conservative_feasible = (n_val_q < 2 || val_ci_low >= constraints.target_recall);
                 report.selected_config = best_feasible_trial;
+                out_calibrated_index = std::move(best_feasible_index);
+            } else if (val_mean_ok && !val_ci_ok) {
+                report.is_feasible = false;
+                report.status = FeasibilityStatus::ProvisionallyFeasible;
+                best_feasible_trial.status = FeasibilityStatus::ProvisionallyFeasible;
+                best_feasible_trial.is_feasible = false;
+                best_feasible_trial.conservative_feasible = false;
+                report.selected_config = best_feasible_trial;
+                report.violated_constraints.push_back("Held-out validation mean recall met (" + std::to_string(val_mean_recall) +
+                    "), but 95% CI lower bound (" + std::to_string(val_ci_low) + ") dips below target=" + std::to_string(constraints.target_recall));
                 out_calibrated_index = std::move(best_feasible_index);
             } else {
                 report.is_feasible = false;
                 report.status = FeasibilityStatus::ValidationFailed;
                 best_feasible_trial.status = FeasibilityStatus::ValidationFailed;
+                best_feasible_trial.is_feasible = false;
                 report.selected_config = best_feasible_trial;
                 report.violated_constraints.push_back("Held-out validation failed: Validation Recall=" + 
-                    std::to_string(val_mean_recall) + " vs target=" + std::to_string(constraints.target_recall) +
+                    std::to_string(val_mean_recall) + " (CI [" + std::to_string(val_ci_low) + ", " + std::to_string(val_ci_high) +
+                    "]) vs target=" + std::to_string(constraints.target_recall) +
                     ", Validation p99=" + std::to_string(val_p99_lat) + " ms vs target=" + std::to_string(constraints.target_p99_latency_ms) + " ms");
                 out_calibrated_index = std::move(best_feasible_index);
             }
@@ -1001,24 +1052,41 @@ public:
             double val_r_sum = 0.0;
             for (float r : val_per_query_recall) val_r_sum += r;
             float val_mean_recall = static_cast<float>(val_r_sum / std::max((size_t)1, n_val_q));
+            auto [val_ci_low, val_ci_high] = bootstrap_confidence_interval(val_per_query_recall, 1000, 0.05f);
 
             std::sort(val_latencies.begin(), val_latencies.end());
             size_t p99_idx = static_cast<size_t>(std::floor(0.99 * val_latencies.size()));
             if (p99_idx >= val_latencies.size()) p99_idx = val_latencies.size() - 1;
             float val_p99_lat = static_cast<float>(val_latencies[p99_idx]);
 
-            if (val_mean_recall >= constraints.target_recall && val_p99_lat <= constraints.target_p99_latency_ms) {
+            bool val_mean_ok = (val_mean_recall >= constraints.target_recall && val_p99_lat <= constraints.target_p99_latency_ms);
+            bool val_ci_ok = (!constraints.require_conservative_recall || n_val_q < 2 || val_ci_low >= constraints.target_recall);
+
+            if (val_mean_ok && val_ci_ok) {
                 report.is_feasible = true;
                 report.status = FeasibilityStatus::VerifiedFeasible;
                 best_feasible_trial.status = FeasibilityStatus::VerifiedFeasible;
+                best_feasible_trial.is_feasible = true;
+                best_feasible_trial.conservative_feasible = (n_val_q < 2 || val_ci_low >= constraints.target_recall);
                 report.selected_config = best_feasible_trial;
+            } else if (val_mean_ok && !val_ci_ok) {
+                report.is_feasible = false;
+                report.status = FeasibilityStatus::ProvisionallyFeasible;
+                best_feasible_trial.status = FeasibilityStatus::ProvisionallyFeasible;
+                best_feasible_trial.is_feasible = false;
+                best_feasible_trial.conservative_feasible = false;
+                report.selected_config = best_feasible_trial;
+                report.violated_constraints.push_back("Held-out validation mean recall met (" + std::to_string(val_mean_recall) +
+                    "), but 95% CI lower bound (" + std::to_string(val_ci_low) + ") dips below target=" + std::to_string(constraints.target_recall));
             } else {
                 report.is_feasible = false;
                 report.status = FeasibilityStatus::ValidationFailed;
                 best_feasible_trial.status = FeasibilityStatus::ValidationFailed;
+                best_feasible_trial.is_feasible = false;
                 report.selected_config = best_feasible_trial;
                 report.violated_constraints.push_back("Held-out validation failed: Validation Recall=" + 
-                    std::to_string(val_mean_recall) + " vs target=" + std::to_string(constraints.target_recall) +
+                    std::to_string(val_mean_recall) + " (CI [" + std::to_string(val_ci_low) + ", " + std::to_string(val_ci_high) +
+                    "]) vs target=" + std::to_string(constraints.target_recall) +
                     ", Validation p99=" + std::to_string(val_p99_lat) + " ms vs target=" + std::to_string(constraints.target_p99_latency_ms) + " ms");
             }
         } else if (has_provisional) {

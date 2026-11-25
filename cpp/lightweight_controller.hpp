@@ -178,7 +178,6 @@ public:
 
         int current_target_ef = ef_init;
         int stagnation_counter = 0;
-        dist_t prev_furthest = l0_entry_dist;
         float total_improvement = 0.0f;
         int improvement_steps = 0;
 
@@ -609,7 +608,7 @@ public:
      * Called periodically (e.g. after each batch or every query).
      * Bounded to < 5% CPU via incremental reference sampling.
      */
-    void step_workload(const AdaptiveHNSWIndex& index, size_t query_idx, double last_latency_ms) {
+    void step_workload(const AdaptiveHNSWIndex& index, size_t query_idx, double /* last_latency_ms */) {
         monitor_.record_prod_query();
 
         // Check if an incremental reference sample should be evaluated

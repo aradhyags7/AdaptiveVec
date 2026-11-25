@@ -8,6 +8,7 @@
 #include <iostream>
 #include <cassert>
 #include <iomanip>
+#include <stdexcept>
 
 namespace adaptivevec {
 
@@ -87,8 +88,23 @@ public:
         int m_max
     ) {
         size_t n = continuous_m.size();
+        if (n == 0) {
+            if (total_budget != 0) {
+                throw std::invalid_argument("BudgetAllocator: non-zero budget for empty signal set");
+            }
+            return {};
+        }
+        if (m_min > m_max) {
+            throw std::invalid_argument("BudgetAllocator: m_min cannot exceed m_max");
+        }
+        long long min_possible = static_cast<long long>(n) * m_min;
+        long long max_possible = static_cast<long long>(n) * m_max;
+        if (static_cast<long long>(total_budget) < min_possible || static_cast<long long>(total_budget) > max_possible) {
+            throw std::invalid_argument("BudgetAllocator: total_budget is outside feasible [n*m_min, n*m_max] bounds");
+        }
+
         std::vector<int> m(n);
-        int current_sum = 0;
+        long long current_sum = 0;
 
         for (size_t i = 0; i < n; ++i) {
             int floor_val = (int)std::floor(continuous_m[i]);
@@ -97,10 +113,9 @@ public:
             current_sum += floor_val;
         }
 
-        int deficit = total_budget - current_sum;
+        long long deficit = static_cast<long long>(total_budget) - current_sum;
 
         if (deficit > 0) {
-            // Sort by descending fractional remainder
             std::vector<std::pair<double, size_t>> remainders;
             remainders.reserve(n);
             for (size_t i = 0; i < n; ++i) {
@@ -114,12 +129,21 @@ public:
                 return a.second < b.second; // Deterministic tie-breaking on index
             });
 
-            for (size_t k = 0; k < (size_t)deficit && k < remainders.size(); ++k) {
-                m[remainders[k].second]++;
+            while (deficit > 0) {
+                bool made_progress = false;
+                for (const auto& entry : remainders) {
+                    if (deficit == 0) break;
+                    size_t idx = entry.second;
+                    if (m[idx] < m_max) {
+                        m[idx]++;
+                        deficit--;
+                        made_progress = true;
+                    }
+                }
+                if (!made_progress) break;
             }
         } else if (deficit < 0) {
-            int surplus = -deficit;
-            // Sort by ascending fractional remainder
+            long long surplus = -deficit;
             std::vector<std::pair<double, size_t>> remainders;
             remainders.reserve(n);
             for (size_t i = 0; i < n; ++i) {
@@ -133,18 +157,32 @@ public:
                 return a.second < b.second;
             });
 
-            for (size_t k = 0; k < (size_t)surplus && k < remainders.size(); ++k) {
-                m[remainders[k].second]--;
+            while (surplus > 0) {
+                bool made_progress = false;
+                for (const auto& entry : remainders) {
+                    if (surplus == 0) break;
+                    size_t idx = entry.second;
+                    if (m[idx] > m_min) {
+                        m[idx]--;
+                        surplus--;
+                        made_progress = true;
+                    }
+                }
+                if (!made_progress) break;
             }
         }
 
-        // Verify budget invariant
+        // Verify degree bounds and budget conservation in all build modes
         long long check_sum = 0;
         for (size_t i = 0; i < n; ++i) {
-            assert(m[i] >= m_min && m[i] <= m_max);
+            if (m[i] < m_min || m[i] > m_max) {
+                throw std::runtime_error("BudgetAllocator: degree bound invariant violated");
+            }
             check_sum += m[i];
         }
-        assert(check_sum == total_budget);
+        if (check_sum != static_cast<long long>(total_budget)) {
+            throw std::runtime_error("BudgetAllocator: exact budget conservation invariant violated");
+        }
 
         return m;
     }
