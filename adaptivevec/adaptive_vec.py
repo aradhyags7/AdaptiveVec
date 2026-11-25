@@ -7,10 +7,15 @@ import numpy as np
 from typing import Optional, Union, List, Tuple
 
 try:
-    import _adaptivevec_cpp as _cpp
+    from . import _adaptivevec_cpp as _cpp
     HAS_CPP = True
 except ImportError:
-    HAS_CPP = False
+    try:
+        import _adaptivevec_cpp as _cpp
+        HAS_CPP = True
+    except ImportError:
+        _cpp = None
+        HAS_CPP = False
 
 class AdaptiveVec:
     """

@@ -8,6 +8,7 @@
 #include <pybind11/numpy.h>
 #include "adaptive_hnsw.hpp"
 #include "auto_calibrator.hpp"
+#include "budget_allocator.hpp"
 
 namespace py = pybind11;
 using namespace adaptivevec;
@@ -115,8 +116,8 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
             return "<Candidate id=" + std::to_string(c.id) + " dist=" + std::to_string(c.dist) + ">";
         });
 
-    // AdaptiveHNSWIndex class
-    py::class_<AdaptiveHNSWIndex>(m, "AdaptiveHNSWIndex")
+    // AdaptiveHNSWIndex class (shared_ptr holder supports ServingIndexManager sharing)
+    py::class_<AdaptiveHNSWIndex, std::shared_ptr<AdaptiveHNSWIndex>>(m, "AdaptiveHNSWIndex")
         .def(py::init<size_t, SpaceType, bool, PolicyConfig>(),
              py::arg("dimension"),
              py::arg("space") = SpaceType::L2,
@@ -191,7 +192,163 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def_readonly("dim", &AdaptiveHNSWIndex::dim)
         .def_readwrite("policy", &AdaptiveHNSWIndex::policy);
 
+    // Geometry Budget Allocator (Milestone I)
+    py::class_<GeometrySignal>(m, "GeometrySignal")
+        .def(py::init<>())
+        .def_readwrite("lid", &GeometrySignal::lid)
+        .def_readwrite("density", &GeometrySignal::density)
+        .def_readwrite("sparsity", &GeometrySignal::sparsity)
+        .def_readonly("standardized_lid", &GeometrySignal::standardized_lid)
+        .def_readonly("standardized_sparsity", &GeometrySignal::standardized_sparsity)
+        .def_readonly("combined_score", &GeometrySignal::combined_score);
+
+    py::class_<BudgetAllocator>(m, "BudgetAllocator")
+        .def_static("standardize_signals", &BudgetAllocator::standardize_signals,
+                    py::arg("signals"), py::arg("alpha_lid") = 0.5f, py::arg("beta_spars") = 0.5f)
+        .def_static("allocate_uniform", &BudgetAllocator::allocate_uniform,
+                    py::arg("n"), py::arg("m_base") = 16)
+        .def_static("allocate_original_adaptive", &BudgetAllocator::allocate_original_adaptive,
+                    py::arg("signals"), py::arg("m_base") = 16, py::arg("m_min") = 8, py::arg("m_max") = 24, py::arg("beta") = 1.0f)
+        .def_static("largest_remainder_discretization", &BudgetAllocator::largest_remainder_discretization,
+                    py::arg("continuous_m"), py::arg("total_budget"), py::arg("m_min"), py::arg("m_max"))
+        .def_static("allocate_normalized_linear", &BudgetAllocator::allocate_normalized_linear,
+                    py::arg("signals"), py::arg("m_base") = 16, py::arg("m_min") = 8, py::arg("m_max") = 24, py::arg("beta") = 1.0f)
+        .def_static("allocate_normalized_exponential", &BudgetAllocator::allocate_normalized_exponential,
+                    py::arg("signals"), py::arg("m_base") = 16, py::arg("m_min") = 8, py::arg("m_max") = 24, py::arg("beta") = 0.5f)
+        .def_static("apply_normalized_exponential", &BudgetAllocator::apply_normalized_exponential,
+                    py::arg("index"), py::arg("signals"), py::arg("m_base") = 16, py::arg("m_min") = 8, py::arg("m_max") = 24, py::arg("beta") = 0.5f)
+        .def_static("allocate_quantile", &BudgetAllocator::allocate_quantile,
+                    py::arg("signals"), py::arg("m_base") = 16)
+        .def_static("allocate_randomized", &BudgetAllocator::allocate_randomized,
+                    py::arg("base_allocation"), py::arg("seed") = 42)
+        .def_static("allocate_reversed", &BudgetAllocator::allocate_reversed,
+                    py::arg("base_allocation"), py::arg("signals"));
+
+    // Controlled Replacement & ServingIndexManager (Milestone III)
+    py::enum_<ReplacementStatus>(m, "ReplacementStatus")
+        .value("Success", ReplacementStatus::Success)
+        .value("RejectedSlaViolation", ReplacementStatus::RejectedSlaViolation)
+        .value("RejectedPeakMemoryViolation", ReplacementStatus::RejectedPeakMemoryViolation)
+        .value("RejectedGraphInvariantViolation", ReplacementStatus::RejectedGraphInvariantViolation)
+        .export_values();
+
+    py::class_<CandidateSnapshot>(m, "CandidateSnapshot")
+        .def_readonly("index_copy", &CandidateSnapshot::index_copy)
+        .def_readonly("label_to_id", &CandidateSnapshot::label_to_id)
+        .def_readonly("snapshot_seq", &CandidateSnapshot::snapshot_seq);
+
+    py::class_<ReplacementResult>(m, "ReplacementResult")
+        .def(py::init<>())
+        .def_readonly("status", &ReplacementResult::status)
+        .def_readonly("details", &ReplacementResult::details)
+        .def_readonly("peak_memory_mb", &ReplacementResult::peak_memory_mb)
+        .def_readonly("steady_state_memory_mb", &ReplacementResult::steady_state_memory_mb)
+        .def_readonly("manager_overhead_mb", &ReplacementResult::manager_overhead_mb)
+        .def_readonly("candidate_val_recall", &ReplacementResult::candidate_val_recall)
+        .def_readonly("candidate_val_ci_lower", &ReplacementResult::candidate_val_ci_lower)
+        .def_readonly("candidate_val_ci_upper", &ReplacementResult::candidate_val_ci_upper)
+        .def_readonly("candidate_p99_latency_ms", &ReplacementResult::candidate_p99_latency_ms)
+        .def_readonly("baseline_val_recall", &ReplacementResult::baseline_val_recall)
+        .def_readonly("compaction_recall_loss", &ReplacementResult::compaction_recall_loss)
+        .def_readonly("exclusive_lock_pause_us", &ReplacementResult::exclusive_lock_pause_us)
+        .def_readonly("replayed_mutations_count", &ReplacementResult::replayed_mutations_count);
+
+    py::class_<ServingIndexManager>(m, "ServingIndexManager")
+        .def(py::init<std::shared_ptr<AdaptiveHNSWIndex>>(), py::arg("initial_index"))
+        .def(py::init<std::shared_ptr<AdaptiveHNSWIndex>, const std::vector<uint64_t>&>(),
+             py::arg("initial_index"), py::arg("labels"))
+        .def("get_serving_index", &ServingIndexManager::get_serving_index)
+        .def("insert", [](ServingIndexManager& self, uint64_t label, py::array_t<float, py::array::c_style | py::array::forcecast> vec) {
+            py::buffer_info info = vec.request();
+            if (info.ndim != 1) throw std::runtime_error("Vector must be a 1D float32 array");
+            auto idx = self.get_serving_index();
+            if (idx && static_cast<size_t>(info.shape[0]) != idx->dim) {
+                throw std::runtime_error("Vector dimension mismatch");
+            }
+            return self.insert(label, static_cast<const float*>(info.ptr));
+        }, py::arg("label"), py::arg("vec"))
+        .def("mark_deleted", &ServingIndexManager::mark_deleted, py::arg("label"))
+        .def("has_label", &ServingIndexManager::has_label, py::arg("label"))
+        .def("get_vector", [](const ServingIndexManager& self, uint64_t label) -> py::object {
+            auto idx = self.get_serving_index();
+            if (!idx) return py::none();
+            std::vector<float> buf(idx->dim);
+            if (!self.get_vector(label, buf.data())) return py::none();
+            return py::array_t<float>(buf.size(), buf.data());
+        }, py::arg("label"))
+        .def("get_manager_overhead_bytes", &ServingIndexManager::get_manager_overhead_bytes)
+        .def("get_active_label_count", &ServingIndexManager::get_active_label_count)
+        .def("get_active_labels", &ServingIndexManager::get_active_labels)
+        .def("create_candidate_snapshot", &ServingIndexManager::create_candidate_snapshot)
+        .def("release_candidate_snapshot", &ServingIndexManager::release_candidate_snapshot, py::arg("snapshot_seq"))
+        .def("evaluate_and_replace", [](
+            ServingIndexManager& self,
+            std::shared_ptr<AdaptiveHNSWIndex> candidate,
+            py::array_t<float, py::array::c_style | py::array::forcecast> val_queries,
+            py::array_t<int, py::array::c_style | py::array::forcecast> val_gt,
+            float target_recall,
+            double max_memory_mb,
+            float target_p99_latency_ms,
+            int k,
+            int ef_search,
+            uint64_t snapshot_seq,
+            std::unordered_map<uint64_t, tableint> candidate_label_to_id,
+            std::vector<tableint> compaction_id_map,
+            bool enforce_conservative_ci,
+            double max_compaction_loss,
+            double baseline_recall
+        ) {
+            py::buffer_info q_info = val_queries.request();
+            py::buffer_info gt_info = val_gt.request();
+            if (q_info.ndim != 2 || gt_info.ndim != 2) {
+                throw std::runtime_error("val_queries and val_gt must be 2D arrays");
+            }
+            size_t n_q = q_info.shape[0];
+            size_t gt_k = gt_info.shape[1];
+            std::vector<std::vector<tableint>> gt(n_q, std::vector<tableint>(gt_k));
+            const int* gt_ptr = static_cast<const int*>(gt_info.ptr);
+            for (size_t i = 0; i < n_q; ++i) {
+                for (size_t j = 0; j < gt_k; ++j) {
+                    gt[i][j] = static_cast<tableint>(gt_ptr[i * gt_k + j]);
+                }
+            }
+            return self.evaluate_and_replace(
+                std::move(candidate),
+                static_cast<const float*>(q_info.ptr),
+                n_q,
+                gt,
+                target_recall,
+                max_memory_mb,
+                target_p99_latency_ms,
+                k,
+                ef_search,
+                snapshot_seq,
+                std::move(candidate_label_to_id),
+                compaction_id_map,
+                enforce_conservative_ci,
+                max_compaction_loss,
+                baseline_recall
+            );
+        }, py::arg("candidate"), py::arg("val_queries"), py::arg("val_gt"),
+           py::arg("target_recall") = 0.0f, py::arg("max_memory_mb") = 0.0,
+           py::arg("target_p99_latency_ms") = 0.0f, py::arg("k") = 10, py::arg("ef_search") = 64,
+           py::arg("snapshot_seq") = 0,
+           py::arg("candidate_label_to_id") = std::unordered_map<uint64_t, tableint>{},
+           py::arg("compaction_id_map") = std::vector<tableint>{},
+           py::arg("enforce_conservative_ci") = true,
+           py::arg("max_compaction_loss") = 0.0020,
+           py::arg("baseline_recall") = -1.0);
+
     // Auto-Calibration Enums & Structures
+    py::enum_<FeasibilityStatus>(m, "FeasibilityStatus")
+        .value("VerifiedFeasible", FeasibilityStatus::VerifiedFeasible)
+        .value("ProvisionallyFeasible", FeasibilityStatus::ProvisionallyFeasible)
+        .value("ValidationFailed", FeasibilityStatus::ValidationFailed)
+        .value("InfeasibleWithinSearchSpace", FeasibilityStatus::InfeasibleWithinSearchSpace)
+        .value("InvalidRequirements", FeasibilityStatus::InvalidRequirements)
+        .value("EvaluationError", FeasibilityStatus::EvaluationError)
+        .export_values();
+
     py::enum_<OptimizationGoal>(m, "OptimizationGoal")
         .value("MaxThroughput", OptimizationGoal::MaxThroughput)
         .value("MinMemory", OptimizationGoal::MinMemory)
@@ -208,7 +365,11 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def_readwrite("max_construction_time_s", &CalibrationConstraints::max_construction_time_s)
         .def_readwrite("threads", &CalibrationConstraints::threads)
         .def_readwrite("k", &CalibrationConstraints::k)
-        .def_readwrite("optimization_goal", &CalibrationConstraints::optimization_goal);
+        .def_readwrite("optimization_goal", &CalibrationConstraints::optimization_goal)
+        .def_readwrite("sample_construction_if_large", &CalibrationConstraints::sample_construction_if_large)
+        .def_readwrite("sample_size_cap", &CalibrationConstraints::sample_size_cap)
+        .def_readwrite("require_conservative_recall", &CalibrationConstraints::require_conservative_recall)
+        .def_readwrite("enable_adaptive_geometry", &CalibrationConstraints::enable_adaptive_geometry);
 
     py::class_<CalibrationTrial>(m, "CalibrationTrial")
         .def(py::init<>())
@@ -228,17 +389,22 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         .def_readonly("p99_latency_ms", &CalibrationTrial::p99_latency_ms)
         .def_readonly("trial_duration_s", &CalibrationTrial::trial_duration_s)
         .def_readonly("is_feasible", &CalibrationTrial::is_feasible)
+        .def_readonly("conservative_feasible", &CalibrationTrial::conservative_feasible)
+        .def_readonly("status", &CalibrationTrial::status)
         .def_readonly("rejection_reason", &CalibrationTrial::rejection_reason)
         .def("to_json", &CalibrationTrial::to_json);
 
     py::class_<CalibrationReport>(m, "CalibrationReport")
         .def(py::init<>())
         .def_readonly("is_feasible", &CalibrationReport::is_feasible)
+        .def_readonly("status", &CalibrationReport::status)
         .def_readonly("violated_constraints", &CalibrationReport::violated_constraints)
         .def_readonly("selected_config", &CalibrationReport::selected_config)
         .def_readonly("evaluated_trials", &CalibrationReport::evaluated_trials)
         .def_readonly("pareto_frontier", &CalibrationReport::pareto_frontier)
+        .def_readonly("fallback_pareto_set", &CalibrationReport::fallback_pareto_set)
         .def_readonly("total_calibration_time_s", &CalibrationReport::total_calibration_time_s)
+        .def_readonly("optimizer_overhead_ms", &CalibrationReport::optimizer_overhead_ms)
         .def_readonly("num_calibration_queries", &CalibrationReport::num_calibration_queries)
         .def_readonly("num_validation_queries", &CalibrationReport::num_validation_queries)
         .def_readonly("dataset_name", &CalibrationReport::dataset_name)
@@ -276,14 +442,50 @@ PYBIND11_MODULE(_adaptivevec_cpp, m) {
         }
         
         std::unique_ptr<AdaptiveHNSWIndex> index = nullptr;
-        CalibrationReport report = AutoCalibrator::calibrate(
-            static_cast<const float*>(b_info.ptr), n_vectors, dim, space,
-            static_cast<const float*>(q_info.ptr), n_queries, gt,
-            constraints, index, dataset_name
-        );
-        
-        return std::make_pair(report, std::move(index));
+        const float* b_ptr = static_cast<const float*>(b_info.ptr);
+        const float* q_ptr = static_cast<const float*>(q_info.ptr);
+        CalibrationReport report;
+        {
+            py::gil_scoped_release release;
+            report = AutoCalibrator::calibrate(
+                b_ptr, n_vectors, dim, space,
+                q_ptr, n_queries, gt,
+                constraints, index, dataset_name
+            );
+        }
+        std::shared_ptr<AdaptiveHNSWIndex> shared_index(std::move(index));
+        return std::make_pair(std::move(report), std::move(shared_index));
     }, py::arg("base_vectors"), py::arg("space"), py::arg("query_vectors"), py::arg("ground_truth"),
        py::arg("constraints"), py::arg("dataset_name") = "Unknown",
        "Run hierarchical auto-calibration and return (CalibrationReport, AdaptiveHNSWIndex)");
+
+    m.def("calibrate_search", [](
+        AdaptiveHNSWIndex& existing_index,
+        py::array_t<float, py::array::c_style | py::array::forcecast> query_vectors,
+        py::array_t<int, py::array::c_style | py::array::forcecast> ground_truth,
+        const CalibrationConstraints& constraints,
+        const std::string& dataset_name
+    ) {
+        py::buffer_info q_info = query_vectors.request();
+        py::buffer_info gt_info = ground_truth.request();
+        if (q_info.ndim != 2) throw std::runtime_error("query_vectors must be 2D array");
+        if (gt_info.ndim != 2) throw std::runtime_error("ground_truth must be 2D array");
+
+        size_t n_queries = q_info.shape[0];
+        size_t gt_k = gt_info.shape[1];
+        std::vector<std::vector<tableint>> gt(n_queries, std::vector<tableint>(gt_k));
+        const int* gt_ptr = static_cast<const int*>(gt_info.ptr);
+        for (size_t i = 0; i < n_queries; ++i) {
+            for (size_t j = 0; j < gt_k; ++j) {
+                gt[i][j] = static_cast<tableint>(gt_ptr[i * gt_k + j]);
+            }
+        }
+        const float* q_ptr = static_cast<const float*>(q_info.ptr);
+        py::gil_scoped_release release;
+        return AutoCalibrator::calibrate_search(
+            existing_index, q_ptr, n_queries, gt, constraints, dataset_name
+        );
+    }, py::arg("existing_index"), py::arg("query_vectors"), py::arg("ground_truth"),
+       py::arg("constraints"), py::arg("dataset_name") = "PrebuiltGraph",
+       "Recalibrate search parameters on an existing AdaptiveHNSWIndex");
 }

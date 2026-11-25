@@ -13,7 +13,10 @@ import heapq
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Set, Dict, Tuple, Optional, Any, Union
+from .signals import estimate_node_signals, compute_mle_lid, compute_local_density, profile_dataset_signals
 from .policy import AdaptivePolicy, AdaptivePolicyConfig, NodeParameters
+from .quantization import ScalarQuantizer, ScalarQuantizer4Bit
+
 @dataclass
 class AdaptiveHNSWConfig:
     """Configuration container for AdaptiveHNSW index."""
@@ -28,9 +31,6 @@ class AdaptiveHNSWConfig:
     hubness_regulation: bool = True
     hubness_penalty_weight: float = 0.15
     quantize: bool = False
-from .signals import estimate_node_signals, compute_mle_lid, compute_local_density, profile_dataset_signals
-from .policy import AdaptivePolicy, AdaptivePolicyConfig, NodeParameters
-from .quantization import ScalarQuantizer, ScalarQuantizer4Bit
 
 def l2_distance(a: np.ndarray, b: np.ndarray) -> float:
     diff = a - b
@@ -707,8 +707,17 @@ class AdaptiveHNSW:
                 layer_0_degrees = [len(n) for n in graph.values()]
                 
         edge_memory_bytes = total_edges * 4
-        vector_bytes_per_dim = 1 if self.quantize else 4
-        vector_memory_bytes = total_nodes * self.dim * vector_bytes_per_dim
+        raw_vector_memory_bytes = total_nodes * self.dim * 4
+        if self.quantize:
+            is_sq4 = isinstance(self.quantize, str) and self.quantize.lower() == "sq4"
+            bytes_per_vec = ((self.dim + 1) // 2) if is_sq4 else self.dim
+            vector_memory_bytes = total_nodes * bytes_per_vec
+            quantized_vector_memory_bytes = len(self.quantized_data) * bytes_per_vec
+            resident_vector_memory_bytes = raw_vector_memory_bytes + quantized_vector_memory_bytes
+        else:
+            vector_memory_bytes = raw_vector_memory_bytes
+            quantized_vector_memory_bytes = 0
+            resident_vector_memory_bytes = raw_vector_memory_bytes
         
         # Signals summary
         lids = [s["lid"] for s in self.node_signals.values()] if self.node_signals else [0]
@@ -728,7 +737,11 @@ class AdaptiveHNSW:
             "edges_per_layer": edges_per_layer,
             "edge_memory_bytes": edge_memory_bytes,
             "vector_memory_bytes": vector_memory_bytes,
+            "raw_vector_memory_bytes": raw_vector_memory_bytes,
+            "quantized_vector_memory_bytes": quantized_vector_memory_bytes,
+            "resident_memory_bytes": edge_memory_bytes + resident_vector_memory_bytes,
             "total_memory_mb": (edge_memory_bytes + vector_memory_bytes) / (1024 * 1024),
+            "resident_total_memory_mb": (edge_memory_bytes + resident_vector_memory_bytes) / (1024 * 1024),
             "quantized": self.quantize,
             "l0_degree_min": int(np.min(layer_0_degrees)) if layer_0_degrees else 0,
             "l0_degree_max": int(np.max(layer_0_degrees)) if layer_0_degrees else 0,

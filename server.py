@@ -6,6 +6,7 @@ FastAPI Server for AdaptiveVec Interactive Studio & Benchmark Suite.
 
 import time
 import os
+from contextlib import asynccontextmanager
 import numpy as np
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
@@ -22,7 +23,33 @@ from adaptivevec.datasets import load_or_generate_dataset, compute_ground_truth
 from adaptivevec.benchmark import BenchmarkHarness
 from adaptivevec.semantic_search import SemanticSearchEngine, SAMPLE_DOCUMENTS
 
-app = FastAPI(title="AdaptiveVec API", version="1.0.0", description="Density- and Dimension-Aware HNSW Vector Index")
+def init_default_state():
+    """Initializes default dataset and semantic search engine."""
+    data, queries, meta = load_or_generate_dataset("multi_manifold", n_samples=1500, dim=32, n_queries=30)
+    state.data = data
+    state.queries = queries
+    state.dataset_meta = meta
+    state.projection_2d = compute_pca_2d(data)
+    
+    # Build default indices
+    state.stock_index = StockHNSW(dim=32, m=16, ef_construction=100)
+    for v in data:
+        state.stock_index.insert(v)
+        
+    cfg = AdaptivePolicyConfig(policy_type="continuous", m_base=16, m_min=8, m_max=28, ef_construction_base=100)
+    state.adaptive_index = AdaptiveHNSW(dim=32, policy_config=cfg)
+    state.adaptive_index.calibrate(data[:min(300, len(data))])
+    for v in data:
+        state.adaptive_index.insert(v)
+        
+    state.semantic_engine = SemanticSearchEngine()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_default_state()
+    yield
+
+app = FastAPI(title="AdaptiveVec API", version="1.0.0", description="Density- and Dimension-Aware HNSW Vector Index", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -99,28 +126,6 @@ def compute_pca_2d(vectors: np.ndarray) -> np.ndarray:
     if max_val > 1e-7:
         proj = proj / max_val
     return proj.astype(np.float32)
-
-@app.on_event("startup")
-def startup_event():
-    """Initializes default dataset and semantic search engine."""
-    data, queries, meta = load_or_generate_dataset("multi_manifold", n_samples=1500, dim=32, n_queries=30)
-    state.data = data
-    state.queries = queries
-    state.dataset_meta = meta
-    state.projection_2d = compute_pca_2d(data)
-    
-    # Build default indices
-    state.stock_index = StockHNSW(dim=32, m=16, ef_construction=100)
-    for v in data:
-        state.stock_index.insert(v)
-        
-    cfg = AdaptivePolicyConfig(policy_type="continuous", m_base=16, m_min=8, m_max=28, ef_construction_base=100)
-    state.adaptive_index = AdaptiveHNSW(dim=32, policy_config=cfg)
-    state.adaptive_index.calibrate(data[:min(300, len(data))])
-    for v in data:
-        state.adaptive_index.insert(v)
-        
-    state.semantic_engine = SemanticSearchEngine()
 
 @app.get("/api/status")
 def get_status():
