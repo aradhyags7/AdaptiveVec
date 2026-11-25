@@ -181,6 +181,9 @@ NumericalDimResult audit_dimension(size_t dim, std::mt19937& rng) {
     AdaptiveHNSWIndex test_idx(dim, SpaceType::L2, false);
     test_idx.batch_insert(data.data(), n_samples, 4);
     auto pdist = test_idx.allocate_mixed_precision(AllocationStrategy::CombinedSensitivity, 0.40);
+    if (pdist.n_fp32 + pdist.n_sq8 + pdist.n_sq4 != n_samples) {
+        res.descriptor_roundtrip_ok = false;
+    }
 
     for (size_t i = 0; i < n_samples; ++i) {
         std::vector<float> rec(dim);

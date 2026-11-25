@@ -5,6 +5,8 @@
  */
 
 #include "adaptive_hnsw.hpp"
+#include "budget_allocator.hpp"
+#include "auto_calibrator.hpp"
 #include <iostream>
 #include <vector>
 #include <random>
@@ -459,6 +461,7 @@ void test_phase2_1_numerical_correctness_gates() {
     std::vector<float> data(50 * 16, 0.5f);
     idx2.batch_insert(data.data(), 50, 2);
     auto pdist = idx2.allocate_mixed_precision(AllocationStrategy::UniformSQ8, 0.25);
+    TEST_ASSERT(pdist.n_sq8 == 50, "UniformSQ8 mixed precision allocation count mismatch");
     auto res = idx2.search(data.data(), 10, 16);
     TEST_ASSERT(res.size() == 10, "Search must return exactly k=10 results");
 }
@@ -503,6 +506,242 @@ void test_streaming_and_healing_after_fp32_purged() {
     TEST_ASSERT(index.num_elements == n_initial + n_stream - 1, "Element count mismatch after compaction");
 }
 
+void test_sq4_cosine_and_layer_dispatch() {
+    size_t dim = 21; // Non-multiple of 16 to exercise both AVX2 and scalar tail paths
+    size_t n = 120;
+    std::mt19937 rng(123);
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+    std::vector<float> data(n * dim);
+    for (auto& x : data) x = dist(rng);
+
+    PolicyConfig cfg;
+    cfg.enable_sq4 = true;
+    cfg.keep_raw_vectors = true;
+    cfg.enable_rerank = false;
+    AdaptiveHNSWIndex idx_cos(dim, SpaceType::Cosine, false, cfg);
+    idx_cos.train_quantizer(data.data(), n);
+    idx_cos.batch_insert(data.data(), n, 2);
+
+    // Check quantizer asymmetric_cosine_distance parity against decode + cosine_distance
+    std::vector<float> reconstructed(dim);
+    idx_cos.quantizer_sq4.decode(&idx_cos.quantized_data_sq4[0], reconstructed.data());
+    dist_t expected_cos = cosine_distance(&data[5 * dim], reconstructed.data(), dim);
+    dist_t actual_cos = idx_cos.quantizer_sq4.asymmetric_cosine_distance(&data[5 * dim], &idx_cos.quantized_data_sq4[0]);
+    TEST_ASSERT(std::abs(expected_cos - actual_cos) < 1e-5f, "SQ4 asymmetric_cosine_distance must match reconstructed cosine distance");
+
+    // Verify Cosine SQ4 search does not return L2^2 distances and finds self near the top
+    auto res = idx_cos.search(&data[7 * dim], 5, 32);
+    TEST_ASSERT(!res.empty(), "Cosine SQ4 search returned empty");
+    TEST_ASSERT(res[0].dist >= 0.0f && res[0].dist < 0.25f, "Cosine SQ4 distance out of cosine bounds");
+    bool found_self = false;
+    for (const auto& c : res) {
+        if (c.id == 7) found_self = true;
+    }
+    TEST_ASSERT(found_self, "Cosine SQ4 search failed to retrieve query vector itself");
+
+    // Verify eval_layer_distance_sq respects use_asym_sq8 when FP32 data is present (Config B)
+    PolicyConfig cfg_b;
+    cfg_b.enable_sq8 = true;
+    cfg_b.enable_rerank = true;
+    cfg_b.keep_raw_vectors = true;
+    AdaptiveHNSWIndex idx_b(dim, SpaceType::L2, false, cfg_b);
+    idx_b.train_quantizer(data.data(), 60);
+    idx_b.batch_insert(data.data(), 60, 1);
+    for (size_t i = 60; i < 80; ++i) {
+        idx_b.insert(&data[i * dim]);
+    }
+    dist_t exact_l2_sq = l2_sq_distance(&data[10 * dim], &data[3 * dim], dim);
+    dist_t fp32_eval = idx_b.eval_layer_distance_sq(&data[10 * dim], 3, false, false);
+    dist_t sq8_eval = idx_b.eval_layer_distance_sq(&data[10 * dim], 3, true, false);
+    dist_t expected_sq8_eval = idx_b.quantizer.asymmetric_l2_sq_distance(&data[10 * dim], &idx_b.quantized_data[3 * dim]);
+    TEST_ASSERT(std::abs(fp32_eval - exact_l2_sq) < 1e-5f, "use_asym_sq8=false must use FP32 when raw vectors exist");
+    TEST_ASSERT(std::abs(sq8_eval - expected_sq8_eval) < 1e-5f, "use_asym_sq8=true must use SQ8 ADC");
+}
+
+void test_incremental_multi_batch_insert() {
+    size_t dim = 16;
+    std::mt19937 rng(456);
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+    std::vector<float> data(600 * dim);
+    for (auto& x : data) x = dist(rng);
+
+    PolicyConfig cfg;
+    cfg.m_base = 8;
+    cfg.ef_c_base = 40;
+    AdaptiveHNSWIndex idx(dim, SpaceType::L2, true, cfg);
+
+    // Phase 1: 40 sequential inserts
+    for (size_t i = 0; i < 40; ++i) {
+        tableint id = idx.insert(&data[i * dim]);
+        TEST_ASSERT(id == (tableint)i, "Initial sequential insert ID mismatch");
+    }
+    // Phase 2: batch_insert crossing seed threshold (40 -> 280)
+    idx.batch_insert(&data[40 * dim], 240, 4);
+    TEST_ASSERT(idx.num_elements == 280, "num_elements mismatch after first batch_insert");
+    TEST_ASSERT(idx.data.size() == 280 * dim, "data size mismatch after first batch_insert");
+
+    // Phase 3: second batch_insert starting above 256 (280 -> 600)
+    idx.batch_insert(&data[280 * dim], 320, 4);
+    TEST_ASSERT(idx.num_elements == 600, "num_elements mismatch after second batch_insert");
+    TEST_ASSERT(idx.data.size() == 600 * dim, "data size mismatch after second batch_insert");
+
+    for (tableint probe : {(tableint)5, (tableint)150, (tableint)550}) {
+        auto res = idx.search(&data[probe * dim], 3, 64);
+        TEST_ASSERT(!res.empty() && res[0].id == probe, "Multi-batch incremental index failed exact self-lookup");
+    }
+
+    // Also test batch_insert when raw vectors are disabled (purged mode)
+    PolicyConfig cfg_no_raw;
+    cfg_no_raw.enable_sq8 = true;
+    cfg_no_raw.keep_raw_vectors = false;
+    AdaptiveHNSWIndex idx_no_raw(dim, SpaceType::L2, false, cfg_no_raw);
+    idx_no_raw.train_quantizer(data.data(), 100);
+    idx_no_raw.batch_insert(data.data(), 100, 4);
+    TEST_ASSERT(idx_no_raw.num_elements == 100, "Purged batch_insert count mismatch");
+    TEST_ASSERT(idx_no_raw.data.empty(), "Purged batch_insert must not allocate raw FP32 vectors");
+    auto res_no_raw = idx_no_raw.search(&data[25 * dim], 5, 32);
+    TEST_ASSERT(!res_no_raw.empty(), "Purged batch_insert search returned empty");
+}
+
+void test_concurrent_search_insert_delete_and_batch_search() {
+    size_t dim = 16;
+    size_t n_init = 300;
+    size_t n_extra = 200;
+    std::mt19937 rng(789);
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+    std::vector<float> init_data(n_init * dim);
+    std::vector<float> extra_data(n_extra * dim);
+    for (auto& x : init_data) x = dist(rng);
+    for (auto& x : extra_data) x = dist(rng);
+
+    AdaptiveHNSWIndex idx(dim, SpaceType::L2, true);
+    idx.batch_insert(init_data.data(), n_init, 4);
+
+    std::atomic<bool> stop_flag{false};
+    std::vector<std::thread> readers;
+    for (int t = 0; t < 3; ++t) {
+        readers.emplace_back([&, t]() {
+            size_t iter = 0;
+            while (!stop_flag.load(std::memory_order_relaxed)) {
+                const float* q = &init_data[((iter * 7 + t) % n_init) * dim];
+                auto r = idx.search(q, 5, 32);
+                for (const auto& c : r) {
+                    TEST_ASSERT(c.id < n_init + n_extra, "Concurrent search returned out-of-range ID");
+                }
+                if (iter % 4 == 0) {
+                    auto br = idx.batch_search(&init_data[0], 8, 5, 24, 2);
+                    TEST_ASSERT(br.size() == 8, "Concurrent batch_search result size mismatch");
+                }
+                iter++;
+            }
+        });
+    }
+
+    std::thread writer([&]() {
+        for (size_t i = 0; i < n_extra; ++i) {
+            idx.insert(&extra_data[i * dim]);
+            if (i % 5 == 0 && i < n_init) {
+                idx.delete_vector((tableint)(i / 2), true);
+            }
+            if (i == 50) {
+                // Force entry point deletion & safe migration under write lock
+                idx.delete_vector(idx.enter_point, true);
+            }
+        }
+        stop_flag.store(true, std::memory_order_relaxed);
+    });
+
+    writer.join();
+    for (auto& th : readers) th.join();
+
+    TEST_ASSERT(idx.num_elements == n_init + n_extra, "Final element count mismatch after concurrent workload");
+    auto post_res = idx.batch_search(&extra_data[0], 10, 5, 32, 2);
+    TEST_ASSERT(post_res.size() == 10, "Post-concurrency batch_search failed");
+}
+
+void test_section2_sla_gates_allocator_and_calibrator() {
+    // 1. Multi-round Hare-Niemeyer budget conservation & bounds throw
+    std::vector<double> cont = {8.9, 8.9, 8.1, 8.1};
+    auto disc = BudgetAllocator::largest_remainder_discretization(cont, 40, 8, 12);
+    long long disc_sum = 0;
+    for (int v : disc) {
+        TEST_ASSERT(v >= 8 && v <= 12, "Discretized degree out of bounds");
+        disc_sum += v;
+    }
+    TEST_ASSERT(disc_sum == 40, "Multi-round Hare-Niemeyer must conserve total budget 40");
+
+    bool threw_impossible = false;
+    try {
+        BudgetAllocator::largest_remainder_discretization(cont, 100, 8, 12);
+    } catch (const std::invalid_argument&) {
+        threw_impossible = true;
+    }
+    TEST_ASSERT(threw_impossible, "Impossible total budget must throw std::invalid_argument");
+
+    // 2. ServingIndexManager compressed-mode payload discipline & Gates 2 / 6
+    size_t dim = 16;
+    size_t n = 120;
+    std::mt19937 rng(909);
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+    std::vector<float> vecs(n * dim);
+    for (auto& x : vecs) x = dist(rng);
+
+    PolicyConfig cfg_sq8;
+    cfg_sq8.enable_sq8 = true;
+    cfg_sq8.enable_rerank = false;
+    cfg_sq8.keep_raw_vectors = false;
+    auto base_idx = std::make_shared<AdaptiveHNSWIndex>(dim, SpaceType::L2, false, cfg_sq8);
+    base_idx->train_quantizer(vecs.data(), n);
+    base_idx->batch_insert(vecs.data(), n, 2);
+
+    ServingIndexManager mgr(base_idx);
+    std::vector<float> extra(dim, 0.25f);
+    mgr.insert(1000, extra.data());
+    std::vector<float> recon(dim, 0.0f);
+    TEST_ASSERT(mgr.get_vector(1000, recon.data()), "ServingIndexManager get_vector must reconstruct when raw vectors disabled");
+    TEST_ASSERT(mgr.get_manager_overhead_bytes() < 64 * 1024, "Manager must not duplicate raw FP32 payloads when keep_raw_vectors=false");
+
+    // Test Gate 6 compaction loss rejection
+    std::vector<float> val_q(vecs.begin(), vecs.begin() + 20 * dim);
+    std::vector<std::vector<tableint>> val_gt(20);
+    for (size_t q = 0; q < 20; ++q) val_gt[q] = {(tableint)q};
+
+    std::shared_ptr<AdaptiveHNSWIndex> cand = base_idx->clone();
+    auto r_gate6 = mgr.evaluate_and_replace(
+        cand, val_q.data(), 20, val_gt,
+        0.5f, 100.0, 100.0f, 5, 32, 0, {}, {}, true, 0.0020, 1.05 // impossible baseline -> loss > 0.0020
+    );
+    TEST_ASSERT(r_gate6.status == ReplacementStatus::RejectedSlaViolation, "Gate 6 must reject excessive recall loss vs baseline");
+
+    // Test direct replacement without snapshot_seq syncs labels
+    auto cand_small = std::make_shared<AdaptiveHNSWIndex>(dim, SpaceType::L2, true);
+    cand_small->batch_insert(vecs.data(), 50, 2);
+    auto r_ok = mgr.evaluate_and_replace(cand_small, val_q.data(), 20, val_gt, 0.0f, 0.0, 100.0f, 5, 32);
+    TEST_ASSERT(r_ok.status == ReplacementStatus::Success, "Direct replacement should succeed");
+    TEST_ASSERT(mgr.get_active_label_count() == 50, "Direct replacement must synchronize label_to_id count");
+
+    // 3. AutoCalibrator default flags & max_construction_time_s enforcement
+    CalibrationConstraints c_fast_fail;
+    TEST_ASSERT(c_fast_fail.require_conservative_recall == true, "require_conservative_recall must default to true");
+    TEST_ASSERT(c_fast_fail.enable_adaptive_geometry == true, "enable_adaptive_geometry must default to true");
+    c_fast_fail.target_recall = 0.80f;
+    c_fast_fail.max_memory_mb = 50.0;
+    c_fast_fail.max_construction_time_s = 1e-9; // Force construction timeout gate
+    std::unique_ptr<AdaptiveHNSWIndex> cal_out = nullptr;
+    CalibrationReport rep_fail = AutoCalibrator::calibrate(
+        vecs.data(), n, dim, SpaceType::L2, val_q.data(), 20, val_gt, c_fast_fail, cal_out, "ConstructionTimeoutTest"
+    );
+    TEST_ASSERT(rep_fail.status == FeasibilityStatus::InfeasibleWithinSearchSpace, "Tiny construction budget must reject trials");
+    bool saw_construction_reject = false;
+    for (const auto& t : rep_fail.evaluated_trials) {
+        if (t.stage == "Construction" && t.rejection_reason.find("max_construction_time_s") != std::string::npos) {
+            saw_construction_reject = true;
+            break;
+        }
+    }
+    TEST_ASSERT(saw_construction_reject, "Expected Construction stage rejection citing max_construction_time_s");
+}
+
 int main() {
     std::cout << "=================================================================" << std::endl;
     std::cout << "          AdaptiveVec Phase 2 Native C++ Unit Test Suite         " << std::endl;
@@ -520,6 +759,10 @@ int main() {
     RUN_TEST(test_mixed_precision_storage_and_search);
     RUN_TEST(test_phase2_1_numerical_correctness_gates);
     RUN_TEST(test_streaming_and_healing_after_fp32_purged);
+    RUN_TEST(test_sq4_cosine_and_layer_dispatch);
+    RUN_TEST(test_incremental_multi_batch_insert);
+    RUN_TEST(test_concurrent_search_insert_delete_and_batch_search);
+    RUN_TEST(test_section2_sla_gates_allocator_and_calibrator);
 
     std::cout << "\n=================================================================" << std::endl;
     std::cout << " ALL " << g_tests_passed << "/" << g_tests_total << " PHASE 2 C++ TESTS PASSED SUCCESSFULLY!" << std::endl;

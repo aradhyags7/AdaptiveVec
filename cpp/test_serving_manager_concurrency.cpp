@@ -120,8 +120,7 @@ int main() {
 
         std::vector<std::thread> writers;
         for (int w = 0; w < 2; ++w) {
-            writers.emplace_back([&, w]() {
-                size_t id_counter = 1000 + w * 500;
+            writers.emplace_back([&]() {
                 while (running.load()) {
                     auto idx = manager.get_serving_index();
                     if (idx) {

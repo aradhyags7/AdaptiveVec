@@ -55,7 +55,7 @@ if(BUILD_BENCHMARKS)
     )
 endif()
 
-# Test Suite Target
+# Test Suite Targets
 if(BUILD_TESTS)
     enable_testing()
     add_executable(native_tests cpp/tests/test_main.cpp)
@@ -63,7 +63,30 @@ if(BUILD_TESTS)
     set_target_properties(native_tests PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cpp/tests
     )
-    add_test(NAME NativeTestSuite COMMAND native_tests)
+    add_test(NAME NativeTestSuite COMMAND native_tests WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+    set(ADDITIONAL_CPP_TESTS
+        test_auto_calibrator:cpp/tests/test_auto_calibrator.cpp
+        test_numerical_correctness:cpp/tests/test_numerical_correctness.cpp
+        test_runtime_safety:cpp/tests/test_runtime_safety.cpp
+        test_concurrent_mutation_preservation:cpp/test_concurrent_mutation_preservation.cpp
+        test_serving_manager_concurrency:cpp/test_serving_manager_concurrency.cpp
+        test_sq4_correctness:cpp/test_sq4_correctness.cpp
+    )
+    foreach(entry ${ADDITIONAL_CPP_TESTS})
+        string(REPLACE ":" ";" parts "${entry}")
+        list(GET parts 0 tgt_name)
+        list(GET parts 1 src_path)
+        add_executable(${tgt_name} ${src_path})
+        target_link_libraries(${tgt_name} PRIVATE adaptivevec_cpp)
+        if(WIN32)
+            target_link_libraries(${tgt_name} PRIVATE psapi)
+        endif()
+        set_target_properties(${tgt_name} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+        )
+        add_test(NAME ${tgt_name} COMMAND ${tgt_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    endforeach()
 endif()
 
 # pybind11 Python Module

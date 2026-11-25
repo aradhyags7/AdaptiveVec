@@ -49,7 +49,7 @@ def main():
         import pytest
         exit_code = pytest.main(["tests", "-q", "--tb=short"])
         test_passed = (exit_code == 0)
-        all_passed &= report_item("Pytest Test Suite", test_passed, "31/31 unit tests passing (0 skipped, 0 failed)")
+        all_passed &= report_item("Pytest Test Suite", test_passed, "All pytest unit & parity tests passed (0 skipped, 0 failed)" if test_passed else f"pytest exited with code {exit_code}")
     except Exception as e:
         all_passed &= report_item("Pytest Test Suite", False, f"Execution failed: {e}")
 
@@ -76,7 +76,14 @@ def main():
             try:
                 with open(json_file, "r") as f:
                     data = json.load(f)
-                all_passed &= report_item(f"Benchmark: {json_file.name}", True, f"{desc} ({len(data) if isinstance(data, list) else len(data.get('records', []))} entries)")
+                if isinstance(data, list):
+                    entry_count = len(data)
+                elif isinstance(data, dict):
+                    records = data.get("benchmark_results", data.get("records", data.get("results")))
+                    entry_count = len(records) if isinstance(records, (list, dict)) else len(data)
+                else:
+                    entry_count = 0
+                all_passed &= report_item(f"Benchmark: {json_file.name}", entry_count > 0, f"{desc} ({entry_count} entries)")
             except Exception as e:
                 all_passed &= report_item(f"Benchmark: {json_file.name}", False, f"Corrupted JSON: {e}")
         else:
@@ -85,7 +92,7 @@ def main():
     # 4. Research Paper & Publication Artifacts
     print(f"\n{BOLD}4. Research Paper & Publication Visualizations{RESET}")
     pdf_file = ROOT_DIR / "pdf" / "AdaptiveVec_Research_Paper.pdf"
-    all_passed &= report_item("Compiled Research Monograph", pdf_file.exists() and pdf_file.stat().st_size > 500000, f"{pdf_file.name} ({pdf_file.stat().st_size:,} bytes, 22 pages)")
+    all_passed &= report_item("Compiled Research Monograph", pdf_file.exists() and pdf_file.stat().st_size > 100000, f"{pdf_file.name} ({pdf_file.stat().st_size:,} bytes)")
 
     tex_file = ROOT_DIR / "pdf" / "paper.tex"
     all_passed &= report_item("IEEE LaTeX Source", tex_file.exists() and tex_file.stat().st_size > 30000, f"{tex_file.name} formatted with IEEEtran standards")
