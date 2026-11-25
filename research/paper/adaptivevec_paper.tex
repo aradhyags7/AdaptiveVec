@@ -137,7 +137,7 @@ In the actual C++ implementation (\texttt{cpp/budget\_allocator.hpp}), the combi
 \begin{equation}
 S_i = \alpha_{\text{lid}} \tilde{\text{ID}}_i + \beta_{\text{spars}} \tilde{\text{Spars}}_i
 \end{equation}
-with defaults $\alpha_{\text{lid}} = 0.7$ and $\beta_{\text{spars}} = 0.3$.
+with defaults $\alpha_{\text{lid}} = 0.5$ and $\beta_{\text{spars}} = 0.5$.
 
 \subsection{Continuous Degree Target Formulation}
 Standard HNSW assigns a static out-degree $M_{\text{base}}$ to every node on Layer 0. AdaptiveVec allocates dynamic out-degrees $M_i \in [M_{\min}, M_{\max}]$ proportional to geometric centrality. We compute exponential weights $w_i$ and continuous target degrees $\tilde{M}_i$:
