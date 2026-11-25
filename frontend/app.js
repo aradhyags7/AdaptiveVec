@@ -2247,15 +2247,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.fillStyle = "#fff";
         ctx.fillText(pt.label, px + 8, py + 3);
       });
-
-      adaptPts.forEach(pt => {
-        const x = padL + pt[0] * cW;
-        const y = padT + pt[1] * cH;
-        ctx.beginPath();
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = "#00e5ff";
-        ctx.fill();
-      });
     }
 
     // 2. Memory Scaling Chart

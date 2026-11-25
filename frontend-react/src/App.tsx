@@ -1,5 +1,6 @@
 import React from 'react';
-import { BenchmarkProvider, useBenchmark } from './context/BenchmarkContext';
+import { BenchmarkProvider } from './context/BenchmarkContext';
+import { useBenchmark } from './context/useBenchmark';
 import { IconRail } from './components/workbench/IconRail';
 import { StatusStrip } from './components/workbench/StatusStrip';
 import { SlideDrawer } from './components/workbench/SlideDrawer';

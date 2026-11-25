@@ -471,7 +471,7 @@ export const BenchmarksTab: React.FC = () => {
                 </h3>
               </div>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 2 }}>
-                Consistent speedups across Computer Vision (SIFT), NLP Embeddings (GloVe), Image Features (Fashion-MNIST), and Synthetic Multi-Clusters.
+                Consistent speedups across verified SIFT-100K and Synthetic Multi-Cluster datasets.
               </p>
             </div>
 

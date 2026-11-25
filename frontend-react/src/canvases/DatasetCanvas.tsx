@@ -1,6 +1,6 @@
 /* Corpus Registry & Dimensionality Matrix Stage */
 import React from 'react';
-import { useBenchmark } from '../context/BenchmarkContext';
+import { useBenchmark } from '../context/useBenchmark';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Transition } from 'framer-motion';
 import { CheckCircle2 } from 'lucide-react';

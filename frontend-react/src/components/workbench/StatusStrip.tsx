@@ -1,6 +1,6 @@
 /* Telemetry and Runtime Status Strip Component */
 import React from 'react';
-import { useBenchmark } from '../../context/BenchmarkContext';
+import { useBenchmark } from '../../context/useBenchmark';
 import styles from './StatusStrip.module.css';
 
 export const StatusStrip: React.FC = () => {

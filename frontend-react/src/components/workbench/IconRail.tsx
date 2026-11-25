@@ -1,6 +1,6 @@
 /* Precision Tool Rail with Physical Keyboard Shortcuts */
 import React from 'react';
-import { useBenchmark } from '../../context/BenchmarkContext';
+import { useBenchmark } from '../../context/useBenchmark';
 import type { CanvasType } from '../../types/benchmark';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { Transition } from 'framer-motion';

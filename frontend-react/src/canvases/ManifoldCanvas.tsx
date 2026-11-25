@@ -1,6 +1,6 @@
 /* 2D Manifold Graph Projection & Streaming Churn / Localized Healing Simulator */
 import React, { useState, useMemo } from 'react';
-import { useBenchmark } from '../context/BenchmarkContext';
+import { useBenchmark } from '../context/useBenchmark';
 import { Info, Trash2, Zap, RotateCcw } from 'lucide-react';
 import styles from './CanvasShared.module.css';
 

@@ -1,31 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { BenchmarkResult, CanvasType, DrawerType, ThemeMode, HardwareSpec } from '../types/benchmark';
+import React, { useState, useEffect, useCallback } from 'react';
+import type { BenchmarkResult, CanvasType, DrawerType, ThemeMode } from '../types/benchmark';
 import { REAL_TESTBED_HARDWARE } from '../types/benchmark';
 import benchmarkDataRaw from '../data/benchmark_results.json';
-
-interface BenchmarkContextType {
-  results: BenchmarkResult[];
-  siftResults: BenchmarkResult[];
-  syntheticResults: BenchmarkResult[];
-  step5AdaEf: BenchmarkResult | undefined;
-  step6Sq8: BenchmarkResult | undefined;
-  baselineHnsw: BenchmarkResult | undefined;
-  step4Hubness: BenchmarkResult | undefined;
-  activeCanvas: CanvasType;
-  setActiveCanvas: (canvas: CanvasType) => void;
-  activeDrawer: DrawerType;
-  setActiveDrawer: (drawer: DrawerType) => void;
-  toggleDrawer: (drawer: NonNullable<DrawerType>) => void;
-  closeDrawer: () => void;
-  theme: ThemeMode;
-  toggleTheme: () => void;
-  audioEnabled: boolean;
-  setAudioEnabled: (enabled: boolean) => void;
-  hardware: HardwareSpec;
-  serverStatus: 'online' | 'offline' | 'checking';
-}
-
-const BenchmarkContext = createContext<BenchmarkContextType | undefined>(undefined);
+import { BenchmarkContext } from './BenchmarkContextObject';
 
 export const BenchmarkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [results] = useState<BenchmarkResult[]>(benchmarkDataRaw.benchmark_results);
@@ -141,12 +118,4 @@ export const BenchmarkProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       {children}
     </BenchmarkContext.Provider>
   );
-};
-
-export const useBenchmark = (): BenchmarkContextType => {
-  const ctx = useContext(BenchmarkContext);
-  if (!ctx) {
-    throw new Error('useBenchmark must be used within a BenchmarkProvider');
-  }
-  return ctx;
 };
